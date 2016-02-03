@@ -70,12 +70,12 @@ public class TestRowOperators
         assertFunction("CAST(CAST(ROW(1, 2) AS ROW(a BIGINT, b BIGINT)) AS JSON)", JSON, "[1,2]");
         assertFunction("CAST(ROW(1, NULL) AS JSON)", JSON, "[1,null]");
         assertFunction("CAST(ROW(1, CAST(NULL AS INTEGER)) AS JSON)", JSON, "[1,null]");
-        assertFunction("CAST(ROW(1, 2.0) AS JSON)", JSON, "[1,2.0]");
-        assertFunction("CAST(ROW(1.0, 2.5) AS JSON)", JSON, "[1.0,2.5]");
-        assertFunction("CAST(ROW(1.0, 'kittens') AS JSON)", JSON, "[1.0,\"kittens\"]");
+        assertFunction("CAST(ROW(1, CAST(2.0 as DOUBLE)) AS JSON)", JSON, "[1,2.0]");
+        assertFunction("CAST(ROW(CAST(1.0 as DOUBLE), CAST(2.5 as DOUBLE)) AS JSON)", JSON, "[1.0,2.5]");
+        assertFunction("CAST(ROW(CAST(1.0 as DOUBLE), 'kittens') AS JSON)", JSON, "[1.0,\"kittens\"]");
         assertFunction("CAST(ROW(TRUE, FALSE) AS JSON)", JSON, "[true,false]");
         assertFunction("CAST(ROW(from_unixtime(1)) AS JSON)", JSON, "[\"" + new SqlTimestamp(1000, TEST_SESSION.getTimeZoneKey()) + "\"]");
-        assertFunction("CAST(ROW(FALSE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0])) AS JSON)", JSON, "[false,[1,2],{\"1\":2.0,\"3\":4.0}]");
+        assertFunction("CAST(ROW(FALSE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)])) AS JSON)", JSON, "[false,[1,2],{\"1\":2.0,\"3\":4.0}]");
     }
 
     @Test
@@ -174,16 +174,16 @@ public class TestRowOperators
         assertInvalidFunction("cast(row(cast(cast ('' as varbinary) as hyperloglog)) as row(col0 hyperloglog)) > cast(row(cast(cast ('' as varbinary) as hyperloglog)) as row(col0 hyperloglog))",
                 SemanticErrorCode.TYPE_MISMATCH, "line 1:81: '>' cannot be applied to row(col0 HyperLogLog), row(col0 HyperLogLog)");
 
-        assertFunction("row(TRUE, ARRAY [1], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0])) = row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0]))", BOOLEAN, false);
-        assertFunction("row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0])) = row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0]))", BOOLEAN, true);
+        assertFunction("row(TRUE, ARRAY [1], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)])) = row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)]))", BOOLEAN, false);
+        assertFunction("row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)])) = row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)]))", BOOLEAN, true);
 
         assertInvalidFunction("row(1, CAST(NULL AS INTEGER)) = row(1, 2)", StandardErrorCode.NOT_SUPPORTED);
-        assertInvalidFunction("row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0])) > row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[2.0, 4.0]))",
-                SemanticErrorCode.TYPE_MISMATCH, "line 1:60: '>' cannot be applied to row(field0 boolean,field1 array(integer),field2 map(integer,double)), row(field0 boolean,field1 array(integer),field2 map(integer,double))");
+        assertInvalidFunction("row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[DOUBLE '2.0', DOUBLE '4.0'])) > row(TRUE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[DOUBLE '2.0', DOUBLE '4.0']))",
+                SemanticErrorCode.TYPE_MISMATCH, "line 1:78: '>' cannot be applied to row(field0 boolean,field1 array(integer),field2 map(integer,double)), row(field0 boolean,field1 array(integer),field2 map(integer,double))");
 
         assertInvalidFunction("row(1, CAST(NULL AS INTEGER)) < row(1, 2)", StandardErrorCode.NOT_SUPPORTED);
 
-        assertComparisonCombination("row(1.0, ARRAY [1,2,3], row(2,2.0))", "row(1.0, ARRAY [1,3,3], row(2,2.0))");
+        assertComparisonCombination("row(1.0, ARRAY [1,2,3], row(2, DOUBLE '2.0'))", "row(1.0, ARRAY [1,3,3], row(2, DOUBLE '2.0'))");
         assertComparisonCombination("row(TRUE, ARRAY [1])", "row(TRUE, ARRAY [1, 2])");
         assertComparisonCombination("ROW(1, 2)", "ROW(2, 1)");
     }

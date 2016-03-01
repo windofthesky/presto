@@ -69,7 +69,9 @@ public class TestFeaturesConfig
                 .setMemoryRevokingTarget(0.5)
                 .setExchangeCompressionEnabled(false)
                 .setPushAggregationThroughJoin(true)
-                .setSmallTableCoefficient(0.01));
+                .setSmallTableCoefficient(0.01)
+                .setExchangeCompressionEnabled(false)
+                .setParseDecimalLiteralsAsDouble(false));
     }
 
     @Test
@@ -109,6 +111,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("small-table-coefficient", "0.2")
+                .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
@@ -144,6 +147,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("small-table-coefficient", "0.2")
+                .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -179,7 +183,9 @@ public class TestFeaturesConfig
                 .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8)
                 .setExchangeCompressionEnabled(true)
-                .setSmallTableCoefficient(0.2);
+                .setSmallTableCoefficient(0.2)
+                .setExchangeCompressionEnabled(true)
+                .setParseDecimalLiteralsAsDouble(true);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

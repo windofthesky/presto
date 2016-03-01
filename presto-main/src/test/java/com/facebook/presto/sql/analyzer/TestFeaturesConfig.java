@@ -67,7 +67,8 @@ public class TestFeaturesConfig
                 .setExchangeCompressionEnabled(false)
                 .setEnableIntermediateAggregations(false)
                 .setMemoryRevokingThreshold(0.9)
-                .setMemoryRevokingTarget(0.5));
+                .setMemoryRevokingTarget(0.5)
+                .setParseDecimalLiteralsAsDouble(false));
     }
 
     @Test
@@ -107,6 +108,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
+                .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("cpu-cost-weight", "0.4")
@@ -142,6 +144,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
+                .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -177,7 +180,8 @@ public class TestFeaturesConfig
                 .setExchangeCompressionEnabled(true)
                 .setEnableIntermediateAggregations(true)
                 .setMemoryRevokingThreshold(0.2)
-                .setMemoryRevokingTarget(0.8);
+                .setMemoryRevokingTarget(0.8)
+                .setParseDecimalLiteralsAsDouble(true);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

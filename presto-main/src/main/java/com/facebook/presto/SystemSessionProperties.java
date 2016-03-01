@@ -72,6 +72,7 @@ public final class SystemSessionProperties
     public static final String ITERATIVE_OPTIMIZER_TIMEOUT = "iterative_optimizer_timeout";
     public static final String EXCHANGE_COMPRESSION = "exchange_compression";
     public static final String ENABLE_INTERMEDIATE_AGGREGATIONS = "enable_intermediate_aggregations";
+    public static final String PARSE_DECIMAL_LITERALS_AS_DOUBLE = "deprecated_parse_decimal_literals_as_double";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -311,6 +312,11 @@ public final class SystemSessionProperties
                         ENABLE_INTERMEDIATE_AGGREGATIONS,
                         "Enable the use of intermediate aggregations",
                         featuresConfig.isEnableIntermediateAggregations(),
+                        false),
+                booleanSessionProperty(
+                        PARSE_DECIMAL_LITERALS_AS_DOUBLE,
+                        "Parse decimal literals as DOUBLE instead of DECIMAL",
+                        featuresConfig.isParseDecimalLiteralsAsDouble(),
                         false));
     }
 
@@ -481,5 +487,10 @@ public final class SystemSessionProperties
     public static boolean isEnableIntermediateAggregations(Session session)
     {
         return session.getSystemProperty(ENABLE_INTERMEDIATE_AGGREGATIONS, Boolean.class);
+    }
+
+    public static boolean isParseDecimalLiteralsAsDouble(Session session)
+    {
+        return session.getSystemProperty(PARSE_DECIMAL_LITERALS_AS_DOUBLE, Boolean.class);
     }
 }

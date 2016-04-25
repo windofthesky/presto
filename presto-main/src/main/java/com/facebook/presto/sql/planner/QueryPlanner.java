@@ -313,6 +313,7 @@ class QueryPlanner
 
         // rewrite expressions which contain already handled subqueries
         predicate = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis.getParameters(), analysis), predicate);
+        // Expression rewritten = predicate;
         Expression rewrittenBeforeSubqueries = subPlan.rewrite(predicate);
         subPlan = subqueryPlanner.handleSubqueries(subPlan, rewrittenBeforeSubqueries, node);
         predicate = ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis.getParameters(), analysis), predicate);
@@ -600,12 +601,64 @@ class QueryPlanner
         if (needPostProjectionCoercion) {
             return explicitCoercionFields(subPlan, distinctGroupingColumns, analysis.getAggregates(node));
         }
+
+        // 4. Project and re-write all grouping functions
+        subPlan = handleGroupingFunctions(subPlan, analysis.getGroupingOperations(node), node, groupIdSymbol);
+
         return subPlan;
     }
 
     private PlanBuilder window(PlanBuilder subPlan, OrderBy node)
     {
         return window(subPlan, ImmutableList.copyOf(analysis.getOrderByWindowFunctions(node)));
+    }
+
+    private PlanBuilder handleGroupingFunctions(PlanBuilder subPlan, List<Expression> groupingOperations, QuerySpecification node, Optional<Symbol> groupIdSymbol)
+    {
+        if (groupingOperations.isEmpty()) {
+            return subPlan;
+        }
+
+        TranslationMap translations = subPlan.copyTranslations();
+
+        Assignments.Builder projections = Assignments.builder();
+
+        // Add an identity projection for the underlying plan
+        for (Symbol symbol : subPlan.getRoot().getOutputSymbols()) {
+            projections.put(symbol, symbol.toSymbolReference());
+        }
+
+        ImmutableMap.Builder<Symbol, Expression> newTranslations = ImmutableMap.builder();
+        for (Expression expression : groupingOperations) {
+            ImmutableList.Builder<Expression> toRewrite = ImmutableList.builder();
+            if (expression instanceof FunctionCall && ((FunctionCall) expression).getWindow().isPresent()) {
+                // Deconstruct window functions to individual parts and re-write them. The window() method will
+                // then appropriately re-write the window function inputs to make use of these output symbols.
+                FunctionCall windowFunction = (FunctionCall) expression;
+                Window window = windowFunction.getWindow().get();
+                toRewrite.addAll(windowFunction.getArguments())
+                        .addAll(window.getPartitionBy())
+                        .addAll(Iterables.transform(window.getOrderBy(), SortItem::getSortKey));
+            }
+            else {
+                toRewrite.add(expression);
+            }
+
+            for (Expression toBeRewritten : toRewrite.build()) {
+                Expression rewritten = ExpressionTreeRewriter.rewriteWith(new GroupingOperationRewriter(node, analysis, metadata, groupIdSymbol), toBeRewritten);
+                translations.addIntermediateMapping(toBeRewritten, rewritten);
+                Symbol symbol = symbolAllocator.newSymbol(rewritten, analysis.getTypeWithCoercions(toBeRewritten));
+                projections.put(symbol, translations.rewrite(rewritten));
+                newTranslations.put(symbol, toBeRewritten);
+            }
+        }
+
+        // Now append the new translations into the TranslationMap
+        for (Map.Entry<Symbol, Expression> entry : newTranslations.build().entrySet()) {
+            translations.put(entry.getValue(), entry.getKey());
+        }
+
+        return new PlanBuilder(translations, new ProjectNode(idAllocator.getNextId(), subPlan.getRoot(), projections.build()), analysis.getParameters());
     }
 
     private PlanBuilder window(PlanBuilder subPlan, QuerySpecification node)

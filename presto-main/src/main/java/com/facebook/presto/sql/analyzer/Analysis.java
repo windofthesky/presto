@@ -98,6 +98,8 @@ public class Analysis
 
     private final IdentityLinkedHashMap<SampledRelation, Double> sampleRatios = new IdentityLinkedHashMap<>();
 
+    private final IdentityLinkedHashMap<QuerySpecification, List<Expression>> groupingOperations = new IdentityLinkedHashMap<>();
+
     // for create table
     private Optional<QualifiedObjectName> createTableDestination = Optional.empty();
     private Map<String, Expression> createTableProperties = ImmutableMap.of();
@@ -415,6 +417,11 @@ public class Analysis
         functionSignature.putAll(infos);
     }
 
+    public void addFunctionSignature(FunctionCall functionCall, Signature signature)
+    {
+        this.functionSignature.put(functionCall, signature);
+    }
+
     public Set<Expression> getColumnReferences()
     {
         return unmodifiableSet(columnReferences.keySet());
@@ -526,6 +533,16 @@ public class Analysis
     {
         Preconditions.checkState(sampleRatios.containsKey(relation), "Sample ratio missing for %s. Broken analysis?", relation);
         return sampleRatios.get(relation);
+    }
+
+    public void setGroupingOperations(QuerySpecification querySpecification, List<Expression> groupingOperations)
+    {
+        this.groupingOperations.put(querySpecification, groupingOperations);
+    }
+
+    public List<Expression> getGroupingOperations(QuerySpecification querySpecification)
+    {
+        return groupingOperations.get(querySpecification);
     }
 
     public List<Expression> getParameters()

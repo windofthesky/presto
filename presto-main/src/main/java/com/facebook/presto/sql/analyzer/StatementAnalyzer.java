@@ -149,6 +149,7 @@ import static com.facebook.presto.sql.analyzer.SemanticErrorCode.COLUMN_TYPE_UNK
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.DUPLICATE_COLUMN_NAME;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.DUPLICATE_RELATION;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.INVALID_ORDINAL;
+import static com.facebook.presto.sql.analyzer.SemanticErrorCode.INVALID_PROCEDURE_ARGUMENTS;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.INVALID_WINDOW_FRAME;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.MISMATCHED_COLUMN_ALIASES;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.MISMATCHED_SET_COLUMN_TYPES;
@@ -875,6 +876,11 @@ class StatementAnalyzer
             sourceExpressions.addAll(outputExpressions);
             node.getHaving().ifPresent(sourceExpressions::add);
 
+            List<Expression> expressions = new ArrayList<>();
+            expressions.addAll(sourceExpressions);
+            expressions.addAll(orderByExpressions);
+            analyzeGroupingFunctions(node, expressions);
+
             List<FunctionCall> aggregations = analyzeAggregations(node, sourceScope, orderByScope, groupByExpressions, sourceExpressions, orderByExpressions);
             analyzeWindowFunctions(node, outputExpressions, orderByExpressions);
 
@@ -919,6 +925,7 @@ class StatementAnalyzer
             expressions.addAll(orderByExpressions);
             node.getHaving().ifPresent(expressions::add);
 
+            analyzeGroupingFunctions(node, expressions);
             analyzeAggregations(node, sourceScope, Optional.empty(), groupByExpressions, expressions, emptyList());
             analysis.setWindowFunctions(node, analyzeWindowFunctions(node, expressions));
 
@@ -1066,7 +1073,7 @@ class StatementAnalyzer
                     analysis.addCoercion(expression, BOOLEAN, false);
                 }
 
-                Analyzer.verifyNoAggregatesOrWindowFunctions(metadata.getFunctionRegistry(), expression, "JOIN clause");
+                Analyzer.verifyNoAggregateWindowOrGroupingFunctions(metadata.getFunctionRegistry(), expression, "JOIN clause");
 
                 Set<Expression> postJoinConjuncts = new HashSet<>();
 
@@ -1547,7 +1554,7 @@ class StatementAnalyzer
                     groupByExpression = groupingColumn;
                 }
 
-                Analyzer.verifyNoAggregatesOrWindowFunctions(metadata.getFunctionRegistry(), groupByExpression, "GROUP BY clause");
+                Analyzer.verifyNoAggregateWindowOrGroupingFunctions(metadata.getFunctionRegistry(), groupByExpression, "GROUP BY clause");
                 Type type = analysis.getType(groupByExpression);
                 if (!type.isComparable()) {
                     throw new SemanticException(TYPE_MISMATCH, node, "%s is not comparable, and therefore cannot be used in GROUP BY", type);
@@ -1709,7 +1716,7 @@ class StatementAnalyzer
 
         public void analyzeWhere(Node node, Scope scope, Expression predicate)
         {
-            Analyzer.verifyNoAggregatesOrWindowFunctions(metadata.getFunctionRegistry(), predicate, "WHERE clause");
+            Analyzer.verifyNoAggregateWindowOrGroupingFunctions(metadata.getFunctionRegistry(), predicate, "WHERE clause");
 
             ExpressionAnalysis expressionAnalysis = analyzeExpression(predicate, scope);
             analysis.recordSubqueries(node, expressionAnalysis);
@@ -1733,6 +1740,27 @@ class StatementAnalyzer
             }
 
             return createScope(scope);
+        }
+
+        private void analyzeGroupingFunctions(QuerySpecification node, List<Expression> expressions)
+        {
+            boolean isGroupingOperationPresent = expressions.stream()
+                    .anyMatch(GroupingOperationAnalyzer::containsGroupingOperation);
+
+            if (isGroupingOperationPresent && !node.getGroupBy().isPresent()) {
+                throw new SemanticException(
+                        INVALID_PROCEDURE_ARGUMENTS,
+                        node,
+                        "A GROUPING() operation can only be used with a corresponding GROUPING SET/CUBE/ROLLUP/GROUP BY clause");
+            }
+
+            analysis.setGroupingOperations(
+                    node,
+                    expressions.stream()
+                            .filter(GroupingOperationAnalyzer::containsGroupingOperation)
+                            .map(Expression.class::cast)
+                            .collect(toImmutableList())
+            );
         }
 
         private List<FunctionCall> analyzeAggregations(

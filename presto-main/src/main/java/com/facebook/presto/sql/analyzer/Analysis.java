@@ -21,6 +21,7 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.tree.ExistsPredicate;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.GroupingOperation;
 import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.InPredicate;
 import com.facebook.presto.sql.tree.Join;
@@ -56,6 +57,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
@@ -100,6 +102,8 @@ public class Analysis
     private final Map<Field, ColumnHandle> columns = new LinkedHashMap<>();
 
     private final Map<NodeRef<SampledRelation>, Double> sampleRatios = new LinkedHashMap<>();
+
+    private final Map<NodeRef<QuerySpecification>, List<GroupingOperation>> groupingOperations = new LinkedHashMap<>();
 
     // for create table
     private Optional<QualifiedObjectName> createTableDestination = Optional.empty();
@@ -540,6 +544,22 @@ public class Analysis
         NodeRef<SampledRelation> key = NodeRef.of(relation);
         checkState(sampleRatios.containsKey(key), "Sample ratio missing for %s. Broken analysis?", relation);
         return sampleRatios.get(key);
+    }
+
+    public void setGroupingOperations(QuerySpecification querySpecification, List<GroupingOperation> groupingOperations)
+    {
+        this.groupingOperations.put(NodeRef.of(querySpecification), groupingOperations);
+    }
+
+    public List<GroupingOperation> getGroupingOperations(QuerySpecification querySpecification)
+    {
+        NodeRef<QuerySpecification> key = NodeRef.of(querySpecification);
+        if (groupingOperations.containsKey(key)) {
+            return unmodifiableList(groupingOperations.get(key));
+        }
+        else {
+            return emptyList();
+        }
     }
 
     public List<Expression> getParameters()

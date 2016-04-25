@@ -36,13 +36,16 @@ import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.GroupingOperation;
 import com.facebook.presto.sql.tree.NodeRef;
 import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableList;
 
 import java.util.Map;
 import java.util.Optional;
 
 import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.getExpressionTypes;
+import static com.facebook.presto.sql.analyzer.ExpressionTreeUtils.extractExpressionsOfType;
 import static com.facebook.presto.sql.planner.ExpressionExtractor.extractExpressionsNonRecursive;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -194,6 +197,8 @@ public class DesugaringOptimizer
 
         private Expression desugar(Expression expression)
         {
+            checkState(extractExpressionsOfType(ImmutableList.of(expression), GroupingOperation.class).isEmpty(), "GroupingOperation should have been re-written to a FunctionCall before execution");
+
             if (expression instanceof SymbolReference) {
                 return expression;
             }

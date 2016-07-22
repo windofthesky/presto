@@ -410,6 +410,23 @@ public class HashAggregationOperator
     }
 
     @Override
+    public ListenableFuture<?> startMemoryRevoke()
+    {
+        if (aggregationBuilder != null) {
+            return aggregationBuilder.startMemoryRevoke();
+        }
+        return NOT_BLOCKED;
+    }
+
+    @Override
+    public void finishMemoryRevoke()
+    {
+        if (aggregationBuilder != null) {
+            aggregationBuilder.finishMemoryRevoke();
+        }
+    }
+
+    @Override
     public Page getOutput()
     {
         if (finished) {

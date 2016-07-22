@@ -176,6 +176,17 @@ public class InMemoryHashAggregationBuilder
         return NOT_BLOCKED;
     }
 
+    @Override
+    public ListenableFuture<?> startMemoryRevoke()
+    {
+        return null;
+    }
+
+    @Override
+    public void finishMemoryRevoke()
+    {
+    }
+
     public long getSizeInMemory()
     {
         long sizeInMemory = groupByHash.getEstimatedSize();

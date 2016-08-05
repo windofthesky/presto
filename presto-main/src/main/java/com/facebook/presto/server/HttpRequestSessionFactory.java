@@ -89,7 +89,7 @@ final class HttpRequestSessionFactory
     private final boolean clientTransactionSupport;
     private final String clientInfo;
 
-    public HttpRequestSessionFactory(HttpServletRequest servletRequest)
+    public HttpRequestSessionFactory(HttpServletRequest servletRequest, Map<String, String> additionalPreparedStatements)
             throws WebApplicationException
     {
         catalog = trimEmptyToNull(servletRequest.getHeader(PRESTO_CATALOG));
@@ -143,6 +143,7 @@ final class HttpRequestSessionFactory
         this.roles = parseRoleHeaders(servletRequest);
 
         preparedStatements = parsePreparedStatementsHeaders(servletRequest);
+        preparedStatements.putAll(additionalPreparedStatements);
 
         String transactionIdHeader = servletRequest.getHeader(PRESTO_TRANSACTION_ID);
         clientTransactionSupport = transactionIdHeader != null;

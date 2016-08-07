@@ -45,10 +45,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.facebook.presto.client.PrestoHeaders.PRESTO_ADDED_PREPARE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_TRANSACTION_ID;
-import static com.facebook.presto.client.PrestoHeaders.PRESTO_DEALLOCATED_PREPARE;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT_IN_BODY;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_ROLE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_STARTED_TRANSACTION_ID;
@@ -262,6 +261,7 @@ public class StatementClient
     {
         builder.setHeader(PrestoHeaders.PRESTO_USER, session.getUser());
         builder.setHeader(USER_AGENT, USER_AGENT_VALUE)
+                .setHeader(PRESTO_PREPARED_STATEMENT_IN_BODY, "true")
                 .setUri(nextUri);
 
         return builder;
@@ -344,17 +344,6 @@ public class StatementClient
             setRoles.put(keyValue.get(0), SelectedRole.valueOf(urlDecode(keyValue.get(1))));
         }
 
-        for (String entry : response.getHeaders(PRESTO_ADDED_PREPARE)) {
-            List<String> keyValue = SESSION_HEADER_SPLITTER.splitToList(entry);
-            if (keyValue.size() != 2) {
-                continue;
-            }
-            addedPreparedStatements.put(urlDecode(keyValue.get(0)), urlDecode(keyValue.get(1)));
-        }
-        for (String entry : response.getHeaders(PRESTO_DEALLOCATED_PREPARE)) {
-            deallocatedPreparedStatements.add(urlDecode(entry));
-        }
-
         String startedTransactionId = response.getHeader(PRESTO_STARTED_TRANSACTION_ID);
         if (startedTransactionId != null) {
             this.startedtransactionId.set(startedTransactionId);
@@ -363,7 +352,12 @@ public class StatementClient
             clearTransactionId.set(true);
         }
 
-        currentResults.set(response.getValue());
+        QueryResults queryResults = response.getValue();
+
+        this.addedPreparedStatements.putAll(queryResults.getAddedPreparedStatements());
+        this.deallocatedPreparedStatements.addAll(queryResults.getDeallocatedPreparedStatements());
+
+        currentResults.set(queryResults);
     }
 
     private RuntimeException requestFailedException(String task, Request request, JsonResponse<QueryResults> response)

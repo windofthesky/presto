@@ -74,7 +74,8 @@ public class OperatorContext
     private final CounterStat outputDataSize = new CounterStat();
     private final CounterStat outputPositions = new CounterStat();
 
-    private final AtomicReference<SettableFuture<?>> memoryFuture = new AtomicReference<>();
+    private final AtomicReference<SettableFuture<?>> memoryFuture;
+    private final AtomicReference<SettableFuture<?>> revocableMemoryFuture;
     private final AtomicReference<BlockedMonitor> blockedMonitor = new AtomicReference<>();
     private final AtomicLong blockedWallNanos = new AtomicLong();
 
@@ -84,6 +85,7 @@ public class OperatorContext
     private final AtomicLong finishUserNanos = new AtomicLong();
 
     private final AtomicLong memoryReservation = new AtomicLong();
+    private final AtomicLong revocableMemoryReservation = new AtomicLong();
     private final OperatorSystemMemoryContext systemMemoryContext;
     private final SpillContext spillContext;
 
@@ -100,9 +102,11 @@ public class OperatorContext
         this.systemMemoryContext = new OperatorSystemMemoryContext(this.driverContext);
         this.spillContext = new OperatorSpillContext(this.driverContext);
         this.executor = requireNonNull(executor, "executor is null");
-        SettableFuture<Object> future = SettableFuture.create();
-        future.set(null);
-        this.memoryFuture.set(future);
+
+        this.memoryFuture = new AtomicReference<>(SettableFuture.create());
+        this.memoryFuture.get().set(null);
+        this.revocableMemoryFuture = new AtomicReference<>(SettableFuture.create());
+        this.revocableMemoryFuture.get().set(null);
 
         collectTimings = driverContext.isVerboseStats() && driverContext.isCpuTimerEnabled();
     }
@@ -222,6 +226,12 @@ public class OperatorContext
         memoryReservation.addAndGet(bytes);
     }
 
+    public void reserveRevocableMemory(long bytes)
+    {
+        updateMemoryFuture(driverContext.reserveRevocableMemory(bytes), revocableMemoryFuture);
+        revocableMemoryReservation.addAndGet(bytes);
+    }
+
     private static void updateMemoryFuture(ListenableFuture<?> memoryPoolFuture, AtomicReference<SettableFuture<?>> targetFutureReference)
     {
         if (!memoryPoolFuture.isDone()) {
@@ -254,6 +264,28 @@ public class OperatorContext
                 }
             });
         }
+    }
+
+    public void setRevocableMemoryReservation(long newRevocableMemoryReservation)
+    {
+        checkArgument(newRevocableMemoryReservation >= 0, "newRevocableMemoryReservation is negative");
+
+        long delta = newRevocableMemoryReservation - revocableMemoryReservation.get();
+
+        if (delta > 0) {
+            reserveRevocableMemory(delta);
+        }
+        else {
+            freeRevocableMemory(-delta);
+        }
+    }
+
+    public void freeRevocableMemory(long bytes)
+    {
+        checkArgument(bytes >= 0, "bytes is negative");
+        checkArgument(bytes <= revocableMemoryReservation.get(), "tried to free more revocable memory than is reserved");
+        driverContext.freeRevocableMemory(bytes);
+        revocableMemoryReservation.getAndAdd(-bytes);
     }
 
     public void freeMemory(long bytes)
@@ -401,6 +433,7 @@ public class OperatorContext
                 new Duration(finishUserNanos.get(), NANOSECONDS).convertToMostSuccinctTimeUnit(),
 
                 succinctBytes(memoryReservation.get()),
+                succinctBytes(revocableMemoryReservation.get()),
                 succinctBytes(systemMemoryContext.getReservedBytes()),
                 memoryFuture.get().isDone() ? Optional.empty() : Optional.of(WAITING_FOR_MEMORY),
                 info);

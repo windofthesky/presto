@@ -44,7 +44,7 @@ public final class LookupJoiner
 
     public LookupJoiner(
             List<Type> types,
-            ListenableFuture<LookupSource> lookupSourceFuture,
+            ListenableFuture<? extends LookupSource> lookupSourceFuture,
             JoinProbeFactory joinProbeFactory,
             boolean probeOnOuterSide)
     {

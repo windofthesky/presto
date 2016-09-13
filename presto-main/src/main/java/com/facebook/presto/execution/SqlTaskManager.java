@@ -87,6 +87,7 @@ public class SqlTaskManager
     private final Duration clientTimeout;
 
     private final LocalMemoryManager localMemoryManager;
+    private final MemoryRevokingScheduler memoryRevokingScheduler;
     private final LoadingCache<QueryId, QueryContext> queryContexts;
     private final LoadingCache<TaskId, SqlTask> tasks;
 
@@ -106,6 +107,7 @@ public class SqlTaskManager
             QueryMonitor queryMonitor,
             NodeInfo nodeInfo,
             LocalMemoryManager localMemoryManager,
+            MemoryRevokingScheduler memoryRevokingScheduler,
             TaskManagerConfig config,
             NodeMemoryConfig nodeMemoryConfig,
             LocalSpillManager localSpillManager,
@@ -130,6 +132,8 @@ public class SqlTaskManager
         DataSize maxQueryMemoryPerNode = nodeMemoryConfig.getMaxQueryMemoryPerNode();
 
         DataSize maxQuerySpillPerNode = nodeSpillConfig.getQueryMaxSpillPerNode();
+
+        this.memoryRevokingScheduler = requireNonNull(memoryRevokingScheduler, "memoryRevokingScheduler can not be null");
 
         queryContexts = CacheBuilder.newBuilder().weakValues().build(new CacheLoader<QueryId, QueryContext>()
         {
@@ -210,6 +214,15 @@ public class SqlTaskManager
             }
             catch (Throwable e) {
                 log.warn(e, "Error updating stats");
+            }
+        }, 0, 1, TimeUnit.SECONDS);
+
+        taskManagementExecutor.scheduleWithFixedDelay(() -> {
+            try {
+                memoryRevokingScheduler.requestMemoryRevokingIfNeeded(tasks.asMap().values());
+            }
+            catch (Throwable e) {
+                log.warn(e, "Error requesting memory revoking");
             }
         }, 0, 1, TimeUnit.SECONDS);
     }

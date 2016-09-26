@@ -423,6 +423,11 @@ public class OperatorContext
         memoryRevokingRequestedFuture = SettableFuture.create();
     }
 
+    public synchronized SettableFuture<?> getMemoryRevokingRequestedFuture()
+    {
+        return memoryRevokingRequestedFuture;
+    }
+
     public void setInfoSupplier(Supplier<OperatorInfo> infoSupplier)
     {
         requireNonNull(infoSupplier, "infoProvider is null");

@@ -24,3 +24,4 @@ from different data sources.
     connector/sqlserver
     connector/system
     connector/tpch
+    connector/tpcds

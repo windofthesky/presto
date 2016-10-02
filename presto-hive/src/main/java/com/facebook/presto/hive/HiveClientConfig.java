@@ -108,6 +108,7 @@ public class HiveClientConfig
     private boolean hdfsImpersonationEnabled;
     private String hdfsPrestoPrincipal;
     private String hdfsPrestoKeytab;
+    private boolean multiFileBucketingEnabled = false;
 
     private boolean skipDeletionForAlter;
 
@@ -899,5 +900,18 @@ public class HiveClientConfig
     public boolean isCreateNonManagedTableEnabled()
     {
         return createNonManagedTableEnabled;
+    }
+
+    public boolean isMultiFileBucketingEnabled()
+    {
+        return multiFileBucketingEnabled;
+    }
+
+    @Config("hive.multi-file-bucketing.enabled")
+    @ConfigDescription("Allow multiple files per bucket for clustered table")
+    public HiveClientConfig setMultiFileBucketingEnabled(boolean multiFileBucketingEnabled)
+    {
+        this.multiFileBucketingEnabled = multiFileBucketingEnabled;
+        return this;
     }
 }

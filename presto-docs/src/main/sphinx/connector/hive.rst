@@ -166,6 +166,9 @@ Property Name                                      Description                  
                                                    See :ref:`hive-file-based-authorization` for details.
 
 ``hive.non-managed-table-writes-enabled``          Enable writes to non-managed (external) Hive tables.         ``false``
+
+``hive.multi-file-bucketing.enabled``              Enable support for multiple files per bucket for Hive        ``false``
+                                                   clustered tables. See :ref:`clustered-tables`
 ================================================== ============================================================ ==========
 
 Amazon S3 Configuration

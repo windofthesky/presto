@@ -139,6 +139,7 @@ public class ScalarAggregationToJoinRewriter
                         .build(),
                 joinExpression,
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
 
         Optional<AggregationNode> aggregationNode = createAggregationNode(

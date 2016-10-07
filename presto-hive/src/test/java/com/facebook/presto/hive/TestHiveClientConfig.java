@@ -91,7 +91,8 @@ public class TestHiveClientConfig
                 .setBucketExecutionEnabled(true)
                 .setBucketWritingEnabled(true)
                 .setFileSystemMaxCacheSize(1000)
-                .setMultiFileBucketingEnabled(false));
+                .setMultiFileBucketingEnabled(false)
+                .setEmptyBucketedPartitionsEnabled(false));
     }
 
     @Test
@@ -156,6 +157,7 @@ public class TestHiveClientConfig
                 .put("hive.bucket-writing", "false")
                 .put("hive.fs.cache.max-size", "1010")
                 .put("hive.multi-file-bucketing.enabled", "true")
+                .put("hive.empty-bucketed-partitions.enabled", "true")
                 .build();
 
         HiveClientConfig expected = new HiveClientConfig()
@@ -216,7 +218,8 @@ public class TestHiveClientConfig
                 .setBucketExecutionEnabled(false)
                 .setBucketWritingEnabled(false)
                 .setFileSystemMaxCacheSize(1010)
-                .setMultiFileBucketingEnabled(true);
+                .setMultiFileBucketingEnabled(true)
+                .setEmptyBucketedPartitionsEnabled(true);
 
         ConfigAssertions.assertFullMapping(properties, expected);
     }

@@ -172,6 +172,10 @@ Property Name                                      Description                  
 
 ``hive.multi-file-bucketing.enabled``              Enable support for multiple files per bucket for Hive        ``false``
                                                    clustered tables. See :ref:`clustered-tables`
+
+``hive.empty-bucketed-partitions.enabled``         Enable support for clustered tables with empty partitions.   ``false``
+                                                   See :ref:`clustered-tables`
+
 ================================================== ============================================================ ==========
 
 Amazon S3 Configuration

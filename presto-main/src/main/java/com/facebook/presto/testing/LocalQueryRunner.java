@@ -58,6 +58,7 @@ import com.facebook.presto.execution.scheduler.NodeSchedulerConfig;
 import com.facebook.presto.index.IndexManager;
 import com.facebook.presto.memory.MemoryManagerConfig;
 import com.facebook.presto.metadata.CatalogManager;
+import com.facebook.presto.metadata.GlobalProperties;
 import com.facebook.presto.metadata.HandleResolver;
 import com.facebook.presto.metadata.InMemoryNodeManager;
 import com.facebook.presto.metadata.Metadata;
@@ -749,7 +750,8 @@ public class LocalQueryRunner
                 new CostComparator(featuresConfig),
                 statsCalculator,
                 costCalculator,
-                estimatedExchangesCostCalculator);
+                estimatedExchangesCostCalculator,
+                new GlobalProperties());
         return createPlan(session, sql, planOptimizers.get(), stage);
     }
 

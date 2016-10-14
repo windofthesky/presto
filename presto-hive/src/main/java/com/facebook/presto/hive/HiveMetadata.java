@@ -49,8 +49,11 @@ import com.facebook.presto.spi.connector.ConnectorOutputMetadata;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.NullableValue;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.security.GrantInfo;
+import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
+import com.facebook.presto.spi.security.PrivilegeInfo;
 import com.facebook.presto.spi.security.RoleGrant;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
@@ -1303,6 +1306,28 @@ public class HiveMetadata
         else {
             return new PrestoPrincipal(USER, grantee);
         }
+    }
+
+    @Override
+    public List<GrantInfo> listTablePrivileges(ConnectorSession session, SchemaTablePrefix schemaTablePrefix, String grantee)
+    {
+        ImmutableList.Builder<GrantInfo> grantInfoBuilder = ImmutableList.builder();
+        for (SchemaTableName tableName : listTables(session, schemaTablePrefix)) {
+            Set<PrivilegeInfo> privilegeInfoSet = metastore.getTablePrivileges(grantee, tableName.getSchemaName(), tableName.getTableName()).stream()
+                    .map(HivePrivilegeInfo::toPrivilegeInfo)
+                    .flatMap(p -> p.stream())
+                    .distinct()
+                    .collect(toSet());
+
+            grantInfoBuilder.add(
+                    new GrantInfo(
+                            privilegeInfoSet,
+                            new Identity(grantee, Optional.empty()),
+                            tableName,
+                            Optional.empty(), // Can't access grantor
+                            Optional.empty())); // Can't access withHierarchy
+        }
+        return grantInfoBuilder.build();
     }
 
     @Override

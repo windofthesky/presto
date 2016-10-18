@@ -11,18 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.facebook.presto.operator;
 
-package com.facebook.presto.spiller;
+import com.facebook.presto.spiller.LocalSpillContext;
 
-import com.facebook.presto.spi.type.Type;
-import org.weakref.jmx.Managed;
-
-import java.util.List;
-
-public interface SpillerFactory
+public abstract class AbstractOperatorSpillContext
 {
-    Spiller create(List<Type> types, LocalSpillContext localSpillContext);
+    public abstract void updateBytes(long bytes);
 
-    @Managed
-    long getTotalSpilledBytes();
+    public LocalSpillContext newLocalSpillContext()
+    {
+        return new LocalSpillContext(this);
+    }
 }

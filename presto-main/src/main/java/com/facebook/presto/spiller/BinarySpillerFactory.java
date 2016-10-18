@@ -67,8 +67,8 @@ public class BinarySpillerFactory
     }
 
     @Override
-    public Spiller create(List<Type> types)
+    public Spiller create(List<Type> types, LocalSpillContext localSpillContext)
     {
-        return new BinaryFileSpiller(serde.createPagesSerde(), executor, spillPath, totalSpilledBytes);
+        return new BinaryFileSpiller(serde.createPagesSerde(), executor, spillPath, totalSpilledBytes, localSpillContext);
     }
 }

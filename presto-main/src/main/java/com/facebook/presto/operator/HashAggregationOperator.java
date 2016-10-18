@@ -23,6 +23,7 @@ import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PageBuilder;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spiller.LocalSpillContext;
 import com.facebook.presto.spiller.Spiller;
 import com.facebook.presto.spiller.SpillerFactory;
 import com.facebook.presto.sql.gen.JoinCompiler;
@@ -108,7 +109,7 @@ public class HashAggregationOperator
                     new SpillerFactory()
                     {
                         @Override
-                        public Spiller create(List<Type> types)
+                        public Spiller create(List<Type> types, SpillContext spillContext)
                         {
                             throw new UnsupportedOperationException();
                         }

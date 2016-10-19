@@ -28,8 +28,6 @@ public interface HashAggregationBuilder
 
     boolean isFull();
 
-    ListenableFuture<?> isBlocked();
-
     void updateMemory();
 
     void recordHashCollisions(HashCollisionsCounter hashCollisionsCounter);

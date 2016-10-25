@@ -84,6 +84,7 @@ import com.facebook.presto.sql.tree.ShowRoleGrants;
 import com.facebook.presto.sql.tree.ShowRoles;
 import com.facebook.presto.sql.tree.ShowSchemas;
 import com.facebook.presto.sql.tree.ShowSession;
+import com.facebook.presto.sql.tree.ShowStats;
 import com.facebook.presto.sql.tree.ShowTables;
 import com.facebook.presto.sql.tree.SingleColumn;
 import com.facebook.presto.sql.tree.StartTransaction;
@@ -641,6 +642,15 @@ public final class SqlFormatter
         protected Void visitShowColumns(ShowColumns node, Integer context)
         {
             builder.append("SHOW COLUMNS FROM ")
+                    .append(node.getTable());
+
+            return null;
+        }
+
+        @Override
+        protected Void visitShowStats(ShowStats node, Integer context)
+        {
+            builder.append("SHOW STATS FROM ")
                     .append(node.getTable());
 
             return null;

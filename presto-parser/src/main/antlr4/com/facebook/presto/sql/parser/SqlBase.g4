@@ -88,6 +88,7 @@ statement
     | SHOW COLUMNS (FROM | IN) qualifiedName                           #showColumns
     | SHOW CURRENT? ROLES ((FROM | IN) identifier)?                    #showRoles
     | SHOW ROLE GRANTS ((FROM | IN) identifier)?                       #showRoleGrants
+    | SHOW STATS (FROM | IN)? qualifiedName                            #showStats
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions
@@ -678,6 +679,7 @@ INCLUDING: 'INCLUDING';
 EXCLUDING: 'EXCLUDING';
 PROPERTIES: 'PROPERTIES';
 NONE: 'NONE';
+STATS: 'STATS';
 
 NORMALIZE: 'NORMALIZE';
 NFD : 'NFD';

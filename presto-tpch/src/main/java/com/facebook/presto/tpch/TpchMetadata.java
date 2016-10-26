@@ -222,7 +222,7 @@ public class TpchMetadata
     @Override
     public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle tableHandle, Constraint<ColumnHandle> constraint)
     {
-        TpchTableHandle table = (TpchTableHandle)tableHandle;
+        TpchTableHandle table = (TpchTableHandle) tableHandle;
         return new TableStatistics(new Estimate(getRowCount(table)), ImmutableMap.of());
     }
 

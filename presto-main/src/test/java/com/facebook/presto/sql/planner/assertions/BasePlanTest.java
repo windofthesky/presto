@@ -93,7 +93,7 @@ public class BasePlanTest
     {
         queryRunner.inTransaction(transactionSession -> {
             Plan actualPlan = queryRunner.createPlan(transactionSession, sql, stage);
-            PlanAssert.assertPlan(transactionSession, queryRunner.getMetadata(), actualPlan, pattern);
+            PlanAssert.assertPlan(transactionSession, queryRunner.getMetadata(), queryRunner.getCostCalculator(), actualPlan, pattern);
             return null;
         });
     }
@@ -102,7 +102,7 @@ public class BasePlanTest
     {
         queryRunner.inTransaction(transactionSession -> {
             Plan actualPlan = queryRunner.createPlan(transactionSession, sql, optimizers, LogicalPlanner.Stage.OPTIMIZED);
-            PlanAssert.assertPlan(transactionSession, queryRunner.getMetadata(), actualPlan, pattern);
+            PlanAssert.assertPlan(transactionSession, queryRunner.getMetadata(), queryRunner.getCostCalculator(), actualPlan, pattern);
             return null;
         });
     }
@@ -113,7 +113,6 @@ public class BasePlanTest
                 new UnaliasSymbolReferences(),
                 new PruneUnreferencedOutputs(),
                 new IterativeOptimizer(new StatsRecorder(), ImmutableSet.of(new RemoveRedundantIdentityProjections())));
-
         assertPlanWithOptimizers(sql, pattern, optimizers);
     }
 

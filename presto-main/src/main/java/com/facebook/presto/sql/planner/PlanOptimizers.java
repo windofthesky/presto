@@ -214,8 +214,8 @@ public class PlanOptimizers
         builder.add(new OptimizeMixedDistinctAggregations(metadata));
 
         if (!forceSingleNode) {
-            builder.add(new DetermineJoinDistributionType()); // Must run before AddExchanges
             builder.add(new PushTableWriteThroughUnion()); // Must run before AddExchanges
+            builder.add(new DetermineJoinDistributionType(costCalculator, globalProperties, nodeCount)); // Must run before AddExchanges
             builder.add(new AddExchanges(metadata, sqlParser));
         }
 

@@ -338,7 +338,7 @@ public class PlanOptimizers
                         new PushTopNThroughUnion())));
 
         if (!forceSingleNode) {
-            builder.add(new DetermineJoinDistributionType()); // Must run before AddExchanges
+            builder.add(new DetermineJoinDistributionType(statsCalculator, globalProperties, nodeCount)); // Must run before AddExchanges
             builder.add(
                     new IterativeOptimizer(
                             stats,

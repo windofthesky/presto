@@ -264,7 +264,7 @@ public class PlanOptimizers
                 ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations(metadata.getFunctionRegistry()))));
 
         if (!forceSingleNode) {
-            builder.add(new DetermineJoinDistributionType()); // Must run before AddExchanges
+            builder.add(new DetermineJoinDistributionType(costCalculator, globalProperties, nodeCount)); // Must run before AddExchanges
             builder.add(
                     new IterativeOptimizer(
                             stats,

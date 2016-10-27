@@ -292,7 +292,7 @@ public class PlanOptimizers
                         estimatedExchangesCostCalculator,
                         ImmutableList.of(new MetadataQueryOptimizer(metadata)),
                         ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.MetadataQueryOptimizer(metadata))
-                        ),
+                ),
                 new IterativeOptimizer(
                         stats,
                         statsCalculator,
@@ -333,7 +333,7 @@ public class PlanOptimizers
                         new PushTopNThroughUnion())));
 
         if (!forceSingleNode) {
-            builder.add(new DetermineJoinDistributionType()); // Must run before AddExchanges
+            builder.add(new DetermineJoinDistributionType(statsCalculator, globalProperties, nodeCount)); // Must run before AddExchanges
             builder.add(
                     new IterativeOptimizer(
                             stats,

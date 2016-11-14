@@ -131,7 +131,7 @@ public class RuleAssert
                     actual.getOutputSymbols()));
         }
 
-        Map<PlanNodeId, PlanNodeCost> planNodeCosts = costCalculator.calculateCostForPlan(session, actual);
+        Map<PlanNodeId, PlanNodeCost> planNodeCosts = costCalculator.calculateCostForPlan(session, types, actual);
         assertPlan(session, metadata, new Plan(actual, types, planNodeCosts), costCalculator, lookup, pattern);
     }
 }

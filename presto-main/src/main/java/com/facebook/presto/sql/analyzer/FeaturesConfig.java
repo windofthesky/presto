@@ -39,6 +39,15 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 })
 public class FeaturesConfig
 {
+    public static class JoinDistributionType
+    {
+        public static final String AUTOMATIC = "automatic";
+        public static final String REPLICATED = "replicated";
+        public static final String REPARTITIONED = "repartitioned";
+
+        public static final List<String> AVAILABLE_OPTIONS = ImmutableList.of(AUTOMATIC, REPLICATED, REPARTITIONED);
+    }
+
     private boolean distributedIndexJoinsEnabled;
     private boolean distributedJoinsEnabled = true;
     private boolean colocatedJoinsEnabled;
@@ -55,6 +64,7 @@ public class FeaturesConfig
     private boolean legacyTimestamp;
     private boolean legacyMapSubscript;
     private boolean optimizeMixedDistinctAggregations;
+    private String joinDistributionType = JoinDistributionType.REPARTITIONED;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;
@@ -463,5 +473,20 @@ public class FeaturesConfig
     {
         this.pushAggregationThroughJoin = value;
         return this;
+    }
+
+    @Config("join-distribution-type")
+    public FeaturesConfig setJoinDistributionType(String joinDistributionType)
+    {
+        if (!JoinDistributionType.AVAILABLE_OPTIONS.contains(joinDistributionType)) {
+            throw new IllegalStateException(String.format("Value %s is not valid for join-distribution-type.", joinDistributionType));
+        }
+        this.joinDistributionType = joinDistributionType;
+        return this;
+    }
+
+    public String getJoinDistributionType()
+    {
+        return joinDistributionType;
     }
 }

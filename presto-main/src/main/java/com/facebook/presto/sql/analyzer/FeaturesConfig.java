@@ -42,8 +42,17 @@ public class FeaturesConfig
     private double cpuCostWeight = 0.75;
     private double memoryCostWeight = 0;
     private double networkCostWeight = 0.25;
+    
+    public static class JoinDistributionType
+    {
+        public static final String AUTOMATIC = "automatic";
+        public static final String REPLICATED = "replicated";
+        public static final String REPARTITIONED = "repartitioned";
+
+        public static final List<String> AVAILABLE_OPTIONS = ImmutableList.of(AUTOMATIC, REPLICATED, REPARTITIONED);
+    }
+
     private boolean distributedIndexJoinsEnabled;
-    private boolean distributedJoinsEnabled = true;
     private boolean colocatedJoinsEnabled;
     private boolean fastInequalityJoins = true;
     private boolean reorderJoins = true;
@@ -61,6 +70,7 @@ public class FeaturesConfig
     private boolean optimizeMixedDistinctAggregations;
     private boolean distributedSort = false;
     private boolean redistributeSort = true;
+    private String joinDistributionType = JoinDistributionType.REPARTITIONED;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;
@@ -142,11 +152,6 @@ public class FeaturesConfig
         return this;
     }
 
-    public boolean isDistributedJoinsEnabled()
-    {
-        return distributedJoinsEnabled;
-    }
-
     @Config("deprecated.legacy-array-agg")
     public FeaturesConfig setLegacyArrayAgg(boolean legacyArrayAgg)
     {
@@ -193,13 +198,6 @@ public class FeaturesConfig
     public boolean isLegacyMapSubscript()
     {
         return legacyMapSubscript;
-    }
-
-    @Config("distributed-joins-enabled")
-    public FeaturesConfig setDistributedJoinsEnabled(boolean distributedJoinsEnabled)
-    {
-        this.distributedJoinsEnabled = distributedJoinsEnabled;
-        return this;
     }
 
     public boolean isColocatedJoinsEnabled()
@@ -554,5 +552,20 @@ public class FeaturesConfig
     public boolean isUseNewStatsCalculator()
     {
         return useNewStatsCalculator;
+    }
+
+    @Config("join-distribution-type")
+    public FeaturesConfig setJoinDistributionType(String joinDistributionType)
+    {
+        if (!JoinDistributionType.AVAILABLE_OPTIONS.contains(joinDistributionType)) {
+            throw new IllegalStateException(String.format("Value %s is not valid for join-distribution-type.", joinDistributionType));
+        }
+        this.joinDistributionType = joinDistributionType;
+        return this;
+    }
+
+    public String getJoinDistributionType()
+    {
+        return joinDistributionType;
     }
 }

@@ -22,6 +22,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,12 +38,19 @@ final class JoinMatcher
     private final JoinNode.Type joinType;
     private final List<ExpectedValueProvider<JoinNode.EquiJoinClause>> equiCriteria;
     private final Optional<Expression> filter;
+    private final Optional<JoinNode.DistributionType> distributionType;
 
     JoinMatcher(JoinNode.Type joinType, List<ExpectedValueProvider<JoinNode.EquiJoinClause>> equiCriteria, Optional<Expression> filter)
+    {
+        this(joinType, equiCriteria, Optional.empty(), Optional.empty());
+    }
+
+    JoinMatcher(JoinNode.Type joinType, List<ExpectedValueProvider<JoinNode.EquiJoinClause>> equiCriteria, Optional<Expression> filter, Optional<JoinNode.DistributionType> distributionType)
     {
         this.joinType = requireNonNull(joinType, "joinType is null");
         this.equiCriteria = requireNonNull(equiCriteria, "equiCriteria is null");
         this.filter = requireNonNull(filter, "filter can not be null");
+        this.distributionType = distributionType;
     }
 
     @Override
@@ -65,6 +73,10 @@ final class JoinMatcher
 
         if (joinNode.getCriteria().size() != equiCriteria.size()) {
             return NO_MATCH;
+        }
+        
+        if (distributionType.isPresent() && !joinNode.getDistributionType().equals(distributionType)) {
+                return  NO_MATCH;
         }
 
         if (filter.isPresent()) {

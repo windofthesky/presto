@@ -241,16 +241,22 @@ public final class PlanMatchPattern
 
     public static PlanMatchPattern join(JoinNode.Type joinType, List<ExpectedValueProvider<JoinNode.EquiJoinClause>> expectedEquiCriteria, PlanMatchPattern left, PlanMatchPattern right)
     {
-        return join(joinType, expectedEquiCriteria, Optional.empty(), left, right);
+        return join(joinType, expectedEquiCriteria, Optional.empty(), Optional.empty(), left, right);
     }
 
     public static PlanMatchPattern join(JoinNode.Type joinType, List<ExpectedValueProvider<JoinNode.EquiJoinClause>> expectedEquiCriteria, Optional<String> expectedFilter, PlanMatchPattern left, PlanMatchPattern right)
+    {
+        return join(joinType, expectedEquiCriteria, expectedFilter, Optional.empty(), left, right);
+    }
+
+    public static PlanMatchPattern join(JoinNode.Type joinType, List<ExpectedValueProvider<JoinNode.EquiJoinClause>> expectedEquiCriteria, Optional<String> expectedFilter, Optional<JoinNode.DistributionType> distributionType, PlanMatchPattern left, PlanMatchPattern right)
     {
         return node(JoinNode.class, left, right).with(
                 new JoinMatcher(
                         joinType,
                         expectedEquiCriteria,
-                        expectedFilter.map(predicate -> rewriteIdentifiersToSymbolReferences(new SqlParser().createExpression(predicate)))));
+                        expectedFilter.map(predicate -> rewriteIdentifiersToSymbolReferences(new SqlParser().createExpression(predicate))),
+                        distributionType));
     }
 
     public static PlanMatchPattern exchange(PlanMatchPattern... sources)
@@ -317,7 +323,7 @@ public final class PlanMatchPattern
         return result;
     }
 
-    public static PlanMatchPattern values(String ... aliases)
+    public static PlanMatchPattern values(String... aliases)
     {
         return values(ImmutableList.copyOf(aliases));
     }

@@ -35,11 +35,6 @@ final class SemiJoinMatcher
     private final String outputAlias;
     private final Optional<SemiJoinNode.DistributionType> distributionType;
 
-    SemiJoinMatcher(String sourceSymbolAlias, String filteringSymbolAlias, String outputAlias)
-    {
-        this(sourceSymbolAlias, filteringSymbolAlias, outputAlias, Optional.empty());
-    }
-
     SemiJoinMatcher(String sourceSymbolAlias, String filteringSymbolAlias, String outputAlias, Optional<SemiJoinNode.DistributionType> distributionType)
     {
         this.sourceSymbolAlias = requireNonNull(sourceSymbolAlias, "sourceSymbolAlias is null");
@@ -65,7 +60,7 @@ final class SemiJoinMatcher
             return NO_MATCH;
         }
 
-        if(!semiJoinNode.getDistributionType().equals(distributionType)) {
+        if (!semiJoinNode.getDistributionType().equals(distributionType)) {
             return NO_MATCH;
         }
 

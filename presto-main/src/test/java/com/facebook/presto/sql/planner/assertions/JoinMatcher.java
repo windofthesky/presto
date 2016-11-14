@@ -22,7 +22,6 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -74,9 +73,9 @@ final class JoinMatcher
         if (joinNode.getCriteria().size() != equiCriteria.size()) {
             return NO_MATCH;
         }
-        
+
         if (distributionType.isPresent() && !joinNode.getDistributionType().equals(distributionType)) {
-                return  NO_MATCH;
+            return NO_MATCH;
         }
 
         if (filter.isPresent()) {

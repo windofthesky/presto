@@ -67,6 +67,8 @@ public class OperatorStats
     private final DataSize systemMemoryReservation;
     private final Optional<BlockedReason> blockedReason;
 
+    private final DataSize spilledDataSize;
+
     private final OperatorInfo info;
 
     @JsonCreator
@@ -105,7 +107,9 @@ public class OperatorStats
             @JsonProperty("systemMemoryReservation") DataSize systemMemoryReservation,
             @JsonProperty("blockedReason") Optional<BlockedReason> blockedReason,
 
-            @JsonProperty("info") OperatorInfo info)
+            @JsonProperty("info") OperatorInfo info,
+
+            @JsonProperty("spilledDataSize") DataSize spilledDataSize)
     {
         this.pipelineId = pipelineId;
 
@@ -144,6 +148,8 @@ public class OperatorStats
         this.revocableMemoryReservation = requireNonNull(revocableMemoryReservation, "revocableMemoryReservation is null");
         this.systemMemoryReservation = requireNonNull(systemMemoryReservation, "systemMemoryReservation is null");
         this.blockedReason = blockedReason;
+
+        this.spilledDataSize = spilledDataSize;
 
         this.info = info;
     }
@@ -310,6 +316,12 @@ public class OperatorStats
         return blockedReason;
     }
 
+    @JsonProperty
+    public DataSize getSpilledDataSize()
+    {
+        return spilledDataSize;
+    }
+
     @Nullable
     @JsonProperty
     public OperatorInfo getInfo()
@@ -352,6 +364,7 @@ public class OperatorStats
         long revocableMemoryReservation = this.revocableMemoryReservation.toBytes();
         long systemMemoryReservation = this.systemMemoryReservation.toBytes();
         Optional<BlockedReason> blockedReason = this.blockedReason;
+        long spilledBytes = this.spilledDataSize.toBytes();
 
         Mergeable<OperatorInfo> base = getMergeableInfoOrNull(info);
         for (OperatorStats operator : operators) {
@@ -387,6 +400,8 @@ public class OperatorStats
             if (operator.getBlockedReason().isPresent()) {
                 blockedReason = operator.getBlockedReason();
             }
+
+            spilledBytes += operator.getSpilledDataSize().toBytes();
 
             OperatorInfo info = operator.getInfo();
             if (base != null && info != null && base.getClass() == info.getClass()) {
@@ -429,7 +444,9 @@ public class OperatorStats
                 succinctBytes(systemMemoryReservation),
                 blockedReason,
 
-                (OperatorInfo) base);
+                (OperatorInfo) base,
+
+                succinctBytes(spilledBytes));
     }
 
     @SuppressWarnings("unchecked")
@@ -478,6 +495,7 @@ public class OperatorStats
                 revocableMemoryReservation,
                 systemMemoryReservation,
                 blockedReason,
-                (info != null && info.isFinal()) ? info : null);
+                (info != null && info.isFinal()) ? info : null,
+                spilledDataSize);
     }
 }

@@ -59,7 +59,8 @@ public class TestDriverStats
             new DataSize(18, BYTE),
             19,
 
-            ImmutableList.of(TestOperatorStats.EXPECTED));
+            ImmutableList.of(TestOperatorStats.EXPECTED),
+            new DataSize(19, BYTE));
 
     @Test
     public void testJson()
@@ -102,5 +103,6 @@ public class TestDriverStats
 
         assertEquals(actual.getOperatorStats().size(), 1);
         assertExpectedOperatorStats(actual.getOperatorStats().get(0));
+        assertEquals(actual.getSpilledDataSize(), new DataSize(19, BYTE));
     }
 }

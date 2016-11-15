@@ -81,6 +81,8 @@ public class QueryStats
 
     private final List<OperatorStats> operatorSummaries;
 
+    private final DataSize spilledDataSize;
+
     @VisibleForTesting
     public QueryStats()
     {
@@ -118,6 +120,7 @@ public class QueryStats
         this.outputDataSize = null;
         this.outputPositions = 0;
         this.operatorSummaries = null;
+        this.spilledDataSize = null;
     }
 
     @JsonCreator
@@ -164,7 +167,9 @@ public class QueryStats
             @JsonProperty("outputDataSize") DataSize outputDataSize,
             @JsonProperty("outputPositions") long outputPositions,
 
-            @JsonProperty("operatorSummaries") List<OperatorStats> operatorSummaries)
+            @JsonProperty("operatorSummaries") List<OperatorStats> operatorSummaries,
+
+            @JsonProperty("spilledDataSize") DataSize spilledDataSize)
     {
         this.createTime = requireNonNull(createTime, "createTime is null");
         this.executionStartTime = executionStartTime;
@@ -217,6 +222,8 @@ public class QueryStats
         checkArgument(outputPositions >= 0, "outputPositions is negative");
         this.outputPositions = outputPositions;
         this.operatorSummaries = ImmutableList.copyOf(requireNonNull(operatorSummaries, "operatorSummaries is null"));
+
+        this.spilledDataSize = spilledDataSize;
     }
 
     @JsonProperty
@@ -437,8 +444,14 @@ public class QueryStats
     public OptionalDouble getProgressPercentage()
     {
         if (!scheduled || totalDrivers == 0) {
-             return OptionalDouble.empty();
+            return OptionalDouble.empty();
         }
         return OptionalDouble.of(min(100, (completedDrivers * 100.0) / totalDrivers));
+    }
+
+    @JsonProperty
+    public DataSize getSpilledDataSize()
+    {
+        return spilledDataSize;
     }
 }

@@ -55,6 +55,8 @@ public class OperatorStats
     private final DataSize outputDataSize;
     private final long outputPositions;
 
+    private final DataSize spilledDataSize;
+
     private final Duration blockedWall;
 
     private final long finishCalls;
@@ -92,6 +94,8 @@ public class OperatorStats
             @JsonProperty("getOutputUser") Duration getOutputUser,
             @JsonProperty("outputDataSize") DataSize outputDataSize,
             @JsonProperty("outputPositions") long outputPositions,
+
+            @JsonProperty("spilledDataSize") DataSize spilledDataSize,
 
             @JsonProperty("blockedWall") Duration blockedWall,
 
@@ -132,6 +136,8 @@ public class OperatorStats
         this.outputDataSize = requireNonNull(outputDataSize, "outputDataSize is null");
         checkArgument(outputPositions >= 0, "outputPositions is negative");
         this.outputPositions = outputPositions;
+
+        this.spilledDataSize = requireNonNull(spilledDataSize);
 
         this.blockedWall = requireNonNull(blockedWall, "blockedWall is null");
 
@@ -310,6 +316,12 @@ public class OperatorStats
         return blockedReason;
     }
 
+    @JsonProperty
+    public DataSize getSpilledDataSize()
+    {
+        return spilledDataSize;
+    }
+
     @Nullable
     @JsonProperty
     public OperatorInfo getInfo()
@@ -352,6 +364,7 @@ public class OperatorStats
         long revocableMemoryReservation = this.revocableMemoryReservation.toBytes();
         long systemMemoryReservation = this.systemMemoryReservation.toBytes();
         Optional<BlockedReason> blockedReason = this.blockedReason;
+        long spilledBytes = this.spilledDataSize.toBytes();
 
         Mergeable<OperatorInfo> base = getMergeableInfoOrNull(info);
         for (OperatorStats operator : operators) {
@@ -388,6 +401,8 @@ public class OperatorStats
                 blockedReason = operator.getBlockedReason();
             }
 
+            spilledBytes += operator.getSpilledDataSize().toBytes();
+
             OperatorInfo info = operator.getInfo();
             if (base != null && info != null && base.getClass() == info.getClass()) {
                 base = mergeInfo(base, info);
@@ -416,6 +431,8 @@ public class OperatorStats
                 new Duration(getOutputUser, NANOSECONDS).convertToMostSuccinctTimeUnit(),
                 succinctBytes(outputDataSize),
                 outputPositions,
+
+                succinctBytes(spilledBytes),
 
                 new Duration(blockedWall, NANOSECONDS).convertToMostSuccinctTimeUnit(),
 
@@ -469,6 +486,7 @@ public class OperatorStats
                 getOutputUser,
                 outputDataSize,
                 outputPositions,
+                spilledDataSize,
                 blockedWall,
                 finishCalls,
                 finishWall,

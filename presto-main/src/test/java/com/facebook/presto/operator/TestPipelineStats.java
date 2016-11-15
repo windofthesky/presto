@@ -73,7 +73,8 @@ public class TestPipelineStats
             19,
 
             ImmutableList.of(TestOperatorStats.EXPECTED),
-            ImmutableList.of(TestDriverStats.EXPECTED));
+            ImmutableList.of(TestDriverStats.EXPECTED),
+            new DataSize(19, BYTE));
 
     @Test
     public void testJson()
@@ -127,6 +128,7 @@ public class TestPipelineStats
 
         assertEquals(actual.getDrivers().size(), 1);
         assertExpectedDriverStats(actual.getDrivers().get(0));
+        assertEquals(actual.getSpilledDataSize(), new DataSize(19, BYTE));
     }
 
     private static DistributionSnapshot getTestDistribution(int count)

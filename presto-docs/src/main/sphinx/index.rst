@@ -16,6 +16,7 @@ Presto Documentation
     sql
     optimizer
     migration
+    optimizer
     develop
     release
 

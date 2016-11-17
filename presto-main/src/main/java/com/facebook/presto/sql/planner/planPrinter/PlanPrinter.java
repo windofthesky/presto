@@ -101,6 +101,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.airlift.slice.Slice;
 import io.airlift.stats.Distribution.DistributionSnapshot;
+import io.airlift.units.DataSize;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -236,7 +237,7 @@ public class PlanPrinter
             double sdAmongTasks = Math.sqrt(1.0 / stageInfo.get().getTasks().size() * squaredDifferences);
 
             builder.append(indentString(1))
-                    .append(format("Cost: CPU %s, Input: %s (%s); per task: avg.: %s std.dev.: %s, Output: %s (%s)\n",
+                    .append(format("CPU: %s, Input: %s (%s); per task: avg.: %s std.dev.: %s, Output: %s (%s)",
                             stageStats.getTotalCpuTime(),
                             formatPositions(stageStats.getProcessedInputPositions()),
                             stageStats.getProcessedInputDataSize(),
@@ -244,6 +245,10 @@ public class PlanPrinter
                             sdAmongTasks,
                             formatPositions(stageStats.getOutputPositions()),
                             stageStats.getOutputDataSize()));
+            if (isNonZero(stageStats.getSpilledDataSize())) {
+                builder.append(", Spilled " + stageStats.getSpilledDataSize());
+            }
+            builder.append("\n");
         }
 
         PartitioningScheme partitioningScheme = fragment.getPartitioningScheme();
@@ -289,6 +294,11 @@ public class PlanPrinter
         else {
             return format(" (%s)", replication);
         }
+    }
+
+    private static boolean isNonZero(DataSize dataSize)
+    {
+        return dataSize != null && dataSize.getValue() != 0;
     }
 
     public static String graphvizLogicalPlan(PlanNode plan, Map<Symbol, Type> types)
@@ -371,6 +381,9 @@ public class PlanPrinter
         if (printFiltered) {
             double filtered = 100.0d * (nodeStats.getPlanNodeInputPositions() - nodeStats.getPlanNodeOutputPositions()) / nodeStats.getPlanNodeInputPositions();
             output.append(", Filtered: " + formatDouble(filtered) + "%");
+        }
+        if (isNonZero(nodeStats.getPlanNodeSpilledDataSize())) {
+            output.append(", Spilled: " + nodeStats.getPlanNodeSpilledDataSize());
         }
         output.append('\n');
 

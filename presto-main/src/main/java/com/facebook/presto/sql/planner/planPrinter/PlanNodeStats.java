@@ -38,6 +38,8 @@ public class PlanNodeStats
     private final long planNodeInputPositions;
     private final DataSize planNodeInputDataSize;
     private final long planNodeOutputPositions;
+    private final DataSize planNodeSpilledDataSize;
+
     private final DataSize planNodeOutputDataSize;
 
     private final Map<String, OperatorInputStats> operatorInputStats;
@@ -51,6 +53,7 @@ public class PlanNodeStats
             DataSize planNodeInputDataSize,
             long planNodeOutputPositions,
             DataSize planNodeOutputDataSize,
+            DataSize planNodeSpilledDataSize,
             Map<String, OperatorInputStats> operatorInputStats,
             Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats,
             Optional<WindowNodeStats> windowNodeStats)
@@ -62,6 +65,7 @@ public class PlanNodeStats
         this.planNodeInputDataSize = planNodeInputDataSize;
         this.planNodeOutputPositions = planNodeOutputPositions;
         this.planNodeOutputDataSize = planNodeOutputDataSize;
+        this.planNodeSpilledDataSize = planNodeSpilledDataSize;
 
         this.operatorInputStats = requireNonNull(operatorInputStats, "operatorInputStats is null");
         this.operatorHashCollisionsStats = requireNonNull(operatorHashCollisionsStats, "operatorHashCollisionsStats is null");
@@ -165,6 +169,11 @@ public class PlanNodeStats
                         entry -> entry.getValue().getWeightedExpectedHashCollisions() / operatorInputStats.get(entry.getKey()).getInputPositions()));
     }
 
+    public DataSize getPlanNodeSpilledDataSize()
+    {
+        return planNodeSpilledDataSize;
+    }
+
     public Optional<WindowNodeStats> getWindowNodeStats()
     {
         return windowNodeStats;
@@ -178,6 +187,7 @@ public class PlanNodeStats
         DataSize planNodeInputDataSize = succinctBytes(left.planNodeInputDataSize.toBytes() + right.planNodeInputDataSize.toBytes());
         long planNodeOutputPositions = left.planNodeOutputPositions + right.planNodeOutputPositions;
         DataSize planNodeOutputDataSize = succinctBytes(left.planNodeOutputDataSize.toBytes() + right.planNodeOutputDataSize.toBytes());
+        DataSize planNodeSpilledDataSize = succinctBytes(left.getPlanNodeSpilledDataSize().toBytes() + right.getPlanNodeSpilledDataSize().toBytes());
 
         Map<String, OperatorInputStats> operatorInputStats = mergeMaps(left.operatorInputStats, right.operatorInputStats, OperatorInputStats::merge);
         Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats = mergeMaps(left.operatorHashCollisionsStats, right.operatorHashCollisionsStats, OperatorHashCollisionsStats::merge);
@@ -188,6 +198,7 @@ public class PlanNodeStats
                 new Duration(left.getPlanNodeWallTime().toMillis() + right.getPlanNodeWallTime().toMillis(), MILLISECONDS),
                 planNodeInputPositions, planNodeInputDataSize,
                 planNodeOutputPositions, planNodeOutputDataSize,
+                planNodeSpilledDataSize,
                 operatorInputStats,
                 operatorHashCollisionsStats,
                 windowNodeStats);

@@ -18,6 +18,7 @@ import com.facebook.presto.execution.buffer.PagesSerdeUtil;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PrestoException;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import io.airlift.slice.InputStreamSliceInput;
@@ -27,33 +28,24 @@ import io.airlift.slice.SliceOutput;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Iterator;
-import java.util.List;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.facebook.presto.execution.buffer.PagesSerdeUtil.writePage;
 import static com.facebook.presto.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
-import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 
 @NotThreadSafe
-public class BinaryFileSpiller
-        implements Spiller
+public class BinaryFileSingleStreamSpiller
+        implements SingleStreamSpiller
 {
-    private final Path targetDirectory;
+    private final Path targetFileName;
     private final Closer closer = Closer.create();
     private final PagesSerde serde;
     private final SpillerStats spillerStats;
@@ -61,10 +53,9 @@ public class BinaryFileSpiller
 
     private final ListeningExecutorService executor;
 
-    private int spillsCount;
-    private ListenableFuture<?> previousSpill = immediateFuture(null);
+    private ListenableFuture<?> spillInProgress = Futures.immediateFuture(null);
 
-    public BinaryFileSpiller(
+    public BinaryFileSingleStreamSpiller(
             PagesSerde serde,
             ListeningExecutorService executor,
             Path spillPath,
@@ -74,28 +65,39 @@ public class BinaryFileSpiller
         this.serde = requireNonNull(serde, "serde is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.spillerStats = requireNonNull(spillerStats, "spillerStats is null");
-        this.localSpillContext = localSpillContext;
+        this.localSpillContext = requireNonNull(localSpillContext, "localSpillContext can not be null");
         try {
-            this.targetDirectory = Files.createTempDirectory(spillPath, "presto-spill");
+            targetFileName = Files.createTempFile(spillPath, "spill", ".bin");
         }
         catch (IOException e) {
-            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Failed to create spill directory", e);
+            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Failed to create spill file", e);
         }
     }
 
     @Override
     public ListenableFuture<?> spill(Iterator<Page> pageIterator)
     {
-        checkState(previousSpill.isDone());
-        Path spillPath = getPath(spillsCount++);
-
-        previousSpill = executor.submit(() -> writePages(pageIterator, spillPath));
-        return previousSpill;
+        checkNoSpillInProgress();
+        spillInProgress = executor.submit(
+                () -> writePages(pageIterator));
+        return spillInProgress;
     }
 
-    private void writePages(Iterator<Page> pageIterator, Path spillPath)
+    private void checkNoSpillInProgress()
     {
-        try (SliceOutput output = new OutputStreamSliceOutput(new BufferedOutputStream(new FileOutputStream(spillPath.toFile())))) {
+        checkState(spillInProgress.isDone(), "spill in progress");
+    }
+
+    @Override
+    public Iterator<Page> getSpilledPages()
+    {
+        checkNoSpillInProgress();
+        return readPages();
+    }
+
+    private void writePages(Iterator<Page> pageIterator)
+    {
+        try (SliceOutput output = new OutputStreamSliceOutput(new FileOutputStream(targetFileName.toFile(), true))) {
             while (pageIterator.hasNext()) {
                 Page page = pageIterator.next();
                 long pageSize = page.getSizeInBytes();
@@ -109,19 +111,10 @@ public class BinaryFileSpiller
         }
     }
 
-    @Override
-    public List<Iterator<Page>> getSpills()
-    {
-        checkState(previousSpill.isDone());
-        return IntStream.range(0, spillsCount)
-                .mapToObj(i -> readPages(getPath(i)))
-                .collect(toImmutableList());
-    }
-
-    private Iterator<Page> readPages(Path spillPath)
+    private Iterator<Page> readPages()
     {
         try {
-            InputStream input = new BufferedInputStream(new FileInputStream(spillPath.toFile()));
+            InputStream input = new FileInputStream(targetFileName.toFile());
             closer.register(input);
             return PagesSerdeUtil.readPages(serde, new InputStreamSliceInput(input));
         }
@@ -133,26 +126,17 @@ public class BinaryFileSpiller
     @Override
     public void close()
     {
-        try (Stream<Path> list = Files.list(targetDirectory)) {
+        closer.register(() -> Files.delete(targetFileName));
+        closer.register(localSpillContext);
+
+        try {
             closer.close();
-            for (Path path : list.collect(toList())) {
-                Files.delete(path);
-            }
-            Files.delete(targetDirectory);
         }
-        catch (IOException e) {
+        catch (Exception e) {
             throw new PrestoException(
                     GENERIC_INTERNAL_ERROR,
-                    String.format("Failed to delete directory [%s]", targetDirectory),
+                    String.format("Failed to close spiller"),
                     e);
         }
-        finally {
-            localSpillContext.close();
-        }
-    }
-
-    private Path getPath(int spillNumber)
-    {
-        return Paths.get(targetDirectory.toAbsolutePath().toString(), String.format("%d.bin", spillNumber));
     }
 }

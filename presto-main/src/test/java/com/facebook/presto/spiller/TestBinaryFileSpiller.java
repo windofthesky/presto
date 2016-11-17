@@ -45,13 +45,13 @@ public class TestBinaryFileSpiller
     private static final List<Type> TYPES = ImmutableList.of(BIGINT, VARCHAR, DOUBLE, BIGINT);
     private final BlockEncodingSerde blockEncodingSerde = new BlockEncodingManager(new TypeRegistry(ImmutableSet.of(BIGINT, DOUBLE, VARBINARY)));
     private final SpillerStats spillerStats = new SpillerStats();
-    private final BinarySpillerFactory factory = new BinarySpillerFactory(blockEncodingSerde, spillerStats, new FeaturesConfig());
+    private final SpillerFactory factory = new GenericSpillerFactory(new BinaryFileSingleStreamSpillerFactory(blockEncodingSerde, spillerStats, new FeaturesConfig()));
 
     @Test
     public void testFileSpiller()
             throws Exception
     {
-        try (Spiller spiller = factory.create(TYPES, new LocalSpillContext(new TestingOperatorSpillContext()))) {
+        try (Spiller spiller = factory.create(TYPES, () -> new LocalSpillContext(new TestingOperatorSpillContext()))) {
             testSimpleSpiller(spiller);
         }
     }
@@ -72,7 +72,7 @@ public class TestBinaryFileSpiller
 
         Page page = new Page(col1.build(), col2.build(), col3.build());
 
-        try (Spiller spiller = factory.create(TYPES,  new LocalSpillContext(new TestingOperatorSpillContext()))) {
+        try (Spiller spiller = factory.create(TYPES, () -> new LocalSpillContext(new TestingOperatorSpillContext()))) {
             testSpiller(types, spiller, ImmutableList.of(page));
         }
     }

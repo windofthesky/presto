@@ -34,6 +34,7 @@ import org.intellij.lang.annotations.Language;
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Listeners;
 import org.weakref.jmx.MBeanExporter;
 import org.weakref.jmx.testing.TestingMBeanServer;
 
@@ -53,6 +54,7 @@ import static java.util.Objects.requireNonNull;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
+@Listeners({TestLoggingListener.class})
 public abstract class AbstractTestQueryFramework
 {
     private QueryRunnerSupplier queryRunnerSupplier;

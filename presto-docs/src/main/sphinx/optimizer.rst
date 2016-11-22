@@ -6,3 +6,4 @@ Query Optimizer
     :maxdepth: 1
 
     optimizer/join-distribution-type
+    optimizer/reorder-joins

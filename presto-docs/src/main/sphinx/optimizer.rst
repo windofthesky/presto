@@ -7,3 +7,4 @@ Query Optimizer
 
     optimizer/statistics
     optimizer/cost-in-explain
+    optimizer/reorder-joins

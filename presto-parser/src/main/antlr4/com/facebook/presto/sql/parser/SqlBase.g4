@@ -88,7 +88,8 @@ statement
     | SHOW COLUMNS (FROM | IN) qualifiedName                           #showColumns
     | SHOW CURRENT? ROLES ((FROM | IN) identifier)?                    #showRoles
     | SHOW ROLE GRANTS ((FROM | IN) identifier)?                       #showRoleGrants
-    | SHOW STATS (FROM | IN)? qualifiedName                            #showStats
+    | SHOW STATS (FOR | ON)? qualifiedName                             #showStats
+    | SHOW STATS (FOR | ON)? '(' querySpecification ')'                #showStatsParametrized
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions

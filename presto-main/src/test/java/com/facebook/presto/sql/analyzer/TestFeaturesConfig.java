@@ -73,7 +73,8 @@ public class TestFeaturesConfig
                 .setParseDecimalLiteralsAsDouble(false)
                 .setDistributedSortEnabled(false)
                 .setRedistributeSort(true)
-                .setUseNewStatsCalculator(false));
+                .setUseNewStatsCalculator(false)
+                .setSmallTableCoefficient(0.01));
     }
 
     @Test
@@ -119,6 +120,7 @@ public class TestFeaturesConfig
                 .put("experimental.distributed-sort", "true")
                 .put("experimental.redistribute-sort", "false")
                 .put("experimental.use-new-stats-calculator", "true")
+                .put("small-table-coefficient", "0.2")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("cpu-cost-weight", "0.4")
@@ -160,6 +162,7 @@ public class TestFeaturesConfig
                 .put("experimental.distributed-sort", "true")
                 .put("experimental.redistribute-sort", "false")
                 .put("experimental.use-new-stats-calculator", "true")
+                .put("small-table-coefficient", "0.2")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -201,7 +204,8 @@ public class TestFeaturesConfig
                 .setParseDecimalLiteralsAsDouble(true)
                 .setDistributedSortEnabled(true)
                 .setRedistributeSort(false)
-                .setUseNewStatsCalculator(true);
+                .setUseNewStatsCalculator(true)
+                .setSmallTableCoefficient(0.2);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

@@ -65,7 +65,8 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(false)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
-                .setExchangeCompressionEnabled(false));
+                .setExchangeCompressionEnabled(false)
+                .setSmallTableCoefficient(0.01));
     }
 
     @Test
@@ -100,6 +101,7 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-spill-path", "/tmp/custom/spill/path")
                 .put("experimental.spiller-threads", "42")
                 .put("exchange.compression-enabled", "true")
+                .put("small-table-coefficient", "0.2")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
@@ -130,6 +132,7 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-spill-path", "/tmp/custom/spill/path")
                 .put("experimental.spiller-threads", "42")
                 .put("exchange.compression-enabled", "true")
+                .put("small-table-coefficient", "0.2")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -160,7 +163,8 @@ public class TestFeaturesConfig
                 .setSpillerSpillPath("/tmp/custom/spill/path")
                 .setSpillerThreads(42)
                 .setLegacyOrderBy(true)
-                .setExchangeCompressionEnabled(true);
+                .setExchangeCompressionEnabled(true)
+                .setSmallTableCoefficient(0.2);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

@@ -94,6 +94,7 @@ import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorPageSource;
 import com.facebook.presto.spi.Constraint;
+import com.facebook.presto.spi.NodeState;
 import com.facebook.presto.spi.PageIndexerFactory;
 import com.facebook.presto.spi.PageSorter;
 import com.facebook.presto.spi.Plugin;
@@ -749,7 +750,8 @@ public class LocalQueryRunner
                 statsCalculator,
                 costCalculator,
                 estimatedExchangesCostCalculator,
-                new GlobalProperties());
+                new GlobalProperties(),
+                nodeManager.getNodes(NodeState.ACTIVE).size());
         return createPlan(session, sql, planOptimizers.get(), stage);
     }
 

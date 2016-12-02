@@ -18,7 +18,9 @@ import com.facebook.presto.cost.CostCalculator.EstimatedExchanges;
 import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.metadata.GlobalProperties;
+import com.facebook.presto.metadata.InternalNodeManager;
 import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.spi.NodeState;
 import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.iterative.IterativeOptimizer;
@@ -111,7 +113,8 @@ public class PlanOptimizers
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             @EstimatedExchanges CostCalculator estimatedExchangesCostCalculator,
-            GlobalProperties globalProperties)
+            GlobalProperties globalProperties,
+            InternalNodeManager nodeManager)
     {
         this(metadata,
                 sqlParser,
@@ -122,7 +125,8 @@ public class PlanOptimizers
                 statsCalculator,
                 costCalculator,
                 estimatedExchangesCostCalculator,
-                globalProperties);
+                globalProperties,
+                nodeManager.getNodes(NodeState.ACTIVE).size());
     }
 
     @PostConstruct
@@ -147,7 +151,8 @@ public class PlanOptimizers
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             CostCalculator estimatedExchangesCostCalculator,
-            GlobalProperties globalProperties)
+            GlobalProperties globalProperties,
+            int nodeCount)
     {
         this.exporter = exporter;
         ImmutableList.Builder<PlanOptimizer> builder = ImmutableList.builder();

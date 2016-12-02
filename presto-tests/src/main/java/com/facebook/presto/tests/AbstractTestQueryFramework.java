@@ -310,7 +310,8 @@ public abstract class AbstractTestQueryFramework
                 new CoefficientBasedStatsCalculator(metadata),
                 costCalculator,
                 new CostCalculatorWithEstimatedExchanges(costCalculator, queryRunner.getNodeCount()),
-                new GlobalProperties()).get();
+                new GlobalProperties(),
+                getNodeCount()).get();
         return new QueryExplainer(
                 optimizers,
                 metadata,

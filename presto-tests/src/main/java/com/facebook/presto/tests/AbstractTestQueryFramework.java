@@ -316,7 +316,8 @@ public abstract class AbstractTestQueryFramework
                         ServerMainModule.createNewStatsCalculator(metadata, new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata))),
                 costCalculator,
                 new CostCalculatorWithEstimatedExchanges(costCalculator, queryRunner.getNodeCount()),
-                new GlobalProperties()).get();
+                new GlobalProperties(),
+                getNodeCount()).get();
         return new QueryExplainer(
                 optimizers,
                 metadata,

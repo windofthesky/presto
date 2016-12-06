@@ -61,6 +61,10 @@ limitations and differences:
 * ``SET ROLE ALL`` enables all of a user's roles except ``admin``.
 * The ``admin`` role must be enabled explicitly by executing ``SET ROLE admin``.
 
+.. note::
+
+    Ensure that authentication has been enabled when enabling authorization checks.
+
 Authentication
 ==============
 

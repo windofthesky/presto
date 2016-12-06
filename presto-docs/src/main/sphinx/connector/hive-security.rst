@@ -40,6 +40,8 @@ Property Value                                     Description
                                                    See :ref:`hive-sql-standard-based-authorization` for details.
 ================================================== ============================================================
 
+Ensure that authentication has been enabled when enabling authorization checks.
+
 .. _hive-sql-standard-based-authorization:
 
 SQL Standard Based Authorization

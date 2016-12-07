@@ -108,7 +108,8 @@ public class TestMemoryRevokingScheduler
     public void testScheduleMemoryRevoking()
             throws Exception
     {
-        MemoryRevokingScheduler scheduler = new MemoryRevokingScheduler(singletonList(memoryPool));
+        // todo test for different threshold/target
+        MemoryRevokingScheduler scheduler = new MemoryRevokingScheduler(singletonList(memoryPool), 1.0, 1.0);
 
         SqlTask sqlTask1 = newSqlTask();
         SqlTask sqlTask2 = newSqlTask();
@@ -189,7 +190,7 @@ public class TestMemoryRevokingScheduler
         OperatorContext operatorContext2 = createContexts(sqlTask2);
 
         List<SqlTask> tasks = ImmutableList.of(sqlTask1, sqlTask2);
-        MemoryRevokingScheduler scheduler = new MemoryRevokingScheduler(asList(memoryPool, anotherMemoryPool));
+        MemoryRevokingScheduler scheduler = new MemoryRevokingScheduler(asList(memoryPool, anotherMemoryPool), 1.0, 1.0);
         allOperatorContexts = ImmutableSet.of(operatorContext1, operatorContext2);
 
         /*

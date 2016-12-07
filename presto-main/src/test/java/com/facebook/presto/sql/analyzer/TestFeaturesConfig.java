@@ -64,9 +64,11 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(true)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
-                .setExchangeCompressionEnabled(false)
                 .setParseDecimalLiteralsAsDouble(false)
-                .setPushAggregationThroughJoin(true));
+                .setPushAggregationThroughJoin(true)
+                .setMemoryRevokingThreshold(0.9)
+                .setMemoryRevokingTarget(0.5)
+                .setExchangeCompressionEnabled(false));
     }
 
     @Test
@@ -101,6 +103,8 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-spill-path", "/tmp/custom/spill/path1,/tmp/custom/spill/path2")
                 .put("experimental.spiller-threads", "42")
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
+                .put("experimental.memory-revoking-threshold", "0.2")
+                .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .build();
@@ -133,6 +137,8 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-spill-path", "/tmp/custom/spill/path1,/tmp/custom/spill/path2")
                 .put("experimental.spiller-threads", "42")
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
+                .put("experimental.memory-revoking-threshold", "0.2")
+                .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .build();
@@ -167,6 +173,8 @@ public class TestFeaturesConfig
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
+                .setMemoryRevokingThreshold(0.2)
+                .setMemoryRevokingTarget(0.8)
                 .setParseDecimalLiteralsAsDouble(true);
 
         assertFullMapping(properties, expected);

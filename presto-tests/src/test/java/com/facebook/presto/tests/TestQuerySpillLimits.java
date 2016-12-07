@@ -32,13 +32,12 @@ import java.io.File;
 import java.util.Map;
 
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
-import static com.facebook.presto.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 
 public class TestQuerySpillLimits
 {
     private static final Session SESSION = testSessionBuilder()
             .setCatalog("tpch")
-            .setSchema(TINY_SCHEMA_NAME)
+            .setSchema("sf1")
             .setSystemProperty(SystemSessionProperties.SPILL_ENABLED, "true")
             .setSystemProperty(SystemSessionProperties.OPERATOR_MEMORY_LIMIT_BEFORE_SPILL, "1B") //spill constantly
             .build();

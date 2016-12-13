@@ -62,6 +62,7 @@ import static com.facebook.presto.bytecode.expression.BytecodeExpressions.invoke
 import static com.facebook.presto.bytecode.expression.BytecodeExpressions.invokeStatic;
 import static com.facebook.presto.bytecode.expression.BytecodeExpressions.not;
 import static com.facebook.presto.operator.aggregation.AggregationMetadata.ParameterMetadata;
+import static com.facebook.presto.operator.aggregation.AggregationMetadata.ParameterMetadata.ParameterType.STATE;
 import static com.facebook.presto.operator.aggregation.AggregationMetadata.countInputChannels;
 import static com.facebook.presto.sql.gen.Bootstrap.BOOTSTRAP_METHOD;
 import static com.facebook.presto.sql.gen.BytecodeUtils.invoke;
@@ -131,6 +132,7 @@ public class AccumulatorCompiler
         // Generate methods
         generateAddInput(definition, stateField, inputChannelsField, maskChannelField, metadata.getInputMetadata(), metadata.getInputFunction(), callSiteBinder, grouped);
         generateAddInputWindowIndex(definition, stateField, metadata.getInputMetadata(), metadata.getInputFunction(), callSiteBinder);
+        generateAddInputNoChannels(definition, stateField, metadata.getInputMetadata(), metadata.getInputFunction(), callSiteBinder);
         generateGetEstimatedSize(definition, stateField);
         generateGetIntermediateType(definition, callSiteBinder, stateSerializer.getSerializedType());
         generateGetFinalType(definition, callSiteBinder, metadata.getOutputType());
@@ -531,6 +533,47 @@ public class AccumulatorCompiler
                     .append(position)
                     .invokeInterface(Type.class, "getObject", Object.class, Block.class, int.class);
         }
+    }
+
+    private static void generateAddInputNoChannels(
+            ClassDefinition definition,
+            FieldDefinition stateField,
+            List<ParameterMetadata> parameterMetadatas,
+            MethodHandle inputFunction,
+            CallSiteBinder callSiteBinder)
+    {
+        // TODO: implement masking based on maskChannel field once Window Functions support DISTINCT arguments to the functions.
+
+        Parameter positionCount = arg("positionCount", int.class);
+
+        MethodDefinition method = definition.declareMethod(a(PUBLIC), "addInput", type(void.class), ImmutableList.of(positionCount));
+        Scope scope = method.getScope();
+
+        if (!(parameterMetadatas.size() == 1 && parameterMetadatas.get(0).getParameterType() == STATE)) {
+            method.getBody()
+                    .append(constantString("The only argument allowed has to be of type STATE"))
+                    .invokeStatic(CompilerOperations.class, "throwStandardPrestoException", void.class, String.class)
+                    .ret();
+            return;
+        }
+
+        Variable positionVariable = scope.declareVariable(int.class, "position");
+
+        Binding binding = callSiteBinder.bind(inputFunction);
+        BytecodeExpression invokeInputFunction = invokeDynamic(
+                BOOTSTRAP_METHOD,
+                ImmutableList.of(binding.getBindingId()),
+                "input",
+                binding.getType(),
+                ImmutableList.of(scope.getThis().getField(stateField)));
+
+        method.getBody()
+                .append(new ForLoop()
+                        .initialize(positionVariable.set(constantInt(0)))
+                        .condition(BytecodeExpressions.lessThan(positionVariable, positionCount))
+                        .update(positionVariable.increment())
+                        .body(invokeInputFunction))
+                .ret();
     }
 
     private static void generateAddIntermediateAsCombine(

@@ -1579,6 +1579,8 @@ public class LocalExecutionPlanner
                             context.getTypes(),
                             context.getSession()));
 
+            boolean outer = node.getType() == RIGHT || node.getType() == FULL;
+
             HashBuilderOperatorFactory hashBuilderOperatorFactory = new HashBuilderOperatorFactory(
                     buildContext.getNextOperatorId(),
                     node.getId(),
@@ -1587,12 +1589,12 @@ public class LocalExecutionPlanner
                     buildSource.getLayout(),
                     buildChannels,
                     buildHashChannel,
-                    node.getType() == RIGHT || node.getType() == FULL,
+                    outer,
                     filterFunctionFactory,
                     10_000,
                     buildContext.getDriverInstanceCount().orElse(1),
                     pagesIndexFactory,
-                    false,
+                    spillEnabled && buildContext.getDriverInstanceCount().orElse(1) > 1 && !outer,
                     memoryLimitBeforeSpill,
                     singleStreamSpillerFactory,
                     partitioningSpillerFactory);

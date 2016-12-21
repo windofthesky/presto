@@ -116,6 +116,7 @@
         <module>presto-plugin-toolkit</module>
         <module>presto-resource-group-managers</module>
         <module>presto-sqlserver</module>
+        <module>presto-system-access-control</module>
     </modules>
 
     <repositories>

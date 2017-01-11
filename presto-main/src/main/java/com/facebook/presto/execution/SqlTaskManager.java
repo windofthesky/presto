@@ -71,7 +71,6 @@ import static io.airlift.concurrent.Threads.threadsNamed;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newFixedThreadPool;
-import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 public class SqlTaskManager
         implements TaskManager, Closeable
@@ -82,13 +81,11 @@ public class SqlTaskManager
     private final ThreadPoolExecutorMBean taskNotificationExecutorMBean;
 
     private final ScheduledExecutorService taskManagementExecutor;
-    private final ThreadPoolExecutorMBean taskManagementExecutorMBean;
 
     private final Duration infoCacheTime;
     private final Duration clientTimeout;
 
     private final LocalMemoryManager localMemoryManager;
-    private final MemoryRevokingScheduler memoryRevokingScheduler;
     private final LoadingCache<QueryId, QueryContext> queryContexts;
     private final LoadingCache<TaskId, SqlTask> tasks;
 
@@ -108,7 +105,7 @@ public class SqlTaskManager
             QueryMonitor queryMonitor,
             NodeInfo nodeInfo,
             LocalMemoryManager localMemoryManager,
-            MemoryRevokingScheduler memoryRevokingScheduler,
+            TaskManagementExecutor taskManagementExecutor,
             TaskManagerConfig config,
             NodeMemoryConfig nodeMemoryConfig,
             LocalSpillManager localSpillManager,
@@ -124,8 +121,7 @@ public class SqlTaskManager
         taskNotificationExecutor = newFixedThreadPool(config.getTaskNotificationThreads(), threadsNamed("task-notification-%s"));
         taskNotificationExecutorMBean = new ThreadPoolExecutorMBean((ThreadPoolExecutor) taskNotificationExecutor);
 
-        taskManagementExecutor = newScheduledThreadPool(5, threadsNamed("task-management-%s"));
-        taskManagementExecutorMBean = new ThreadPoolExecutorMBean((ThreadPoolExecutor) taskManagementExecutor);
+        this.taskManagementExecutor = requireNonNull(taskManagementExecutor, "taskManagementExecutor cannot be null").getExecutor();
 
         SqlTaskExecutionFactory sqlTaskExecutionFactory = new SqlTaskExecutionFactory(taskNotificationExecutor, taskExecutor, planner, queryMonitor, config);
 
@@ -133,8 +129,6 @@ public class SqlTaskManager
         DataSize maxQueryMemoryPerNode = nodeMemoryConfig.getMaxQueryMemoryPerNode();
 
         DataSize maxQuerySpillPerNode = nodeSpillConfig.getQueryMaxSpillPerNode();
-
-        this.memoryRevokingScheduler = requireNonNull(memoryRevokingScheduler, "memoryRevokingScheduler can not be null");
 
         queryContexts = CacheBuilder.newBuilder().weakValues().build(new CacheLoader<QueryId, QueryContext>()
         {
@@ -217,15 +211,6 @@ public class SqlTaskManager
                 log.warn(e, "Error updating stats");
             }
         }, 0, 1, TimeUnit.SECONDS);
-
-        taskManagementExecutor.scheduleWithFixedDelay(() -> {
-            try {
-                memoryRevokingScheduler.requestMemoryRevokingIfNeeded(tasks.asMap().values());
-            }
-            catch (Throwable e) {
-                log.warn(e, "Error requesting memory revoking");
-            }
-        }, 0, 1, TimeUnit.SECONDS);
     }
 
     @Override
@@ -249,7 +234,6 @@ public class SqlTaskManager
             }
         }
         taskNotificationExecutor.shutdownNow();
-        taskManagementExecutor.shutdownNow();
     }
 
     @Managed
@@ -266,11 +250,9 @@ public class SqlTaskManager
         return taskNotificationExecutorMBean;
     }
 
-    @Managed(description = "Task garbage collector executor")
-    @Nested
-    public ThreadPoolExecutorMBean getTaskManagementExecutor()
+    public List<SqlTask> getAllTasks()
     {
-        return taskManagementExecutorMBean;
+        return ImmutableList.copyOf(tasks.asMap().values());
     }
 
     @Override

@@ -40,7 +40,7 @@ public class BasePlanTest
 {
     private final Map<String, String> sessionProperties;
 
-    private LocalQueryRunner queryRunner;
+    protected LocalQueryRunner queryRunner;
 
     public BasePlanTest()
     {
@@ -126,8 +126,13 @@ public class BasePlanTest
 
     protected Plan plan(String sql, LogicalPlanner.Stage stage)
     {
+        return plan(sql, stage, true);
+    }
+
+    protected Plan plan(String sql, LogicalPlanner.Stage stage, boolean forceSingleNode)
+    {
         try {
-            return queryRunner.inTransaction(transactionSession -> queryRunner.createPlan(transactionSession, sql, stage));
+            return queryRunner.inTransaction(transactionSession -> queryRunner.createPlan(transactionSession, sql, stage, forceSingleNode));
         }
         catch (RuntimeException ex) {
             fail("Invalid SQL: " + sql, ex);

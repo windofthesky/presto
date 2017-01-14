@@ -705,6 +705,11 @@ public class LocalQueryRunner
 
     public Plan createPlan(Session session, @Language("SQL") String sql, LogicalPlanner.Stage stage)
     {
+        return createPlan(session, sql, stage, true);
+    }
+
+    public Plan createPlan(Session session, @Language("SQL") String sql, LogicalPlanner.Stage stage, boolean forceSingleNode)
+    {
         Statement statement = unwrapExecuteStatement(sqlParser.createStatement(sql), sqlParser, session);
 
         assertFormattedSql(sqlParser, statement);
@@ -716,7 +721,7 @@ public class LocalQueryRunner
                 metadata,
                 sqlParser,
                 featuresConfig,
-                true,
+                forceSingleNode,
                 new MBeanExporter(new TestingMBeanServer()),
                 costCalculator,
                 new GlobalProperties(),

@@ -10,3 +10,4 @@ Administration
     admin/queue
     admin/resource-groups
     admin/query-performance-analysis
+    aws/emr

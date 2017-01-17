@@ -6,6 +6,11 @@ Release Notes
     :maxdepth: 1
 
     release/release-0.167-t
+    release/release-0.157.1-t
+    release/release-0.152.1-t
+    release/release-0.148-t
+    release/release-0.141-t
+    release/release-0.127-t
     release/release-0.167
     release/release-0.166
     release/release-0.165

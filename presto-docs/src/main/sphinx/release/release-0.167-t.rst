@@ -4,6 +4,9 @@ Release 0.167-t
 
 Presto 0.167-t is equivalent to Presto release 0.167, with some additional features and patches.
 
+SQL
+---
+
 **TIMESTAMP limitations**
 
 Presto supports a granularity of milliseconds for the ``TIMESTAMP`` data type, while Hive
@@ -53,6 +56,11 @@ eg. With session start time on 1 March 2017
  * Previous result: ``04:30:00.000 UTC``
  * Current result: ``04:15:00.000 UTC``
 
-**Bugfixes**
-
+Terdata Presto ODBC/JDBC Drivers
+--------------------------------
+SET ROLE functionality is not support on ODBC versions <= 1.1.8  and JDBC versions <= 1.0.14.
+   
+   
+Bugs Fixed
+----------
  * ``current_time`` and ``localtime`` functions were fixed to return the correct value for non-UTC timezones.

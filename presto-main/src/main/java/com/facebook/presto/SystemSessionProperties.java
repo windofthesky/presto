@@ -70,6 +70,8 @@ public final class SystemSessionProperties
     public static final String ITERATIVE_OPTIMIZER = "iterative_optimizer_enabled";
     public static final String ITERATIVE_OPTIMIZER_TIMEOUT = "iterative_optimizer_timeout";
     public static final String EXCHANGE_COMPRESSION = "exchange_compression";
+    public static final String LEGACY_TIMESTAMP = "legacy_timestamp";
+    public static final String PUSH_AGGREGATION_THROUGH_JOIN = "push_aggregation_through_join";
     public static final String PARSE_DECIMAL_LITERALS_AS_DOUBLE = "deprecated_parse_decimal_literals_as_double";
 
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -303,6 +305,11 @@ public final class SystemSessionProperties
                         featuresConfig.isExchangeCompressionEnabled(),
                         false),
                 booleanSessionProperty(
+                        LEGACY_TIMESTAMP,
+                        "Use legacy TIMESTAMP, TIME & DATE semantics",
+                        featuresConfig.isLegacyTimestamp(),
+                        true),
+                booleanSessionProperty(
                         PARSE_DECIMAL_LITERALS_AS_DOUBLE,
                         "Parse decimal literals as DOUBLE instead of DECIMAL",
                         featuresConfig.isParseDecimalLiteralsAsDouble(),
@@ -461,6 +468,12 @@ public final class SystemSessionProperties
     public static boolean isNewOptimizerEnabled(Session session)
     {
         return session.getSystemProperty(ITERATIVE_OPTIMIZER, Boolean.class);
+    }
+
+    @Deprecated
+    public static boolean isLegacyTimestamp(Session session)
+    {
+        return session.getSystemProperty(LEGACY_TIMESTAMP, Boolean.class);
     }
 
     public static Duration getOptimizerTimeout(Session session)

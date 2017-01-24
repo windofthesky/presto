@@ -64,6 +64,11 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(true)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
+<<<<<<< HEAD
+=======
+                .setExchangeCompressionEnabled(false)
+                .setLegacyTimestamp(true));
+>>>>>>> 6c3ef4a... Add config and session property deprecated.legacy-timestamp
                 .setParseDecimalLiteralsAsDouble(false)
                 .setPushAggregationThroughJoin(true)
                 .setMemoryRevokingThreshold(0.9)
@@ -107,6 +112,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
+                .put("deprecated.legacy-timestamp", "false")
                 .put("parse-decimal-literals-as-double", "true")
                 .put("small-table-coefficient", "0.2")
                 .build();
@@ -142,6 +148,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
+                .put("deprecated.legacy-timestamp", "false")
                 .put("parse-decimal-literals-as-double", "true")
                 .put("small-table-coefficient", "0.2")
                 .build();
@@ -176,6 +183,11 @@ public class TestFeaturesConfig
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
+<<<<<<< HEAD
+=======
+                .setLegacyTimestamp(false);
+                .setParseDecimalLiteralsAsDouble(true)
+>>>>>>> 6c3ef4a... Add config and session property deprecated.legacy-timestamp
                 .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8)
                 .setParseDecimalLiteralsAsDouble(true)

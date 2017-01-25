@@ -73,8 +73,9 @@ public class PrestoConnection
     private final Map<String, SelectedRole> roles = new ConcurrentHashMap<>();
     private final AtomicReference<String> transactionId = new AtomicReference<>();
     private final QueryExecutor queryExecutor;
+    private final Runnable onClose;
 
-    PrestoConnection(PrestoDriverUri uri, String user, QueryExecutor queryExecutor)
+    PrestoConnection(PrestoConnectionConfig uri, String user, QueryExecutor queryExecutor, Runnable onClose)
             throws SQLException
     {
         requireNonNull(uri, "uri is null");
@@ -85,6 +86,8 @@ public class PrestoConnection
 
         this.user = requireNonNull(user, "user is null");
         this.queryExecutor = requireNonNull(queryExecutor, "queryExecutor is null");
+        this.onClose = requireNonNull(onClose, "onClose is null");
+
         timeZoneId.set(TimeZone.getDefault().getID());
         locale.set(Locale.getDefault());
     }
@@ -164,6 +167,7 @@ public class PrestoConnection
     public void close()
             throws SQLException
     {
+        onClose.run();
         closed.set(true);
     }
 

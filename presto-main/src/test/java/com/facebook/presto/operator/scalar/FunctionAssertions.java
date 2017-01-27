@@ -818,6 +818,11 @@ public final class FunctionAssertions
         assertEquals(actualType, expectedType);
     }
 
+    public Session getSession()
+    {
+        return session;
+    }
+
     @Override
     public void close()
     {

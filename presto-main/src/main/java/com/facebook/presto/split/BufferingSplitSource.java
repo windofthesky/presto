@@ -46,6 +46,12 @@ public class BufferingSplitSource
     }
 
     @Override
+    public Split getEmptySplit()
+    {
+        return source.getEmptySplit();
+    }
+
+    @Override
     public ListenableFuture<List<Split>> getNextBatch(int maxSize)
     {
         checkArgument(maxSize > 0, "Cannot fetch a batch of zero size");

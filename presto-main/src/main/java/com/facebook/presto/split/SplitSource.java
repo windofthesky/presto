@@ -25,6 +25,8 @@ public interface SplitSource
 {
     ConnectorId getConnectorId();
 
+    Split getEmptySplit();
+
     ListenableFuture<List<Split>> getNextBatch(int maxSize);
 
     @Override

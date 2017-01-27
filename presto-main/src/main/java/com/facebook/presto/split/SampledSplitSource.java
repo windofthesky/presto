@@ -46,6 +46,12 @@ public class SampledSplitSource
     }
 
     @Override
+    public Split getEmptySplit()
+    {
+        return splitSource.getEmptySplit();
+    }
+
+    @Override
     public ListenableFuture<List<Split>> getNextBatch(int maxSize)
     {
         ListenableFuture<List<Split>> batch = splitSource.getNextBatch(maxSize);

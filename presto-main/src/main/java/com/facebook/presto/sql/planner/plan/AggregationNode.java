@@ -48,6 +48,11 @@ public class AggregationNode
     private final Optional<Symbol> groupIdSymbol;
     private final List<Symbol> outputs;
 
+    public boolean hasEmptyGroupingSet()
+    {
+        return groupingSets.stream().anyMatch(List::isEmpty);
+    }
+
     public enum Step
     {
         PARTIAL(true, true),
@@ -222,6 +227,11 @@ public class AggregationNode
     public List<List<Symbol>> getGroupingSets()
     {
         return groupingSets;
+    }
+
+    public boolean hasDefaultOutput()
+    {
+        return hasEmptyGroupingSet() && step.isOutputPartial();
     }
 
     @JsonProperty("source")

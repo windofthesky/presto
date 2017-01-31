@@ -36,6 +36,8 @@ import com.facebook.presto.sql.planner.iterative.rule.PushAggregationThroughOute
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughMarkDistinct;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughProject;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
+import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughExchange;
+import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughUnion;
 import com.facebook.presto.sql.planner.iterative.rule.PushTableWriteThroughUnion;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
@@ -125,6 +127,13 @@ public class PlanOptimizers
                         new InlineProjections(),
                         new RemoveRedundantIdentityProjections()));
 
+        IterativeOptimizer projectionPushDown = new IterativeOptimizer(
+                stats,
+                ImmutableList.of(new ProjectionPushDown()),
+                ImmutableSet.of(
+                        new PushProjectionThroughUnion(),
+                        new PushProjectionThroughExchange()));
+
         builder.add(
                 new DesugaringOptimizer(metadata, sqlParser), // Clean up all the sugar in expressions, e.g. AtTimeZone, must be run before all the other optimizers
                 new CanonicalizeExpressions(),
@@ -184,7 +193,7 @@ public class PlanOptimizers
                 ),
                 inlineProjections,
                 new SimplifyExpressions(metadata, sqlParser), // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations
-                new ProjectionPushDown(),
+                projectionPushDown,
                 new UnaliasSymbolReferences(), // Run again because predicate pushdown and projection pushdown might add more projections
                 new PruneUnreferencedOutputs(), // Make sure to run this before index join. Filtered projections may not have all the columns.
                 new IndexJoinOptimizer(metadata), // Run this after projections and filters have been fully simplified and pushed down
@@ -212,7 +221,7 @@ public class PlanOptimizers
                         ImmutableSet.of(new EliminateCrossJoins())
                 ),
                 new PredicatePushDown(metadata, sqlParser),
-                new ProjectionPushDown());
+                projectionPushDown);
 
         if (featuresConfig.isOptimizeSingleDistinct()) {
             builder.add(
@@ -248,7 +257,7 @@ public class PlanOptimizers
                 ));
 
         builder.add(new PredicatePushDown(metadata, sqlParser)); // Run predicate push down one more time in case we can leverage new information from layouts' effective predicate
-        builder.add(new ProjectionPushDown());
+        builder.add(projectionPushDown);
         builder.add(inlineProjections);
         builder.add(new UnaliasSymbolReferences()); // Run unalias after merging projections to simplify projections more efficiently
         builder.add(new PruneUnreferencedOutputs());

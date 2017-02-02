@@ -58,6 +58,7 @@ public class FeaturesConfig
 
     private boolean distributedIndexJoinsEnabled;
     private boolean colocatedJoinsEnabled;
+
     private boolean reorderJoins;
     private boolean redistributeWrites = true;
     private boolean optimizeMetadataQueries;

@@ -846,11 +846,11 @@ class StatementAnalyzer
             List<Expression> outputExpressions = analyzeSelect(node, sourceScope);
             List<List<Expression>> groupByExpressions = analyzeGroupBy(node, sourceScope, outputExpressions);
 
-            Scope outputScope = computeOutputScope(node, scope, sourceScope);
+            Scope outputScope = computeAndAssignOutputScope(node, scope, sourceScope);
 
             List<Expression> orderByExpressions = emptyList();
             if (node.getOrderBy().isPresent()) {
-                Scope orderByScope = computeOrderByScope(node.getOrderBy().get(), sourceScope, outputScope);
+                Scope orderByScope = computeAndAssignOrderByScope(node.getOrderBy().get(), sourceScope, outputScope);
                 orderByExpressions = analyzeOrderBy(node, sourceScope, orderByScope, outputExpressions);
             }
 
@@ -1582,7 +1582,7 @@ class StatementAnalyzer
             return groupingColumnsBuilder.build();
         }
 
-        private Scope computeOutputScope(QuerySpecification node, Optional<Scope> scope, Scope sourceScope)
+        private Scope computeAndAssignOutputScope(QuerySpecification node, Optional<Scope> scope, Scope sourceScope)
         {
             ImmutableList.Builder<Field> outputFields = ImmutableList.builder();
 
@@ -1634,7 +1634,7 @@ class StatementAnalyzer
             return createAndAssignScope(node, scope, outputFields.build());
         }
 
-        private Scope computeOrderByScope(OrderBy node, Scope sourceScope, Scope outputScope)
+        private Scope computeAndAssignOrderByScope(OrderBy node, Scope sourceScope, Scope outputScope)
         {
             Scope orderByScope = Scope.builder()
                     .withParent(sourceScope)

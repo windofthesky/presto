@@ -197,6 +197,12 @@ public class DataDefinitionExecution<T extends Statement>
     }
 
     @Override
+    public QueryPlan getQueryPlan()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public QueryState getState()
     {
         return stateMachine.getQueryState();

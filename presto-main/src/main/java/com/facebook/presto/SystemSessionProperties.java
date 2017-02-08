@@ -313,6 +313,11 @@ public final class SystemSessionProperties
                         PARSE_DECIMAL_LITERALS_AS_DOUBLE,
                         "Parse decimal literals as DOUBLE instead of DECIMAL",
                         featuresConfig.isParseDecimalLiteralsAsDouble(),
+                        false),
+                booleanSessionProperty(
+                        PUSH_AGGREGATION_THROUGH_JOIN,
+                        "Allow pushing aggregations below joins",
+                        featuresConfig.isPushAggregationThroughJoin(),
                         false));
     }
 
@@ -489,5 +494,10 @@ public final class SystemSessionProperties
     public static boolean isParseDecimalLiteralsAsDouble(Session session)
     {
         return session.getSystemProperty(PARSE_DECIMAL_LITERALS_AS_DOUBLE, Boolean.class);
+    }
+
+    public static boolean shouldPushAggregationThroughJoin(Session session)
+    {
+        return session.getSystemProperty(PUSH_AGGREGATION_THROUGH_JOIN, Boolean.class);
     }
 }

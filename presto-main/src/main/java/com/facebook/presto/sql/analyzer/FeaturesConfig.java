@@ -69,6 +69,7 @@ public class FeaturesConfig
     private double spillMaxUsedSpaceThreshold = 0.9;
     private boolean iterativeOptimizerEnabled = true;
     private boolean parseDecimalLiteralsAsDouble;
+    private boolean pushAggregationThroughJoin = true;
 
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
 
@@ -423,6 +424,18 @@ public class FeaturesConfig
     public FeaturesConfig setParseDecimalLiteralsAsDouble(boolean parseDecimalLiteralsAsDouble)
     {
         this.parseDecimalLiteralsAsDouble = parseDecimalLiteralsAsDouble;
+        return this;
+    }
+
+    public boolean isPushAggregationThroughJoin()
+    {
+        return pushAggregationThroughJoin;
+    }
+
+    @Config("optimizer.push-aggregation-through-join")
+    public FeaturesConfig setPushAggregationThroughJoin(boolean value)
+    {
+        this.pushAggregationThroughJoin = value;
         return this;
     }
 }

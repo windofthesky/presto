@@ -68,7 +68,8 @@ public class TestFeaturesConfig
                 .setLegacyTimestamp(false)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setMemoryRevokingThreshold(0.9)
-                .setMemoryRevokingTarget(0.5));
+                .setMemoryRevokingTarget(0.5)
+                .setPushAggregationThroughJoin(true));
     }
 
     @Test
@@ -94,6 +95,7 @@ public class TestFeaturesConfig
                 .put("optimizer.push-table-write-through-union", "false")
                 .put("optimizer.processing-optimization", "columnar_dictionary")
                 .put("optimizer.dictionary-aggregation", "true")
+                .put("optimizer.push-aggregation-through-join", "false")
                 .put("regex-library", "RE2J")
                 .put("re2j.dfa-states-limit", "42")
                 .put("re2j.dfa-retries", "42")
@@ -128,6 +130,7 @@ public class TestFeaturesConfig
                 .put("optimizer.push-table-write-through-union", "false")
                 .put("optimizer.processing-optimization", "columnar_dictionary")
                 .put("optimizer.dictionary-aggregation", "true")
+                .put("optimizer.push-aggregation-through-join", "false")
                 .put("regex-library", "RE2J")
                 .put("re2j.dfa-states-limit", "42")
                 .put("re2j.dfa-retries", "42")
@@ -160,6 +163,7 @@ public class TestFeaturesConfig
                 .setPushTableWriteThroughUnion(false)
                 .setProcessingOptimization(COLUMNAR_DICTIONARY)
                 .setDictionaryAggregation(true)
+                .setPushAggregationThroughJoin(false)
                 .setLegacyArrayAgg(true)
                 .setLegacyMapSubscript(true)
                 .setRegexLibrary(RE2J)

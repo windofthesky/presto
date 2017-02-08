@@ -92,6 +92,7 @@ public class FeaturesConfig
     private boolean parseDecimalLiteralsAsDouble;
 
     private Duration iterativeOptimizerTimeout = new Duration(0, MILLISECONDS); // 0 = timeout disabled
+    private boolean pushAggregationThroughJoin = true;
 
     public boolean isResourceGroupsEnabled()
     {
@@ -498,5 +499,17 @@ public class FeaturesConfig
     public double getSmallTableCoefficient()
     {
         return smallTableCoefficient;
+    }
+
+    public boolean isPushAggregationThroughJoin()
+    {
+        return pushAggregationThroughJoin;
+    }
+
+    @Config("optimizer.push-aggregation-through-join")
+    public FeaturesConfig setPushAggregationThroughJoin(boolean value)
+    {
+        this.pushAggregationThroughJoin = value;
+        return this;
     }
 }

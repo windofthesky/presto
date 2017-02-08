@@ -53,6 +53,10 @@ statement
     | CREATE (OR REPLACE)? VIEW qualifiedName AS query                 #createView
     | DROP VIEW (IF EXISTS)? qualifiedName                             #dropView
     | CALL qualifiedName '(' (callArgument (',' callArgument)*)? ')'   #call
+    | CREATE ROLE name=identifier
+        (WITH ADMIN grantor)?
+        (IN catalog=identifier)?                                       #createRole
+    | DROP ROLE name=identifier (IN catalog=identifier)?               #dropRole
     | GRANT
         (privilege (',' privilege)* | ALL PRIVILEGES)
         ON TABLE? qualifiedName TO grantee=identifier
@@ -422,6 +426,18 @@ qualifiedName
     : identifier ('.' identifier)*
     ;
 
+grantor
+    : principal             #specifiedPrincipal
+    | CURRENT_USER          #currentUser
+    | CURRENT_ROLE          #currentRole
+    ;
+
+principal
+    : identifier            #unspecifiedPrincipal
+    | USER identifier       #userPrincipal
+    | ROLE identifier       #rolePrincipal
+    ;
+
 identifier
     : IDENTIFIER             #unquotedIdentifier
     | quotedIdentifier       #quotedIdentifierAlternative
@@ -466,6 +482,7 @@ nonReserved
     | INPUT | OUTPUT
     | INCLUDING | EXCLUDING | PROPERTIES
     | ALL | SOME | ANY
+    | USER | ROLE | ADMIN
     ;
 
 normalForm
@@ -571,6 +588,11 @@ DELETE: 'DELETE';
 INTO: 'INTO';
 CONSTRAINT: 'CONSTRAINT';
 DESCRIBE: 'DESCRIBE';
+USER: 'USER';
+ROLE: 'ROLE';
+CURRENT_USER: 'CURRENT_USER';
+CURRENT_ROLE: 'CURRENT_ROLE';
+ADMIN: 'ADMIN';
 GRANT: 'GRANT';
 REVOKE: 'REVOKE';
 PRIVILEGES: 'PRIVILEGES';

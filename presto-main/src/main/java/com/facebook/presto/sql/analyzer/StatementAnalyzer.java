@@ -792,7 +792,7 @@ class StatementAnalyzer
                 }
             }
 
-            RelationType descriptor = relationType.withAlias(relation.getAlias(), relation.getColumnNames());
+            RelationType descriptor = relationType.withAlias(RelationId.of(relation), relation.getAlias(), relation.getColumnNames());
             return createAndAssignScope(relation, scope, descriptor);
         }
 
@@ -935,7 +935,7 @@ class StatementAnalyzer
             List<Scope> relationScopes = node.getRelations().stream()
                     .map(relation -> {
                         Scope relationScope = process(relation, scope);
-                        return createAndAssignScope(relation, scope, relationScope.getRelationType().withOnlyVisibleFields());
+                        return createAndAssignScope(relation, scope, relationScope.getRelationType().withOnlyVisibleFields(RelationId.of(relation)));
                     })
                     .collect(toImmutableList());
 
@@ -967,7 +967,7 @@ class StatementAnalyzer
             }
 
             Field[] outputDescriptorFields = new Field[outputFieldTypes.length];
-            RelationType firstDescriptor = relationScopes.get(0).getRelationType().withOnlyVisibleFields();
+            RelationType firstDescriptor = relationScopes.get(0).getRelationType().withOnlyVisibleFields(RelationId.anonymous());
             for (int i = 0; i < outputFieldTypes.length; i++) {
                 Field oldField = firstDescriptor.getFieldByIndex(i);
                 outputDescriptorFields[i] = new Field(
@@ -1026,7 +1026,7 @@ class StatementAnalyzer
             Scope left = process(node.getLeft(), scope);
             Scope right = process(node.getRight(), isUnnestRelation(node.getRight()) ? Optional.of(left) : scope);
 
-            Scope output = createAndAssignScope(node, scope, left.getRelationType().joinWith(right.getRelationType()));
+            Scope output = createAndAssignScope(node, scope, left.getRelationType().joinWith(RelationId.of(node), right.getRelationType()));
 
             if (node.getType() == Join.Type.CROSS || node.getType() == Join.Type.IMPLICIT) {
                 return output;
@@ -1598,7 +1598,7 @@ class StatementAnalyzer
             orderByAggregationExpressions.forEach(expression -> orderByAggregationSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(expression))));
 
             Scope orderByAggregationScope = Scope.builder()
-                    .withRelationType(new RelationType(orderByAggregationSourceFields.build()))
+                    .withRelationType(new RelationType(RelationId.anonymous(), orderByAggregationSourceFields.build()))
                     .build();
 
             Scope orderByScope = Scope.builder()
@@ -1791,7 +1791,7 @@ class StatementAnalyzer
 
                 StatementAnalyzer analyzer = new StatementAnalyzer(analysis, metadata, sqlParser, viewAccessControl, viewSession);
                 Scope queryScope = analyzer.analyze(query, Scope.create());
-                return queryScope.getRelationType().withAlias(name.getObjectName(), null);
+                return queryScope.getRelationType().withAlias(RelationId.of(query), name.getObjectName(), null);
             }
             catch (RuntimeException e) {
                 throw new SemanticException(VIEW_ANALYSIS_ERROR, node, "Failed analyzing stored view '%s': %s", name, e.getMessage());
@@ -1977,12 +1977,12 @@ class StatementAnalyzer
 
         private Scope createAndAssignScope(Node node, Optional<Scope> parentScope, Field... fields)
         {
-            return createAndAssignScope(node, parentScope, new RelationType(fields));
+            return createAndAssignScope(node, parentScope, ImmutableList.copyOf(fields));
         }
 
         private Scope createAndAssignScope(Node node, Optional<Scope> parentScope, List<Field> fields)
         {
-            return createAndAssignScope(node, parentScope, new RelationType(fields));
+            return createAndAssignScope(node, parentScope, new RelationType(RelationId.of(node), fields));
         }
 
         private Scope createAndAssignScope(Node node, Optional<Scope> parentScope, RelationType relationType)

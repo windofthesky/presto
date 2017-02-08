@@ -66,7 +66,7 @@ public class Analysis
     private final IdentityLinkedHashMap<Table, Query> namedQueries = new IdentityLinkedHashMap<>();
 
     private final IdentityLinkedHashMap<Node, Scope> scopes = new IdentityLinkedHashMap<>();
-    private final Set<Expression> columnReferences = newSetFromMap(new IdentityLinkedHashMap<>());
+    private final IdentityLinkedHashMap<Expression, FieldId> columnReferences = new IdentityLinkedHashMap<>();
 
     private final IdentityLinkedHashMap<QuerySpecification, List<FunctionCall>> aggregates = new IdentityLinkedHashMap<>();
     private final IdentityLinkedHashMap<OrderBy, List<Expression>> orderByAggregates = new IdentityLinkedHashMap<>();
@@ -350,9 +350,9 @@ public class Analysis
         return orderByWindowFunctions.get(query);
     }
 
-    public void addColumnReferences(Set<Expression> columnReferences)
+    public void addColumnReferences(IdentityLinkedHashMap<Expression, FieldId> columnReferences)
     {
-        this.columnReferences.addAll(columnReferences);
+        this.columnReferences.putAll(columnReferences);
     }
 
     public Scope getScope(Node node)
@@ -416,7 +416,7 @@ public class Analysis
 
     public Set<Expression> getColumnReferences()
     {
-        return unmodifiableSet(columnReferences);
+        return unmodifiableSet(columnReferences.keySet());
     }
 
     public void addTypes(IdentityLinkedHashMap<Expression, Type> types)

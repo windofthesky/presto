@@ -1437,7 +1437,7 @@ public class TestHiveIntegrationSmokeTest
             throws Exception
     {
         assertUpdate("CREATE TABLE tmp_complex1 AS SELECT " +
-                "ARRAY [MAP(ARRAY['a', 'b'], ARRAY[DOUBLE '2.0', DOUBLE '4.0']), MAP(ARRAY['c', 'd'], ARRAY[DOUBLE '12.0', DOUBLE '14.0'])] AS a",
+                        "ARRAY [MAP(ARRAY['a', 'b'], ARRAY[DOUBLE '2.0', DOUBLE '4.0']), MAP(ARRAY['c', 'd'], ARRAY[DOUBLE '12.0', DOUBLE '14.0'])] AS a",
                 1);
 
         assertQuery(
@@ -1860,7 +1860,7 @@ public class TestHiveIntegrationSmokeTest
     }
 
     private static class RollbackException
-        extends RuntimeException
+            extends RuntimeException
     {
     }
 

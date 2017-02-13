@@ -140,6 +140,7 @@ import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMEN
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
+import static com.facebook.presto.sql.analyzer.AggregationAnalyzer.verifySourceAggregations;
 import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.createConstantAnalyzer;
 import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.getExpressionTypes;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.AMBIGUOUS_ATTRIBUTE;
@@ -1749,7 +1750,7 @@ class StatementAnalyzer
                         .collect(toImmutableList());
 
                 for (Expression expression : expressions) {
-                    verifyAggregations(distinctGroupingColumns, scope, expression, columnReferences);
+                    verifySourceAggregations(distinctGroupingColumns, scope, expression, metadata, analysis);
                 }
             }
         }
@@ -1771,16 +1772,6 @@ class StatementAnalyzer
                     .ifPresent(extractor::process);
 
             return !extractor.getAggregates().isEmpty();
-        }
-
-        private void verifyAggregations(
-                List<Expression> groupByExpressions,
-                Scope scope,
-                Expression expression,
-                Set<Expression> columnReferences)
-        {
-            AggregationAnalyzer analyzer = new AggregationAnalyzer(groupByExpressions, metadata, scope, columnReferences, analysis.getParameters(), analysis.isDescribe());
-            analyzer.analyze(expression);
         }
 
         private RelationType analyzeView(Query query, QualifiedObjectName name, Optional<String> catalog, Optional<String> schema, Optional<String> owner, Table node)

@@ -62,7 +62,7 @@ public class TestFeaturesConfig
                 .setOptimizeMixedDistinctAggregations(false)
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(true)
-                .setLegacyTimestamp(true)
+                .setLegacyTimestamp(false)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setExchangeCompressionEnabled(false)
                 .setEnableIntermediateAggregations(false)
@@ -103,7 +103,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
@@ -137,7 +137,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
                 .build();
 
@@ -172,7 +172,7 @@ public class TestFeaturesConfig
                 .setMemoryRevokingTarget(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
-                .setLegacyTimestamp(false)
+                .setLegacyTimestamp(true)
                 .setEnableIntermediateAggregations(true);
 
         assertFullMapping(properties, expected);

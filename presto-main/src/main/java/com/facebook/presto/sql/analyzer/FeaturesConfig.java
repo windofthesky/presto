@@ -69,7 +69,7 @@ public class FeaturesConfig
     private boolean exchangeCompressionEnabled = false;
     private boolean legacyArrayAgg;
     private boolean legacyOrderBy;
-    private boolean legacyTimestamp = true;
+    private boolean legacyTimestamp;
     private boolean legacyMapSubscript;
     private boolean optimizeMixedDistinctAggregations;
     private String joinDistributionType = JoinDistributionType.REPARTITIONED;

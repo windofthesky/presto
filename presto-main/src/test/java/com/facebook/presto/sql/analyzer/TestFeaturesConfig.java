@@ -64,11 +64,8 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(true)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
-<<<<<<< HEAD
-=======
                 .setExchangeCompressionEnabled(false)
-                .setLegacyTimestamp(true));
->>>>>>> 6c3ef4a... Add config and session property deprecated.legacy-timestamp
+                .setLegacyTimestamp(true)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setPushAggregationThroughJoin(true)
                 .setMemoryRevokingThreshold(0.9)
@@ -183,12 +180,8 @@ public class TestFeaturesConfig
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
-<<<<<<< HEAD
-=======
-                .setLegacyTimestamp(false);
+                .setLegacyTimestamp(false)
                 .setParseDecimalLiteralsAsDouble(true)
->>>>>>> 6c3ef4a... Add config and session property deprecated.legacy-timestamp
-                .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8)
                 .setParseDecimalLiteralsAsDouble(true)
                 .setSmallTableCoefficient(0.2);

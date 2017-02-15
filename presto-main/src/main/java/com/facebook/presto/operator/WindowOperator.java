@@ -28,6 +28,7 @@ import com.google.common.primitives.Ints;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.spi.block.SortOrder.ASC_NULLS_LAST;
@@ -452,13 +453,7 @@ public class WindowOperator
             return page.getPositionCount();
         }
 
-        // TODO: do position binary search
-        int endPosition = startPosition + 1;
-        while (endPosition < page.getPositionCount() &&
-                pagesHashStrategy.rowEqualsRow(endPosition - 1, page, endPosition, page)) {
-            endPosition++;
-        }
-        return endPosition;
+        return findEndPosition(startPosition + 1, page.getPositionCount(), (firstPosition, secondPosition) -> pagesHashStrategy.rowEqualsRow(firstPosition, page, secondPosition, page));
     }
 
     // Assumes input grouped on relevant pagesHashStrategy columns
@@ -472,12 +467,18 @@ public class WindowOperator
             return pagesIndex.getPositionCount();
         }
 
+        return findEndPosition(startPosition + 1, pagesIndex.getPositionCount(), (firstPosition, secondPosition) -> pagesIndex.positionEqualsPosition(pagesHashStrategy, firstPosition, secondPosition));
+    }
+
+    // equalityComparator is suppose to return true if positions given as parameters are equal
+    private static int findEndPosition(int startingPosition, int lastPosition, BiFunction<Integer, Integer, Boolean> equalityComparator)
+    {
         // TODO: do position binary search
-        int endPosition = startPosition + 1;
-        while ((endPosition < pagesIndex.getPositionCount()) &&
-                pagesIndex.positionEqualsPosition(pagesHashStrategy, endPosition - 1, endPosition)) {
+        int endPosition = startingPosition;
+        while ((endPosition < lastPosition) && equalityComparator.apply(endPosition - 1, endPosition)) {
             endPosition++;
         }
+
         return endPosition;
     }
 }

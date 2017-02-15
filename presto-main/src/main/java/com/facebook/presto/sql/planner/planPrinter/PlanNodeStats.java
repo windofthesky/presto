@@ -18,6 +18,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.util.MoreMaps.mergeMaps;
@@ -41,6 +42,7 @@ public class PlanNodeStats
 
     private final Map<String, OperatorInputStats> operatorInputStats;
     private final Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats;
+    private final Optional<WindowNodeStats> windowNodeStats;
 
     PlanNodeStats(
             PlanNodeId planNodeId,
@@ -50,7 +52,8 @@ public class PlanNodeStats
             long planNodeOutputPositions,
             DataSize planNodeOutputDataSize,
             Map<String, OperatorInputStats> operatorInputStats,
-            Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats)
+            Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats,
+            Optional<WindowNodeStats> windowNodeStats)
     {
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
 
@@ -62,6 +65,7 @@ public class PlanNodeStats
 
         this.operatorInputStats = requireNonNull(operatorInputStats, "operatorInputStats is null");
         this.operatorHashCollisionsStats = requireNonNull(operatorHashCollisionsStats, "operatorHashCollisionsStats is null");
+        this.windowNodeStats = requireNonNull(windowNodeStats, "windowNodeStats is null");
     }
 
     private static double computedStdDev(double sumSquared, double sum, long n)
@@ -161,6 +165,11 @@ public class PlanNodeStats
                         entry -> entry.getValue().getWeightedExpectedHashCollisions() / operatorInputStats.get(entry.getKey()).getInputPositions()));
     }
 
+    public Optional<WindowNodeStats> getWindowNodeStats()
+    {
+        return windowNodeStats;
+    }
+
     public static PlanNodeStats merge(PlanNodeStats left, PlanNodeStats right)
     {
         checkArgument(left.getPlanNodeId().equals(right.getPlanNodeId()), "planNodeIds do not match. %s != %s", left.getPlanNodeId(), right.getPlanNodeId());
@@ -172,6 +181,7 @@ public class PlanNodeStats
 
         Map<String, OperatorInputStats> operatorInputStats = mergeMaps(left.operatorInputStats, right.operatorInputStats, OperatorInputStats::merge);
         Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats = mergeMaps(left.operatorHashCollisionsStats, right.operatorHashCollisionsStats, OperatorHashCollisionsStats::merge);
+        Optional<WindowNodeStats> windowNodeStats = WindowNodeStats.merge(left.windowNodeStats, right.windowNodeStats);
 
         return new PlanNodeStats(
                 left.getPlanNodeId(),
@@ -179,6 +189,7 @@ public class PlanNodeStats
                 planNodeInputPositions, planNodeInputDataSize,
                 planNodeOutputPositions, planNodeOutputDataSize,
                 operatorInputStats,
-                operatorHashCollisionsStats);
+                operatorHashCollisionsStats,
+                windowNodeStats);
     }
 }

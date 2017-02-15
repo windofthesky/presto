@@ -100,6 +100,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.airlift.slice.Slice;
+import io.airlift.stats.Distribution.DistributionSnapshot;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -203,7 +204,7 @@ public class PlanPrinter
                 .flatMap(stage -> getAllStages(Optional.of(stage)).stream())
                 .collect(toImmutableList());
         for (StageInfo stageInfo : allStages) {
-            Map<PlanNodeId, PlanNodeStats> aggregatedStats = aggregatePlanNodeStats(stageInfo);
+            Map<PlanNodeId, PlanNodeStats> aggregatedStats = aggregatePlanNodeStats(stageInfo, verbose);
             builder.append(formatFragment(metadata, costCalculator, session, stageInfo.getPlan(), Optional.of(stageInfo.getStageStats()), Optional.of(aggregatedStats)));
         }
 
@@ -366,6 +367,10 @@ public class PlanPrinter
         output.append('\n');
 
         printDistributions(indent, nodeStats);
+
+        if (nodeStats.getWindowNodeStats().isPresent()) {
+            printWindowNodeStats(indent, nodeStats.getWindowNodeStats().get());
+        }
     }
 
     private void printDistributions(int indent, PlanNodeStats nodeStats)
@@ -433,6 +438,25 @@ public class PlanPrinter
         return ImmutableMap.of();
     }
 
+    private void printWindowNodeStats(int indent, WindowNodeStats stats)
+    {
+        output.append(indentString(indent));
+        output.append(format("Active Drivers: [ %d / %d ]", stats.getActiveDrivers(), stats.getTotalDrivers()));
+        output.append('\n');
+
+        output.append(indentString(indent));
+        output.append(formatDistribution("Index size in bytes", stats.getIndexSizeDistribution()));
+        output.append('\n');
+
+        output.append(indentString(indent));
+        output.append(formatDistribution("Rows in partitions per index", stats.getPartitionRowsPerIndexDistribution()));
+        output.append('\n');
+
+        output.append(indentString(indent));
+        output.append(formatDistribution("Rows in partitions per driver", stats.getPartitionRowsPerDriverDistribution()));
+        output.append('\n');
+    }
+
     private static String formatDouble(double value)
     {
         if (isFinite(value)) {
@@ -449,6 +473,13 @@ public class PlanPrinter
         }
 
         return positions + " rows";
+    }
+
+    private static String formatDistribution(String name, DistributionSnapshot d)
+    {
+        return format(Locale.US,
+                "%s: { count: %.0f, total: %.0f, min: %d, p05: %d, p25: %d, p50: %d, p75: %d, p95: %d, max: %d }",
+                name, d.getCount(), d.getTotal(), d.getMin(), d.getP05(), d.getP25(), d.getP50(), d.getP75(), d.getP95(), d.getMax());
     }
 
     private static String indentString(int indent)

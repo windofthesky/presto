@@ -19,6 +19,7 @@ import com.facebook.presto.operator.HashCollisionsInfo;
 import com.facebook.presto.operator.OperatorStats;
 import com.facebook.presto.operator.PipelineStats;
 import com.facebook.presto.operator.TaskStats;
+import com.facebook.presto.operator.WindowOperator;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.util.MoreMaps.mergeMaps;
@@ -43,12 +45,12 @@ public class PlanNodeStatsSummarizer
 {
     private PlanNodeStatsSummarizer() {}
 
-    public static Map<PlanNodeId, PlanNodeStats> aggregatePlanNodeStats(StageInfo stageInfo)
+    public static Map<PlanNodeId, PlanNodeStats> aggregatePlanNodeStats(StageInfo stageInfo, boolean verbose)
     {
         Map<PlanNodeId, PlanNodeStats> aggregatedStats = new HashMap<>();
         List<PlanNodeStats> planNodeStats = stageInfo.getTasks().stream()
                 .map(TaskInfo::getStats)
-                .flatMap(taskStats -> getPlanNodeStats(taskStats).stream())
+                .flatMap(taskStats -> getPlanNodeStats(taskStats, verbose).stream())
                 .collect(toList());
         for (PlanNodeStats stats : planNodeStats) {
             aggregatedStats.merge(stats.getPlanNodeId(), stats, PlanNodeStats::merge);
@@ -56,7 +58,7 @@ public class PlanNodeStatsSummarizer
         return aggregatedStats;
     }
 
-    private static List<PlanNodeStats> getPlanNodeStats(TaskStats taskStats)
+    private static List<PlanNodeStats> getPlanNodeStats(TaskStats taskStats, boolean verbose)
     {
         // Best effort to reconstruct the plan nodes from operators.
         // Because stats are collected separately from query execution,
@@ -71,6 +73,7 @@ public class PlanNodeStatsSummarizer
 
         Map<PlanNodeId, Map<String, OperatorInputStats>> operatorInputStats = new HashMap<>();
         Map<PlanNodeId, Map<String, OperatorHashCollisionsStats>> operatorHashCollisionsStats = new HashMap<>();
+        Map<PlanNodeId, WindowNodeStats> windowNodeStats = new HashMap<>();
 
         for (PipelineStats pipelineStats : taskStats.getPipelines()) {
             // Due to eventual consistently collected stats, these could be empty
@@ -118,6 +121,12 @@ public class PlanNodeStatsSummarizer
                             (map1, map2) -> mergeMaps(map1, map2, OperatorHashCollisionsStats::merge));
                 }
 
+                // The only statistics we have for Window Functions are very low level, thus displayed only in VERBOSE mode
+                if (operatorStats.getInfo() instanceof WindowOperator.WindowInfo && verbose) {
+                    WindowOperator.WindowInfo windowInfo = (WindowOperator.WindowInfo) operatorStats.getInfo();
+                    windowNodeStats.merge(planNodeId, WindowNodeStats.create(windowInfo), WindowNodeStats::merge);
+                }
+
                 planNodeInputPositions.merge(planNodeId, operatorStats.getInputPositions(), Long::sum);
                 planNodeInputBytes.merge(planNodeId, operatorStats.getInputDataSize().toBytes(), Long::sum);
                 processedNodes.add(planNodeId);
@@ -158,7 +167,8 @@ public class PlanNodeStatsSummarizer
                     succinctDataSize(planNodeOutputBytes.getOrDefault(planNodeId, 0L), BYTE),
                     operatorInputStats.get(planNodeId),
                     // Only some operators emit hash collisions statistics
-                    operatorHashCollisionsStats.getOrDefault(planNodeId, emptyMap())));
+                    operatorHashCollisionsStats.getOrDefault(planNodeId, emptyMap()),
+                    Optional.ofNullable(windowNodeStats.get(planNodeId))));
         }
         return stats;
     }

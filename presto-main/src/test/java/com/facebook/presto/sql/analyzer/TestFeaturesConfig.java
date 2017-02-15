@@ -64,7 +64,7 @@ public class TestFeaturesConfig
                 .setOptimizeMixedDistinctAggregations(false)
                 .setLegacyOrderBy(false)
                 .setIterativeOptimizerEnabled(true)
-                .setLegacyTimestamp(true)
+                .setLegacyTimestamp(false)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setMemoryRevokingThreshold(0.9)
                 .setMemoryRevokingTarget(0.5)
@@ -111,7 +111,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("small-table-coefficient", "0.2")
                 .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
@@ -148,7 +148,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("small-table-coefficient", "0.2")
                 .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
@@ -186,9 +186,9 @@ public class TestFeaturesConfig
                 .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8)
                 .setExchangeCompressionEnabled(true)
+                .setLegacyTimestamp(true)
                 .setSmallTableCoefficient(0.2)
                 .setExchangeCompressionEnabled(true)
-                .setLegacyTimestamp(false);
                 .setParseDecimalLiteralsAsDouble(true);
 
         assertFullMapping(properties, expected);

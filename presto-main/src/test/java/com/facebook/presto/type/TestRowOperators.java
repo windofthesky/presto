@@ -39,6 +39,7 @@ import static com.facebook.presto.spi.type.IntegerType.INTEGER;
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.facebook.presto.spi.type.VarcharType.createUnboundedVarcharType;
+import static com.facebook.presto.testing.TestingSqlTime.sqlTimestampOf;
 import static com.facebook.presto.type.JsonType.JSON;
 import static com.facebook.presto.type.TypeJsonUtils.appendToBlockBuilder;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -72,6 +73,7 @@ public class TestRowOperators
         assertFunction("CAST(ROW(CAST(1.0 as DOUBLE), CAST(2.5 as DOUBLE)) AS JSON)", JSON, "[1.0,2.5]");
         assertFunction("CAST(ROW(CAST(1.0 as DOUBLE), 'kittens') AS JSON)", JSON, "[1.0,\"kittens\"]");
         assertFunction("CAST(ROW(TRUE, FALSE) AS JSON)", JSON, "[true,false]");
+        assertFunction("CAST(ROW(from_unixtime(1)) AS JSON)", JSON, "[\"" + sqlTimestampOf(1000, TEST_SESSION.toConnectorSession()) + "\"]");
         assertFunction("CAST(ROW(FALSE, ARRAY [1, 2], MAP(ARRAY[1, 3], ARRAY[CAST(2.0 as DOUBLE), CAST(4.0 as DOUBLE)])) AS JSON)", JSON, "[false,[1,2],{\"1\":2.0,\"3\":4.0}]");
         assertFunction("CAST(row(1.0, 123123123456.6549876543) AS JSON)", JSON, "[1.0,123123123456.6549876543]");
     }

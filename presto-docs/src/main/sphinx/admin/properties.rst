@@ -67,6 +67,84 @@ General properties
   a large value is not recommended when the environment is unstable.
 
 
+``optimizer.reorder-windows``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``Boolean``
+ * **Default value:** ``true``
+ * **Description:** Allow reordering windows in order to put those with the same partitioning next to each other. This will sometimes decrease the number of repartitionings. This can also be specified on a per-query basis using the ``reorder_windows`` session property.
+
+
+.. _tuning-spilling:
+
+Properties controlling spilling
+-------------------------------
+
+``experimental.spill-enabled``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``Boolean``
+ * **Default value:** ``false``
+ * **Description:** Try spilling memory to disk to avoid exceeding memory limits for the query.
+
+   Spilling works by offloading memory to disk. This process can allow some queries with large memory
+   footprint to pass at the cost of slower execution times. Currently, spilling is supported only for
+   aggregations, so this property will not reduce memory usage required for joins, window functions and
+   sorting.
+
+   Be aware that this is an experimental feature and should be used with care.
+
+   Currently, all queries with aggregations will slow down after enabling spilling. It is recommended
+   to use the spill session property to selectively turn on spilling only for queries that would run
+   out of memory otherwise.
+
+   This config property can be overridden by the ``spill_enabled`` session property.
+
+
+``experimental.spiller-spill-path``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``String``
+ * **No default value.** Must be overriden before enabling spilling
+ * **Description:** Directory where spilled content will be written. It can be a comma separated list to
+   spill simultaneously to multiple directories, which helps to utilize multiple drives installed in the system.
+   It is highly unrecommended to spill to system drives. Especially do not spill on a drive, to which are
+   written JVM logs. Otherwise disks overutilization might cause JVM to pause for lengthy periods causing
+   presto workers to disconnect. 
+
+
+``experimental.spiller-minimum-free-space-threshold``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``Double``
+ * **Default value:** ``0.9``
+ * **Description:** If disk space usage of a given spill path is above this threshold, this spill path will not be eligible for spilling.
+
+
+``experimental.spiller-threads``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``Integer``
+ * **Default value:** ``4``
+ * **Description:** Number of spiller threads. Increase this value if the default is not able to saturate the underlying spilling device (for example, when using a RAID matrix with multiple disks)
+
+
+``experimental.max-spill-per-node``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``String`` (data size)
+ * **Default value:** ``100 GB``
+ * **Description:** Max spill space to be used by all queries on a single node.
+
+
+``experimental.query-max-spill-per-node``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ * **Type:** ``String`` (data size)
+ * **Default value:** ``100 GB``
+ * **Description:** Max spill space to be used by a single query on a single node.
+
+
 .. _tuning-pref-query:
 
 Query execution properties

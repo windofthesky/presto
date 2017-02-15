@@ -1013,6 +1013,7 @@ public class PredicatePushDown
             return node;
         }
 
+        @Deprecated
         @Override
         public PlanNode visitAssignUniqueId(AssignUniqueId node, RewriteContext<Expression> context)
         {

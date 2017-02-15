@@ -28,6 +28,7 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.TestingTableHandle;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
+import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.DeleteNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
@@ -225,6 +226,11 @@ public class PlanBuilder
         {
             return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs);
         }
+    }
+
+    public AssignUniqueId assignUniqueId(Symbol uniqueId, PlanNode source)
+    {
+        return new AssignUniqueId(idAllocator.getNextId(), source, uniqueId);
     }
 
     public Symbol symbol(String name, Type type)

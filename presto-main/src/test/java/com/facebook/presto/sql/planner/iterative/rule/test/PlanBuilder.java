@@ -35,6 +35,7 @@ import com.facebook.presto.sql.planner.plan.DeleteNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
+import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
@@ -250,6 +251,11 @@ public class PlanBuilder
     public AssignUniqueId assignUniqueId(Symbol uniqueId, PlanNode source)
     {
         return new AssignUniqueId(idAllocator.getNextId(), source, uniqueId);
+    }
+
+    public PlanNode markDistinct(Symbol marker, PlanNode source)
+    {
+        return new MarkDistinctNode(idAllocator.getNextId(), source, marker, source.getOutputSymbols(), Optional.empty());
     }
 
     public Symbol symbol(String name, Type type)

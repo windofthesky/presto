@@ -475,12 +475,28 @@ public class WindowOperator
     @VisibleForTesting
     static int findEndPosition(int startingPosition, int lastPosition, BiFunction<Integer, Integer, Boolean> equalityComparator)
     {
-        // TODO: do position binary search
-        int endPosition = startingPosition;
-        while ((endPosition < lastPosition) && equalityComparator.apply(endPosition - 1, endPosition)) {
-            endPosition++;
+        if (startingPosition >= lastPosition || !equalityComparator.apply(startingPosition, startingPosition - 1)) {
+            return startingPosition;
         }
 
-        return endPosition;
+        int diff = lastPosition - startingPosition;
+        int midPosition = startingPosition + floorDiv2(diff);
+        if (equalityComparator.apply(startingPosition, midPosition)) {
+            // explore to the right
+            if (diff == 1) {
+                // 1 / 2 = 0, so we wouldn't be progressing in case of such a diff
+                midPosition++;
+            }
+            return findEndPosition(midPosition, lastPosition, equalityComparator);
+        }
+        else {
+            // explore to the left
+            return findEndPosition(startingPosition, midPosition, equalityComparator);
+        }
+    }
+
+    private static int floorDiv2(int num)
+    {
+        return num >> 1;
     }
 }

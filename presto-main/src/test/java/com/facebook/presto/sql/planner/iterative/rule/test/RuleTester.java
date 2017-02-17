@@ -62,12 +62,6 @@ public class RuleTester
         return new RuleAssert(metadata, session, queryRunner.getTransactionManager(), queryRunner.getAccessControl(), rule);
     }
 
-    @Override
-    public void close()
-    {
-        queryRunner.close();
-    }
-
     public Metadata getMetadata()
     {
         return metadata;
@@ -76,5 +70,11 @@ public class RuleTester
     public ConnectorId getCurrentConnectorId()
     {
         return queryRunner.inTransaction(transactionSession -> metadata.getCatalogHandle(transactionSession, session.getCatalog().get())).get();
+    }
+
+    @Override
+    public void close()
+    {
+        queryRunner.close();
     }
 }

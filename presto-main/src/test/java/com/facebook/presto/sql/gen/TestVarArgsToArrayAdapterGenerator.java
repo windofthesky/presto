@@ -24,6 +24,7 @@ import com.facebook.presto.operator.scalar.ScalarFunctionImplementation;
 import com.facebook.presto.spi.type.TypeManager;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.lang.invoke.MethodHandle;
@@ -41,8 +42,10 @@ import static java.util.stream.Collectors.toSet;
 public class TestVarArgsToArrayAdapterGenerator
         extends AbstractTestFunctions
 {
-    public TestVarArgsToArrayAdapterGenerator()
+    @BeforeClass
+    public void setUp()
     {
+        super.setUp();
         registerScalarFunction(VAR_ARGS_SUM);
     }
 

@@ -23,12 +23,12 @@ import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
 import com.facebook.presto.sql.planner.plan.SetOperationNode;
 import com.facebook.presto.sql.planner.plan.SortNode;
 import com.facebook.presto.sql.planner.plan.UnionNode;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -48,6 +48,7 @@ import static com.facebook.presto.sql.planner.ExpressionSymbolInliner.inlineSymb
 import static com.facebook.presto.sql.planner.optimizations.Predicates.predicate;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableMap;
+import static com.facebook.presto.util.ImmutableCollectors.toImmutableSet;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Sets.difference;
@@ -68,7 +69,7 @@ public class PushFilter
 
         List<Expression> conjuncts = extractConjuncts(parent.getPredicate());
 
-        List<Expression> pushableConjuncts = pushableConjuncts(source, conjuncts);
+        List<Expression> pushableConjuncts = filterPushableConjuncts(source, conjuncts);
 
         if (pushableConjuncts.isEmpty()) {
             return Optional.empty();
@@ -80,7 +81,7 @@ public class PushFilter
 
         ImmutableList.Builder<PlanNode> builder = ImmutableList.builder();
         for (int i = 0; i < source.getSources().size(); i++) {
-            Map<Symbol, SymbolReference> mappings = getMapping(source, i);
+            Map<Symbol, ? extends Expression> mappings = getMapping(source, i);
             List<Expression> rewrittenConjuncts = pushableConjuncts.stream()
                     .map(conjunct -> inlineSymbols(mappings, conjunct))
                     .collect(toImmutableList());
@@ -103,7 +104,7 @@ public class PushFilter
         return new FilterNode(idAllocator.getNextId(), source, combineConjuncts(conjuncts));
     }
 
-    private Map<Symbol, SymbolReference> getMapping(PlanNode planNode, int index)
+    private static Map<Symbol, ? extends Expression> getMapping(PlanNode planNode, int index)
     {
         if (planNode instanceof AssignUniqueId
                 || planNode instanceof MarkDistinctNode
@@ -124,10 +125,13 @@ public class PushFilter
                     .mapToObj(Integer::valueOf)
                     .collect(toImmutableMap(output::get, i -> input.get(i).toSymbolReference()));
         }
+        else if (planNode instanceof ProjectNode) {
+            return ((ProjectNode) planNode).getAssignments().getMap();
+        }
         throw new IllegalStateException("Unsupported node: " + planNode);
     }
 
-    private List<Expression> pushableConjuncts(PlanNode planNode, List<Expression> conjuncts)
+    private static List<Expression> filterPushableConjuncts(PlanNode planNode, List<Expression> conjuncts)
     {
         if (planNode instanceof UnionNode
                 || planNode instanceof ExchangeNode
@@ -145,6 +149,16 @@ public class PushFilter
             Set<Symbol> pushableSymbols = ImmutableSet.copyOf(source.getOutputSymbols());
             return conjuncts.stream()
                     .filter(conjunct -> difference(extractUnique(conjunct), pushableSymbols).isEmpty())
+                    .collect(toImmutableList());
+        }
+        else if (planNode instanceof ProjectNode) {
+            Set<Symbol> deterministicSymbols = ((ProjectNode) planNode).getAssignments().entrySet().stream()
+                    .filter(entry -> DeterminismEvaluator.isDeterministic(entry.getValue()))
+                    .map(Map.Entry::getKey)
+                    .collect(toImmutableSet());
+
+            return conjuncts.stream()
+                    .filter(conjunct -> extractUnique(conjunct).stream().allMatch(deterministicSymbols::contains))
                     .collect(toImmutableList());
         }
         else {

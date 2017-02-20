@@ -15,11 +15,11 @@
 package com.facebook.presto.sql.planner.assertions;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableWriterNode;
-import com.facebook.presto.util.ImmutableCollectors;
 
 import java.util.List;
 
@@ -27,6 +27,7 @@ import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class TableWriterMatcher
         implements Matcher
@@ -47,7 +48,7 @@ public class TableWriterMatcher
     }
 
     @Override
-    public MatchResult detailMatches(PlanNode node, Session session, Metadata metadata, SymbolAliases symbolAliases)
+    public MatchResult detailMatches(PlanNode node, PlanNodeStatsEstimate statsEstimate, Session session, Metadata metadata, SymbolAliases symbolAliases)
     {
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
 
@@ -58,7 +59,7 @@ public class TableWriterMatcher
 
         if (!columns.stream()
                 .map(s -> Symbol.from(symbolAliases.get(s)))
-                .collect(ImmutableCollectors.toImmutableList())
+                .collect(toImmutableList())
                 .equals(tableWriterNode.getColumns())) {
             return NO_MATCH;
         }

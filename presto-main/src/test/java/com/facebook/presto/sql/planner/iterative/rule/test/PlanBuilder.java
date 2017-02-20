@@ -31,6 +31,7 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.TestingTableHandle;
+import com.facebook.presto.sql.planner.TestingWriterTarget;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.Assignments;
@@ -71,6 +72,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.spi.block.SortOrder.ASC_NULLS_LAST;
+import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.spi.type.VarbinaryType.VARBINARY;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -364,20 +367,17 @@ public class PlanBuilder
 
     public TableWriterNode tableWriter(
             PlanNode source,
-            TableWriterNode.WriterTarget target,
             List<Symbol> columns,
-            List<String> columnNames,
-            List<Symbol> outputs,
-            Optional<PartitioningScheme> partitioningScheme)
+            List<String> columnNames)
     {
         return new TableWriterNode(
                 idAllocator.getNextId(),
                 source,
-                target,
+                new TestingWriterTarget(),
                 columns,
                 columnNames,
-                outputs,
-                partitioningScheme);
+                ImmutableList.of(symbol("partialrows", BIGINT), symbol("fragment", VARBINARY)),
+                Optional.empty());
     }
 
     public Symbol symbol(String name, Type type)

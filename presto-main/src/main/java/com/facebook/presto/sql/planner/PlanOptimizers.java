@@ -38,6 +38,7 @@ import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughProject;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughExchange;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughUnion;
+import com.facebook.presto.sql.planner.iterative.rule.PushTableWriteThroughUnion;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
@@ -66,7 +67,6 @@ import com.facebook.presto.sql.planner.optimizations.PlanOptimizer;
 import com.facebook.presto.sql.planner.optimizations.PredicatePushDown;
 import com.facebook.presto.sql.planner.optimizations.ProjectionPushDown;
 import com.facebook.presto.sql.planner.optimizations.PruneUnreferencedOutputs;
-import com.facebook.presto.sql.planner.optimizations.PushTableWriteThroughUnion;
 import com.facebook.presto.sql.planner.optimizations.RemoveUnreferencedScalarInputApplyNodes;
 import com.facebook.presto.sql.planner.optimizations.SetFlatteningOptimizer;
 import com.facebook.presto.sql.planner.optimizations.SimplifyExpressions;
@@ -230,7 +230,12 @@ public class PlanOptimizers
 
         if (!forceSingleNode) {
             builder.add(new DetermineJoinDistributionType()); // Must run before AddExchanges
-            builder.add(new PushTableWriteThroughUnion()); // Must run before AddExchanges
+            builder.add(
+                    new IterativeOptimizer(
+                            stats,
+                            ImmutableList.of(new com.facebook.presto.sql.planner.optimizations.PushTableWriteThroughUnion()), // Must run before AddExchanges
+                            ImmutableSet.of(new PushTableWriteThroughUnion())
+                    ));
             builder.add(new AddExchanges(metadata, sqlParser));
         }
 

@@ -14,6 +14,8 @@
 package com.facebook.presto.tests.jdbc;
 
 import com.facebook.presto.jdbc.PrestoConnection;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.teradata.tempto.BeforeTestWithContext;
 import com.teradata.tempto.ProductTest;
 import com.teradata.tempto.Requirement;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Date;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -71,6 +74,18 @@ public class JdbcTests
     }
 
     private Connection connection;
+
+    @Inject
+    @Named("databases.presto.host")
+    private String prestoServer;
+
+    @Inject
+    @Named("databases.presto.port")
+    private int prestoPort;
+
+    @Inject
+    @Named("databases.presto.jdbc_url")
+    private String prestoJdbcURL;
 
     @BeforeTestWithContext
     public void setup()
@@ -128,13 +143,21 @@ public class JdbcTests
     public void shouldSetTimezone()
             throws SQLException
     {
-        if (usingPrestoJdbcDriver(connection)) {
-            String timeZoneId = "Indian/Kerguelen";
-            ((PrestoConnection) connection).setTimeZoneId(timeZoneId);
-            try (Statement statement = connection.createStatement()) {
-                QueryResult result = queryResult(statement, "select current_timezone()");
-                assertThat(result).contains(row(timeZoneId));
+        String timeZoneId = "Indian/Kerguelen";
+        Connection testConnection = connection;
+        if (usingPrestoJdbcDriver(testConnection)) {
+            ((PrestoConnection) testConnection).setTimeZoneId(timeZoneId);
+        }
+        else if (usingTeradataJdbcDriver(testConnection)) {
+            String prestoJdbcURLTestTimeZone;
+            String testTimeZone = "TimeZoneID=" + timeZoneId + ";";
+            if (prestoJdbcURL.contains("TimeZoneID=")) {
+                prestoJdbcURLTestTimeZone = prestoJdbcURL.replaceFirst("TimeZoneID=[\\w/]*;", testTimeZone);
             }
+            else {
+                prestoJdbcURLTestTimeZone = prestoJdbcURL + ";" + testTimeZone;
+            }
+            testConnection = DriverManager.getConnection(prestoJdbcURLTestTimeZone);
         }
         else {
             LOGGER.warn("shouldSetTimezone() only applies to PrestoJdbcDriver");

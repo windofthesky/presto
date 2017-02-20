@@ -39,6 +39,7 @@ import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughExchange;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughUnion;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
+import com.facebook.presto.sql.planner.iterative.rule.PushTableWriteThroughUnion;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
 import com.facebook.presto.sql.planner.iterative.rule.SimplifyCountOverConstant;
@@ -72,7 +73,6 @@ import com.facebook.presto.sql.planner.optimizations.ProjectionPushDown;
 import com.facebook.presto.sql.planner.optimizations.PruneIdentityProjections;
 import com.facebook.presto.sql.planner.optimizations.PruneUnreferencedOutputs;
 import com.facebook.presto.sql.planner.optimizations.PushAggregationBelowOuterJoin;
-import com.facebook.presto.sql.planner.optimizations.PushTableWriteThroughUnion;
 import com.facebook.presto.sql.planner.optimizations.RemoveUnreferencedScalarInputApplyNodes;
 import com.facebook.presto.sql.planner.optimizations.SetFlatteningOptimizer;
 import com.facebook.presto.sql.planner.optimizations.SimplifyExpressions;
@@ -265,7 +265,12 @@ public class PlanOptimizers
         builder.add(new DetermineJoinDistributionType(costCalculator, globalProperties, nodeCount)); // Must run before AddExchanges
 
         if (!forceSingleNode) {
-            builder.add(new PushTableWriteThroughUnion()); // Must run before AddExchanges
+            builder.add(
+                    new IterativeOptimizer(
+                            stats,
+                            ImmutableList.of(new com.facebook.presto.sql.planner.optimizations.PushTableWriteThroughUnion()), // Must run before AddExchanges
+                            ImmutableSet.of(new PushTableWriteThroughUnion())
+                    ));
             builder.add(new AddExchanges(metadata, sqlParser));
         }
 

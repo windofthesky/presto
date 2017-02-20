@@ -367,6 +367,24 @@ public class PlanBuilder
         return new AggregationNode(idAllocator.getNextId(), source, assignments, groupingSets, AggregationNode.Step.SINGLE, Optional.empty(), Optional.empty());
     }
 
+    public TableWriterNode tableWriter(
+            PlanNode source,
+            TableWriterNode.WriterTarget target,
+            List<Symbol> columns,
+            List<String> columnNames,
+            List<Symbol> outputs,
+            Optional<PartitioningScheme> partitioningScheme)
+    {
+        return new TableWriterNode(
+                idAllocator.getNextId(),
+                source,
+                target,
+                columns,
+                columnNames,
+                outputs,
+                partitioningScheme);
+    }
+
     public Symbol symbol(String name, Type type)
     {
         Symbol symbol = new Symbol(name);

@@ -35,6 +35,7 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.plan.TableWriterNode;
 import com.facebook.presto.sql.planner.plan.UnionNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.planner.plan.WindowNode;
@@ -344,6 +345,11 @@ public final class PlanMatchPattern
     public static PlanMatchPattern limit(long limit, PlanMatchPattern source)
     {
         return node(LimitNode.class, source).with(new LimitMatcher(limit));
+    }
+
+    public static PlanMatchPattern tableWriter(PlanMatchPattern source, List<String> columns, List<String> columnNames)
+    {
+        return node(TableWriterNode.class, source).with(new TableWriterMatcher(columns, columnNames));
     }
 
     public PlanMatchPattern(List<PlanMatchPattern> sourcePatterns)

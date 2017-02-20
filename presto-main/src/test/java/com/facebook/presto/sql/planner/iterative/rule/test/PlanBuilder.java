@@ -253,6 +253,24 @@ public class PlanBuilder
         return new JoinNode(idAllocator.getNextId(), type, left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, Optional.empty());
     }
 
+    public TableWriterNode tableWriter(
+            PlanNode source,
+            TableWriterNode.WriterTarget target,
+            List<Symbol> columns,
+            List<String> columnNames,
+            List<Symbol> outputs,
+            Optional<PartitioningScheme> partitioningScheme)
+    {
+        return new TableWriterNode(
+                idAllocator.getNextId(),
+                source,
+                target,
+                columns,
+                columnNames,
+                outputs,
+                partitioningScheme);
+    }
+
     public Symbol symbol(String name, Type type)
     {
         Symbol symbol = new Symbol(name);

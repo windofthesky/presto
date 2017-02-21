@@ -170,7 +170,10 @@ public class PlanOptimizers
                 new RemoveUnreferencedScalarInputApplyNodes(),
                 new TransformUncorrelatedInPredicateSubqueryToSemiJoin(),
                 new TransformUncorrelatedScalarToJoin(),
-                new TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry()),
+                new IterativeOptimizer(
+                        stats,
+                        ImmutableList.of(new TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry())),
+                        ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry()))),
                 new PredicatePushDown(metadata, sqlParser),
                 new MergeProjections(),
                 new SimplifyExpressions(metadata, sqlParser), // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations

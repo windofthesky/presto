@@ -184,7 +184,7 @@ public class PlanOptimizers
                 new RemoveUnreferencedScalarInputApplyNodes(),
                 new TransformUncorrelatedInPredicateSubqueryToSemiJoin(),
                 new TransformUncorrelatedScalarToJoin(),
-                new TransformCorrelatedScalarAggregationToJoin(metadata),
+                new TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry()),
                 new PredicatePushDown(metadata, sqlParser),
                 new PruneUnreferencedOutputs(),
                 new IterativeOptimizer(

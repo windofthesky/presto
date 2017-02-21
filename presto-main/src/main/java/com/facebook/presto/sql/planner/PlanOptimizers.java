@@ -170,7 +170,7 @@ public class PlanOptimizers
                 new RemoveUnreferencedScalarInputApplyNodes(),
                 new TransformUncorrelatedInPredicateSubqueryToSemiJoin(),
                 new TransformUncorrelatedScalarToJoin(),
-                new TransformCorrelatedScalarAggregationToJoin(metadata),
+                new TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry()),
                 new PredicatePushDown(metadata, sqlParser),
                 new MergeProjections(),
                 new SimplifyExpressions(metadata, sqlParser), // Re-run the SimplifyExpressions to simplify any recomposed expressions from other optimizations

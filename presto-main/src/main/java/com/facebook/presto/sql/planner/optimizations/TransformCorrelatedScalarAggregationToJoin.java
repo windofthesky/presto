@@ -15,7 +15,7 @@
 package com.facebook.presto.sql.planner.optimizations;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
@@ -66,11 +66,11 @@ import static java.util.Objects.requireNonNull;
 public class TransformCorrelatedScalarAggregationToJoin
         implements PlanOptimizer
 {
-    private final Metadata metadata;
+    private final FunctionRegistry functionRegistry;
 
-    public TransformCorrelatedScalarAggregationToJoin(Metadata metadata)
+    public TransformCorrelatedScalarAggregationToJoin(FunctionRegistry functionRegistry)
     {
-        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.functionRegistry = requireNonNull(functionRegistry, "functionRegistry is null");
     }
 
     @Override
@@ -81,7 +81,7 @@ public class TransformCorrelatedScalarAggregationToJoin
             SymbolAllocator symbolAllocator,
             PlanNodeIdAllocator idAllocator)
     {
-        return rewriteWith(new Rewriter(idAllocator, symbolAllocator, metadata), plan, null);
+        return rewriteWith(new Rewriter(idAllocator, symbolAllocator, functionRegistry), plan, null);
     }
 
     private static class Rewriter
@@ -89,13 +89,13 @@ public class TransformCorrelatedScalarAggregationToJoin
     {
         private final PlanNodeIdAllocator idAllocator;
         private final SymbolAllocator symbolAllocator;
-        private final Metadata metadata;
+        private final FunctionRegistry functionRegistry;
 
-        public Rewriter(PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, Metadata metadata)
+        public Rewriter(PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, FunctionRegistry functionRegistry)
         {
             this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
-            this.metadata = requireNonNull(metadata, "metadata is null");
+            this.functionRegistry = requireNonNull(functionRegistry, "functionRegistry is null");
         }
 
         @Override
@@ -108,7 +108,7 @@ public class TransformCorrelatedScalarAggregationToJoin
                         .skipOnlyWhen(isInstanceOfAny(ProjectNode.class, EnforceSingleRowNode.class))
                         .findFirst();
                 if (aggregation.isPresent() && aggregation.get().getGroupingKeys().isEmpty()) {
-                    ScalarAggregationToJoinRewriter scalarAggregationToJoinRewriter = new ScalarAggregationToJoinRewriter(metadata, symbolAllocator, idAllocator);
+                    ScalarAggregationToJoinRewriter scalarAggregationToJoinRewriter = new ScalarAggregationToJoinRewriter(functionRegistry, symbolAllocator, idAllocator);
                     return scalarAggregationToJoinRewriter.rewriteScalarAggregation(rewrittenNode, aggregation.get());
                 }
             }

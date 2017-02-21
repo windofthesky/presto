@@ -427,7 +427,7 @@ public class PlanBuilder
                 0);
     }
 
-    public PlanNode aggregate(ImmutableMap<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
+    public AggregationNode aggregate(ImmutableMap<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
     {
         return new AggregationNode(idAllocator.getNextId(),
                 source,

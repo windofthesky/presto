@@ -309,6 +309,11 @@ public class PlanBuilder
         return new JoinNode(idAllocator.getNextId(), type, left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, Optional.empty());
     }
 
+    public AggregationNode aggregate(Map<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
+    {
+        return new AggregationNode(idAllocator.getNextId(), source, assignments, groupingSets, AggregationNode.Step.SINGLE, Optional.empty(), Optional.empty());
+    }
+
     public Symbol symbol(String name, Type type)
     {
         Symbol symbol = new Symbol(name);
@@ -337,7 +342,7 @@ public class PlanBuilder
                 0);
     }
 
-    public PlanNode aggregate(ImmutableMap<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
+    public AggregationNode aggregate(ImmutableMap<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
     {
         return new AggregationNode(idAllocator.getNextId(),
                 source,

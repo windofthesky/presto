@@ -31,6 +31,7 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.TestingTableHandle;
+import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.Assignments;
@@ -285,7 +286,7 @@ public class PlanBuilder
             return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs);
         }
     }
-
+    
     public AssignUniqueId assignUniqueId(Symbol uniqueId, PlanNode source)
     {
         return new AssignUniqueId(idAllocator.getNextId(), source, uniqueId);
@@ -359,6 +360,11 @@ public class PlanBuilder
                 "Mapping keys size does not match length of sources: %s vs %s",
                 mapping.keySet().size(),
                 sources.length);
+    }
+
+    public AggregationNode aggregate(Map<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
+    {
+        return new AggregationNode(idAllocator.getNextId(), source, assignments, groupingSets, AggregationNode.Step.SINGLE, Optional.empty(), Optional.empty());
     }
 
     public Symbol symbol(String name, Type type)

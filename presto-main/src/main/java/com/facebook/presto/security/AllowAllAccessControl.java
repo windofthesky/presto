@@ -14,8 +14,10 @@
 package com.facebook.presto.security;
 
 import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.QualifiedTablePrefix;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
@@ -162,6 +164,15 @@ public class AllowAllAccessControl
     }
 
     @Override
+    public void checkCanShowGrants(TransactionId transactionId, Identity identity, QualifiedTablePrefix prefix)
+    {
+    }
+
+    public Set<GrantInfo> filterGrants(TransactionId transactionId, Identity identity, QualifiedTablePrefix prefix, Set<GrantInfo> grantInfos)
+    {
+        return grantInfos;
+    }
+
     public void checkCanCreateRole(TransactionId transactionId, Identity identity, String role, Optional<PrestoPrincipal> grantor, String catalogName)
     {
     }

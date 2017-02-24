@@ -128,6 +128,7 @@ import java.util.stream.Stream;
 
 import static com.facebook.presto.cost.PlanNodeCost.UNKNOWN_COST;
 import static com.facebook.presto.execution.StageInfo.getAllStages;
+import static com.facebook.presto.operator.scalar.MathFunctions.sqrt;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.facebook.presto.sql.planner.DomainUtils.simplifyDomain;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -144,7 +145,6 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.DataSize.succinctDataSize;
 import static java.lang.Double.isFinite;
 import static java.lang.Double.max;
-import static java.lang.Math.sqrt;
 import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
@@ -1473,6 +1473,8 @@ public class PlanPrinter
             // variance might be negative because of numeric inaccuracy, therefore we need to use max
             return sqrt(max(variance, 0d));
         }
+
+
 
         public PlanNodeId getPlanNodeId()
         {

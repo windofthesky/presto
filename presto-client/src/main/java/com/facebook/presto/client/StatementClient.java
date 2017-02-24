@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.client;
 
+import com.facebook.presto.spi.security.SelectedRole;
 import com.facebook.presto.spi.type.TimeZoneKey;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
@@ -47,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_TRANSACTION_ID;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT_IN_BODY;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_ROLE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_STARTED_TRANSACTION_ID;
 import static com.google.common.base.MoreObjects.firstNonNull;
@@ -85,6 +87,7 @@ public class StatementClient
     private final AtomicReference<QueryResults> currentResults = new AtomicReference<>();
     private final Map<String, String> setSessionProperties = new ConcurrentHashMap<>();
     private final Set<String> resetSessionProperties = Sets.newConcurrentHashSet();
+    private final Map<String, SelectedRole> setRoles = new ConcurrentHashMap<>();
     private final Map<String, String> addedPreparedStatements = new ConcurrentHashMap<>();
     private final Set<String> deallocatedPreparedStatements = Sets.newConcurrentHashSet();
     private final AtomicReference<String> startedtransactionId = new AtomicReference<>();
@@ -159,6 +162,11 @@ public class StatementClient
             builder.addHeader(PrestoHeaders.PRESTO_SESSION, entry.getKey() + "=" + entry.getValue());
         }
 
+        Map<String, SelectedRole> roles = session.getRoles();
+        for (Entry<String, SelectedRole> entry : roles.entrySet()) {
+            builder.addHeader(PrestoHeaders.PRESTO_ROLE, entry.getKey() + '=' + urlEncode(entry.getValue().toString()));
+        }
+
         builder.setHeader(PrestoHeaders.PRESTO_TRANSACTION_ID, session.getTransactionId() == null ? "NONE" : session.getTransactionId());
 
         return builder.build();
@@ -219,6 +227,11 @@ public class StatementClient
     public Set<String> getResetSessionProperties()
     {
         return ImmutableSet.copyOf(resetSessionProperties);
+    }
+
+    public Map<String, SelectedRole> getSetRoles()
+    {
+        return ImmutableMap.copyOf(setRoles);
     }
 
     public Map<String, String> getAddedPreparedStatements()
@@ -323,6 +336,14 @@ public class StatementClient
         }
         for (String clearSession : response.getHeaders(PRESTO_CLEAR_SESSION)) {
             resetSessionProperties.add(clearSession);
+        }
+
+        for (String setRole : response.getHeaders(PRESTO_SET_ROLE)) {
+            List<String> keyValue = SESSION_HEADER_SPLITTER.splitToList(setRole);
+            if (keyValue.size() != 2) {
+                continue;
+            }
+            setRoles.put(keyValue.get(0), SelectedRole.valueOf(urlDecode(keyValue.get(1))));
         }
 
         String startedTransactionId = response.getHeader(PRESTO_STARTED_TRANSACTION_ID);

@@ -69,6 +69,7 @@ statement
         FROM principal (',' principal)*
         (GRANTED BY grantor)?
         (IN catalog=identifier)?                                       #revokeRoles
+    | SET ROLE (ALL | NONE | role=identifier) (IN catalog=identifier)? #setRole
     | GRANT
         (privilege (',' privilege)* | ALL PRIVILEGES)
         ON TABLE? qualifiedName TO grantee=identifier
@@ -497,7 +498,7 @@ nonReserved
     | SCHEMA | CASCADE | RESTRICT
     | INPUT | OUTPUT
     | INCLUDING | EXCLUDING | PROPERTIES
-    | ALL | SOME | ANY
+    | NONE | ALL | SOME | ANY
     | USER | ROLE | ADMIN | GRANTED
     ;
 
@@ -681,6 +682,7 @@ INCLUDING: 'INCLUDING';
 EXCLUDING: 'EXCLUDING';
 PROPERTIES: 'PROPERTIES';
 UESCAPE: 'UESCAPE';
+NONE: 'NONE';
 
 NORMALIZE: 'NORMALIZE';
 NFD : 'NFD';

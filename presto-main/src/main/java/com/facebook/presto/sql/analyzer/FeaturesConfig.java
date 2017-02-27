@@ -18,6 +18,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 
 import javax.validation.constraints.Min;
 
@@ -26,6 +27,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import static com.facebook.presto.sql.analyzer.RegexLibrary.JONI;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @DefunctConfig({
         "resource-group-manager",
@@ -73,6 +75,8 @@ public class FeaturesConfig
     private int spillerThreads = 4;
     private boolean iterativeOptimizerEnabled;
     private boolean parseDecimalLiteralsAsDouble;
+
+    private Duration iterativeOptimizerTimeout = new Duration(0, MILLISECONDS); // 0 = timeout disabled
 
     public boolean isResourceGroupsEnabled()
     {
@@ -342,6 +346,18 @@ public class FeaturesConfig
     public FeaturesConfig setIterativeOptimizerEnabled(boolean value)
     {
         this.iterativeOptimizerEnabled = value;
+        return this;
+    }
+
+    public Duration getIterativeOptimizerTimeout()
+    {
+        return iterativeOptimizerTimeout;
+    }
+
+    @Config("experimental.iterative-optimizer-timeout")
+    public FeaturesConfig setIterativeOptimizerTimeout(Duration timeout)
+    {
+        this.iterativeOptimizerTimeout = timeout;
         return this;
     }
 

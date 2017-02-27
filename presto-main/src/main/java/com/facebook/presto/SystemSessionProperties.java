@@ -68,6 +68,7 @@ public final class SystemSessionProperties
     public static final String LEGACY_ORDER_BY = "legacy_order_by";
     public static final String REORDER_WINDOWS = "reorder_windows";
     public static final String ITERATIVE_OPTIMIZER = "iterative_optimizer_enabled";
+    public static final String ITERATIVE_OPTIMIZER_TIMEOUT = "iterative_optimizer_timeout";
     public static final String EXCHANGE_COMPRESSION = "exchange_compression";
     public static final String LEGACY_TIMESTAMP = "legacy_timestamp";
     public static final String PARSE_DECIMAL_LITERALS_AS_DOUBLE = "parse_decimal_literals_as_double";
@@ -281,6 +282,15 @@ public final class SystemSessionProperties
                         "Experimental: enable iterative optimizer",
                         featuresConfig.isIterativeOptimizerEnabled(),
                         false),
+                new PropertyMetadata<>(
+                        ITERATIVE_OPTIMIZER_TIMEOUT,
+                        "Timeout for plan optimization in iterative optimizer (0 - timeout disabled)",
+                        VARCHAR,
+                        Duration.class,
+                        featuresConfig.getIterativeOptimizerTimeout(),
+                        false,
+                        value -> Duration.valueOf((String) value),
+                        Duration::toString),
                 booleanSessionProperty(
                         EXCHANGE_COMPRESSION,
                         "Enable compression in exchanges",
@@ -461,6 +471,11 @@ public final class SystemSessionProperties
     public static boolean isLegacyTimestamp(Session session)
     {
         return session.getSystemProperty(LEGACY_TIMESTAMP, Boolean.class);
+    }
+
+    public static Duration getOptimizerTimeout(Session session)
+    {
+        return session.getSystemProperty(ITERATIVE_OPTIMIZER_TIMEOUT, Duration.class);
     }
 
     public static boolean isExchangeCompressionEnabled(Session session)

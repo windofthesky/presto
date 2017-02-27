@@ -18,6 +18,7 @@ import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.security.AllowAllAccessControl;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.QueryId;
+import com.facebook.presto.spi.security.SelectedRole;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
@@ -26,6 +27,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 
 import java.util.Locale;
+import java.util.Optional;
 
 import static com.facebook.presto.SystemSessionProperties.HASH_PARTITION_COUNT;
 import static com.facebook.presto.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
@@ -36,6 +38,7 @@ import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLIENT_INFO;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_LANGUAGE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT_IN_BODY;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_ROLE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SCHEMA;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SOURCE;
@@ -63,6 +66,9 @@ public class TestHttpRequestSessionFactory
                         .put(PRESTO_SESSION, QUERY_MAX_MEMORY + "=1GB")
                         .put(PRESTO_SESSION, JOIN_DISTRIBUTION_TYPE + "=repartitioned," + HASH_PARTITION_COUNT + " = 43")
                         .put(PRESTO_PREPARED_STATEMENT, "query1=select * from foo,query2=select * from bar")
+                        .put(PRESTO_ROLE, "foo_connector=ALL")
+                        .put(PRESTO_ROLE, "bar_connector=NONE")
+                        .put(PRESTO_ROLE, "foobar_connector=ROLE{role}")
                         .build(),
                 "testRemote");
 
@@ -91,6 +97,11 @@ public class TestHttpRequestSessionFactory
                 .put("query1", "select * from foo")
                 .put("query2", "select * from bar")
                 .build());
+        assertEquals(session.getUnprocessedRoles(), ImmutableMap.of(
+                "foo_connector", new SelectedRole(SelectedRole.Type.ALL, Optional.empty()),
+                "bar_connector", new SelectedRole(SelectedRole.Type.NONE, Optional.empty()),
+                "foobar_connector", new SelectedRole(SelectedRole.Type.ROLE, Optional.of("role"))
+        ));
     }
 
     @Test(expectedExceptions = PrestoException.class)

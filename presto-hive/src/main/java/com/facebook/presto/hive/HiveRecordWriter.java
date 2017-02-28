@@ -54,6 +54,7 @@ import static org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFacto
 public class HiveRecordWriter
 {
     private final Path path;
+    private final JobConf conf;
     private final int fieldCount;
     @SuppressWarnings("deprecation")
     private final Serializer serializer;
@@ -72,6 +73,7 @@ public class HiveRecordWriter
             JobConf conf)
     {
         this.path = requireNonNull(path, "path is null");
+        this.conf = requireNonNull(conf, "conf is null");
 
         // existing tables may have columns in a different order
         List<String> fileColumnNames = Splitter.on(',').trimResults().omitEmptyStrings().splitToList(schema.getProperty(META_TABLE_COLUMNS, ""));
@@ -136,7 +138,13 @@ public class HiveRecordWriter
     public void rollback()
     {
         try {
-            recordWriter.close(true);
+            try {
+                recordWriter.close(true);
+            }
+            finally {
+                // perform explicit delete of written file here as recordWriter.close() ignores the abort flag.
+                path.getFileSystem(conf).delete(path, false);
+            }
         }
         catch (IOException e) {
             throw new PrestoException(HIVE_WRITER_CLOSE_ERROR, "Error rolling back write to Hive", e);

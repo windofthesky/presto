@@ -38,6 +38,7 @@ import org.skife.jdbi.v2.PreparedBatchPart;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
+import java.io.Closeable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.sql.Date;
@@ -79,6 +80,7 @@ import static java.lang.String.format;
 import static java.util.Collections.nCopies;
 
 public class H2QueryRunner
+        implements Closeable
 {
     private final Handle handle;
 
@@ -144,6 +146,7 @@ public class H2QueryRunner
         insertRows(tpchMetadata.getTableMetadata(null, tableHandle), handle, createTpchRecordSet(tpchTable, tableHandle.getScaleFactor()));
     }
 
+    @Override
     public void close()
     {
         handle.close();

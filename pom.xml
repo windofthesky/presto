@@ -78,6 +78,7 @@
         <module>presto-cassandra</module>
         <module>presto-blackhole</module>
         <module>presto-memory</module>
+        <module>presto-cache</module>
         <module>presto-orc</module>
         <module>presto-rcfile</module>
         <module>presto-hive</module>

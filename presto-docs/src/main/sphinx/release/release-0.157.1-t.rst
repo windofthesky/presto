@@ -292,3 +292,11 @@ The following has been added to 0.157.1-t.0.8:
 * Fix HDFS configuration loading in the Hive connector. Without this fix, there sometimes were problems with connecting to HA HDFS.
 * Optimize window functions to avoid copying data unnecessarily for better CPU and memory utilization.
 * Optimize LIKE predicates with escape characters.
+
+===================
+Release 0.157.1-t.1
+===================
+
+The following has been added to 0.157.1-t.1:
+
+* Add support for SQL Server connector.

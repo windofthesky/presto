@@ -17,8 +17,6 @@ package com.facebook.presto.plugin.cache;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorInsertTableHandle;
-import com.facebook.presto.spi.ConnectorNewTableLayout;
-import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.ConnectorTableLayout;
@@ -26,35 +24,27 @@ import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutResult;
 import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.Constraint;
+import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.Node;
 import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
-import com.facebook.presto.spi.connector.ConnectorOutputMetadata;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import io.airlift.slice.Slice;
 
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 @ThreadSafe
 public class CacheMetadata
@@ -64,157 +54,170 @@ public class CacheMetadata
 
     private final NodeManager nodeManager;
     private final String connectorId;
-    private final AtomicLong nextTableId = new AtomicLong();
-    private final Map<String, Long> tableIds = new ConcurrentHashMap<>();
-    private final Map<Long, CacheTableHandle> tables = new ConcurrentHashMap<>();
+    private final ConnectorMetadata sourceMetadata;
+    private final ConnectorMetadata cacheMetadata;
 
-    @Inject
-    public CacheMetadata(NodeManager nodeManager, CacheConnectorId connectorId)
+    private CacheMetadata(
+            NodeManager nodeManager,
+            CacheConnectorId connectorId,
+            ConnectorMetadata sourceMetadata,
+            ConnectorMetadata cacheMetadata)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
+        this.sourceMetadata = requireNonNull(sourceMetadata, "sourceMetadata is null");
+        this.cacheMetadata = requireNonNull(cacheMetadata, "cacheMetadata is null");
     }
 
     @Override
     public synchronized List<String> listSchemaNames(ConnectorSession session)
     {
-        return ImmutableList.of(SCHEMA_NAME);
+        return sourceMetadata.listSchemaNames(session);
     }
 
     @Override
     public synchronized ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName)
     {
-        Long tableId = tableIds.get(tableName.getTableName());
-        if (tableId == null) {
+        Set<Node> nodes = nodeManager.getRequiredWorkerNodes();
+        List<HostAddress> hosts = nodes.stream().map(Node::getHostAndPort).collect(toList());
+
+        ConnectorTableHandle cacheHandle = cacheMetadata.getTableHandle(session, tableName);
+        if (cacheHandle != null) {
+            return CacheTableHandle.cached(cacheHandle, hosts);
+        }
+
+        ConnectorTableHandle sourceHandle = sourceMetadata.getTableHandle(session, tableName);
+        if (sourceHandle == null) {
             return null;
         }
-        return tables.get(tableId);
+
+        ConnectorTableMetadata cachedTableMetadata = sourceMetadata.getTableMetadata(session, sourceHandle);
+        cacheMetadata.createTable(session, cachedTableMetadata);
+        ConnectorInsertTableHandle cachingInsertTableHandle = cacheMetadata.beginInsert(
+                session,
+                requireNonNull(
+                        cacheMetadata.getTableHandle(session, tableName),
+                        "Caching connector failed to return table handle"));
+
+        return CacheTableHandle.scanAndCache(sourceHandle, cachingInsertTableHandle, hosts);
     }
 
     @Override
     public synchronized ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
-        return cacheTableHandle.toTableMetadata();
+        return getMetadata(tableHandle).getTableMetadata(
+                session,
+                getTableHandle(tableHandle));
     }
 
     @Override
     public synchronized List<SchemaTableName> listTables(ConnectorSession session, String schemaNameOrNull)
     {
-        if (schemaNameOrNull != null && !schemaNameOrNull.equals(SCHEMA_NAME)) {
-            return ImmutableList.of();
-        }
-        return tables.values().stream()
-                .map(CacheTableHandle::toSchemaTableName)
-                .collect(toList());
+        return sourceMetadata.listTables(session, schemaNameOrNull);
     }
 
     @Override
     public synchronized Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
-        return cacheTableHandle.getColumnHandles().stream()
-                .collect(toMap(CacheColumnHandle::getName, Function.identity()));
+        return getMetadata(tableHandle).getColumnHandles(
+                session,
+                getTableHandle(tableHandle));
     }
 
     @Override
     public synchronized ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
     {
-        CacheColumnHandle cacheColumnHandle = (CacheColumnHandle) columnHandle;
-        return cacheColumnHandle.toColumnMetadata();
+        return getMetadata(tableHandle).getColumnMetadata(
+                session,
+                getTableHandle(tableHandle),
+                columnHandle);
     }
 
     @Override
     public synchronized Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
     {
-        return tables.values().stream()
-                .filter(table -> prefix.matches(table.toSchemaTableName()))
-                .collect(toMap(CacheTableHandle::toSchemaTableName, handle -> handle.toTableMetadata().getColumns()));
+        return sourceMetadata.listTableColumns(session, prefix);
     }
 
     @Override
     public synchronized void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        CacheTableHandle handle = (CacheTableHandle) tableHandle;
-        Long tableId = tableIds.remove(handle.getTableName());
-        if (tableId != null) {
-            tables.remove(tableId);
-        }
+        sourceMetadata.dropTable(session, tableHandle);
+        cacheMetadata.dropTable(session, tableHandle);
     }
 
     @Override
     public synchronized void renameTable(ConnectorSession session, ConnectorTableHandle tableHandle, SchemaTableName newTableName)
     {
-        CacheTableHandle oldTableHandle = (CacheTableHandle) tableHandle;
-        CacheTableHandle newTableHandle = new CacheTableHandle(
-                oldTableHandle.getConnectorId(),
-                oldTableHandle.getSchemaName(),
-                newTableName.getTableName(),
-                oldTableHandle.getTableId(),
-                oldTableHandle.getColumnHandles(),
-                oldTableHandle.getHosts());
-        tableIds.remove(oldTableHandle.getTableName());
-        tableIds.put(newTableName.getTableName(), oldTableHandle.getTableId());
-        tables.remove(oldTableHandle.getTableId());
-        tables.put(oldTableHandle.getTableId(), newTableHandle);
-    }
-
-    @Override
-    public synchronized void createTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
-    {
-        ConnectorOutputTableHandle outputTableHandle = beginCreateTable(session, tableMetadata, Optional.empty());
-        finishCreateTable(session, outputTableHandle, ImmutableList.of());
-    }
-
-    @Override
-    public synchronized CacheOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Optional<ConnectorNewTableLayout> layout)
-    {
-        long nextId = nextTableId.getAndIncrement();
-        Set<Node> nodes = nodeManager.getRequiredWorkerNodes();
-        checkState(!nodes.isEmpty(), "No Cache nodes available");
-
-        tableIds.put(tableMetadata.getTable().getTableName(), nextId);
-        CacheTableHandle table = new CacheTableHandle(
-                connectorId,
-                nextId,
-                tableMetadata,
-                nodes.stream().map(Node::getHostAndPort).collect(Collectors.toList()));
-        tables.put(table.getTableId(), table);
-
-        return new CacheOutputTableHandle(table, ImmutableSet.copyOf(tableIds.values()));
-    }
-
-    @Override
-    public synchronized Optional<ConnectorOutputMetadata> finishCreateTable(ConnectorSession session, ConnectorOutputTableHandle tableHandle, Collection<Slice> fragments)
-    {
-        return Optional.empty();
-    }
-
-    @Override
-    public synchronized CacheInsertTableHandle beginInsert(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
-        return new CacheInsertTableHandle(cacheTableHandle, ImmutableSet.copyOf(tableIds.values()));
-    }
-
-    @Override
-    public synchronized Optional<ConnectorOutputMetadata> finishInsert(ConnectorSession session, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments)
-    {
-        return Optional.empty();
+        sourceMetadata.renameTable(session, tableHandle, newTableName);
+        cacheMetadata.renameTable(session, tableHandle, newTableName);
     }
 
     @Override
     public synchronized List<ConnectorTableLayoutResult> getTableLayouts(
             ConnectorSession session,
-            ConnectorTableHandle handle,
+            ConnectorTableHandle tableHandle,
             Constraint<ColumnHandle> constraint,
             Optional<Set<ColumnHandle>> desiredColumns)
     {
-        requireNonNull(handle, "handle is null");
-        checkArgument(handle instanceof CacheTableHandle);
+        requireNonNull(tableHandle, "tableHandle is null");
+        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
+        if (cacheTableHandle.getCacheTableHandle().isPresent()) {
+            List<ConnectorTableLayoutResult> cacheTableLayouts = cacheMetadata.getTableLayouts(
+                    session,
+                    getTableHandle(tableHandle),
+                    constraint,
+                    desiredColumns);
 
-        CacheTableLayoutHandle layoutHandle = new CacheTableLayoutHandle((CacheTableHandle) handle);
-        return ImmutableList.of(new ConnectorTableLayoutResult(getTableLayout(session, layoutHandle), constraint.getSummary()));
+            return cacheTableLayouts
+                    .stream()
+                    .map(layout -> new ConnectorTableLayoutResult(
+                            new ConnectorTableLayout(
+                                    CacheTableLayoutHandle.cached(layout.getTableLayout().getHandle()),
+                                    layout.getTableLayout().getColumns(),
+                                    layout.getTableLayout().getPredicate(),
+                                    layout.getTableLayout().getNodePartitioning(),
+                                    layout.getTableLayout().getStreamPartitioningColumns(),
+                                    layout.getTableLayout().getDiscretePredicates(),
+                                    layout.getTableLayout().getLocalProperties()),
+                            layout.getUnenforcedConstraint()))
+                    .collect(toImmutableList());
+        }
+
+        checkState(cacheTableHandle.getSourceTableHandle().isPresent(), "Both cache and source table handles are empty");
+
+        List<ConnectorTableLayoutResult> sourceTableLayouts = sourceMetadata.getTableLayouts(
+                session,
+                getTableHandle(tableHandle),
+                constraint,
+                Optional.empty());
+
+        ConnectorTableMetadata tableMetadata = sourceMetadata.getTableMetadata(session, getTableHandle(tableHandle));
+        ConnectorTableMetadata tableMetadataWithoutHiddenColumns = new ConnectorTableMetadata(
+                tableMetadata.getTable(),
+                tableMetadata.getColumns().stream().filter(column -> !column.isHidden()).collect(toList()),
+                tableMetadata.getProperties(),
+                tableMetadata.getComment());
+
+        List<ColumnHandle> sourceColumnHandles = ImmutableList.copyOf(
+                sourceMetadata.getColumnHandles(session, getTableHandle(tableHandle)).values());
+
+        return sourceTableLayouts
+                .stream()
+                .map(layout -> new ConnectorTableLayoutResult(
+                        new ConnectorTableLayout(
+                                CacheTableLayoutHandle.scanAndCache(
+                                        layout.getTableLayout().getHandle(),
+                                        cacheMetadata.beginCreateTable(session, tableMetadataWithoutHiddenColumns, Optional.empty()),
+                                        sourceColumnHandles),
+                                layout.getTableLayout().getColumns(),
+                                layout.getTableLayout().getPredicate(),
+                                layout.getTableLayout().getNodePartitioning(),
+                                layout.getTableLayout().getStreamPartitioningColumns(),
+                                layout.getTableLayout().getDiscretePredicates(),
+                                layout.getTableLayout().getLocalProperties()),
+                        layout.getUnenforcedConstraint()))
+                .collect(toImmutableList());
     }
 
     @Override
@@ -228,5 +231,49 @@ public class CacheMetadata
                 Optional.empty(),
                 Optional.empty(),
                 ImmutableList.of());
+    }
+
+    private ConnectorMetadata getMetadata(ConnectorTableHandle tableHandle)
+    {
+        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
+        if (cacheTableHandle.getSourceTableHandle().isPresent()) {
+            return sourceMetadata;
+        }
+        checkState(
+                cacheTableHandle.getCacheTableHandle().isPresent(),
+                "Both source and cache table handles can not be empty");
+        return cacheMetadata;
+    }
+
+    private static ConnectorTableHandle getTableHandle(ConnectorTableHandle tableHandle)
+    {
+        CacheTableHandle cacheTableHandle = (CacheTableHandle) tableHandle;
+        if (cacheTableHandle.getSourceTableHandle().isPresent()) {
+            return cacheTableHandle.getSourceTableHandle().get();
+        }
+        checkState(
+                cacheTableHandle.getCacheTableHandle().isPresent(),
+                "Both source and cache table handles can not be empty");
+        return cacheTableHandle.getCacheTableHandle().get();
+    }
+
+    public static class CacheMetadataFactory
+    {
+        private final NodeManager nodeManager;
+        private final CacheConnectorId connectorId;
+
+        @Inject
+        public CacheMetadataFactory(
+                NodeManager nodeManager,
+                CacheConnectorId connectorId)
+        {
+            this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+            this.connectorId = requireNonNull(connectorId, "connectorId is null");
+        }
+
+        public CacheMetadata create(ConnectorMetadata sourceMetadata, ConnectorMetadata cacheMetadata)
+        {
+            return new CacheMetadata(nodeManager, connectorId, sourceMetadata, cacheMetadata);
+        }
     }
 }

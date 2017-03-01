@@ -15,22 +15,15 @@
 package com.facebook.presto.plugin.cache;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.metadata.QualifiedObjectName;
 import com.facebook.presto.testing.MaterializedResult;
-import com.facebook.presto.testing.MaterializedRow;
 import com.facebook.presto.testing.QueryRunner;
-import com.google.common.collect.Iterables;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import java.sql.SQLException;
-import java.util.List;
 
 import static com.facebook.presto.plugin.cache.CacheQueryRunner.createQueryRunner;
-import static java.lang.String.format;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static com.facebook.presto.testing.assertions.Assert.assertEquals;
 
 @Test(singleThreaded = true)
 public class TestCacheSmoke
@@ -45,87 +38,38 @@ public class TestCacheSmoke
     }
 
     @Test
-    public void createAndDropTable()
+    public void selectSmallTable()
             throws SQLException
     {
-        int tablesBeforeCreate = listCacheTables().size();
-        queryRunner.execute("CREATE TABLE test as SELECT * FROM tpch.tiny.nation");
-        assertEquals(listCacheTables().size(), tablesBeforeCreate + 1);
-
-        queryRunner.execute(format("DROP TABLE test"));
-        assertEquals(listCacheTables().size(), tablesBeforeCreate);
+        assertThatQueryReturnsSameValueAs("SELECT * FROM nation ORDER BY nationkey", "SELECT * FROM tpch.tiny.nation ORDER BY nationkey");
     }
 
     @Test
-    public void createTableWhenTableIsAlreadyCreated()
+    public void selectLargeTable()
             throws SQLException
     {
-        String createTableSql = "CREATE TABLE nation as SELECT * FROM tpch.tiny.nation";
-        try {
-            queryRunner.execute(createTableSql);
-            fail("Expected exception to be thrown here!");
-        }
-        catch (RuntimeException ex) { // it has to RuntimeException as FailureInfo$FailureException is private
-            assertTrue(ex.getMessage().equals("line 1:1: Destination table 'cache.default.nation' already exists"));
-        }
-    }
-
-    @Test
-    public void select()
-            throws SQLException
-    {
-        queryRunner.execute("CREATE TABLE test_select as SELECT * FROM tpch.tiny.nation");
-
-        assertThatQueryReturnsSameValueAs("SELECT * FROM test_select ORDER BY nationkey", "SELECT * FROM tpch.tiny.nation ORDER BY nationkey");
-
-        assertThatQueryReturnsValue("INSERT INTO test_select SELECT * FROM tpch.tiny.nation", 25L);
-
-        assertThatQueryReturnsValue("INSERT INTO test_select SELECT * FROM tpch.tiny.nation", 25L);
-
-        assertThatQueryReturnsValue("SELECT count(*) FROM test_select", 75L);
-    }
-
-    @Test
-    public void selectFromEmptyTable()
-            throws SQLException
-    {
-        queryRunner.execute("CREATE TABLE test_select_empty as SELECT * FROM tpch.tiny.nation WHERE nationkey > 1000");
-
-        assertThatQueryReturnsValue("SELECT count(*) FROM test_select_empty", 0L);
+        assertThatQueryReturnsSameValueAs("SELECT * FROM orders ORDER BY orderkey", "SELECT * FROM tpch.tiny.orders ORDER BY orderkey");
     }
 
     @Test
     public void selectSingleRow()
     {
-        assertThatQueryReturnsSameValueAs("SELECT * FROM nation WHERE nationkey = 1", "SELECT * FROM tpch.tiny.nation WHERE nationkey = 1");
+        assertThatQueryReturnsSameValueAs("SELECT * FROM region WHERE regionkey = 1", "SELECT * FROM tpch.tiny.region WHERE regionkey = 1");
     }
 
     @Test
     public void selectColumnsSubset()
             throws SQLException
     {
-        assertThatQueryReturnsSameValueAs("SELECT nationkey, regionkey FROM nation ORDER BY nationkey", "SELECT nationkey, regionkey FROM tpch.tiny.nation ORDER BY nationkey");
+        assertThatQueryReturnsSameValueAs("SELECT name, suppkey FROM supplier ORDER BY suppkey", "SELECT name, suppkey FROM tpch.tiny.supplier ORDER BY suppkey");
     }
 
-    private List<QualifiedObjectName> listCacheTables()
+    @Test
+    public void selectAllColumnsAfterColumnsSubset()
+            throws SQLException
     {
-        return queryRunner.listTables(queryRunner.getDefaultSession(), "cache", "default");
-    }
-
-    private void assertThatQueryReturnsValue(String sql, Object expected)
-    {
-        assertThatQueryReturnsValue(sql, expected, null);
-    }
-
-    private void assertThatQueryReturnsValue(String sql, Object expected, Session session)
-    {
-        MaterializedResult rows = session == null ? queryRunner.execute(sql) : queryRunner.execute(session, sql);
-        MaterializedRow materializedRow = Iterables.getOnlyElement(rows);
-        int fieldCount = materializedRow.getFieldCount();
-        assertTrue(fieldCount == 1, format("Expected only one column, but got '%d'", fieldCount));
-        Object value = materializedRow.getField(0);
-        assertEquals(value, expected);
-        assertTrue(Iterables.getOnlyElement(rows).getFieldCount() == 1);
+        assertThatQueryReturnsSameValueAs("SELECT name, suppkey FROM supplier ORDER BY suppkey", "SELECT name, suppkey FROM tpch.tiny.supplier ORDER BY suppkey");
+        assertThatQueryReturnsSameValueAs("SELECT * FROM supplier ORDER BY suppkey", "SELECT * FROM tpch.tiny.supplier ORDER BY suppkey");
     }
 
     private void assertThatQueryReturnsSameValueAs(String sql, String compareSql)
@@ -135,9 +79,13 @@ public class TestCacheSmoke
 
     private void assertThatQueryReturnsSameValueAs(String sql, String compareSql, Session session)
     {
+        // first run from source
         MaterializedResult rows = session == null ? queryRunner.execute(sql) : queryRunner.execute(session, sql);
         MaterializedResult expectedRows = session == null ? queryRunner.execute(compareSql) : queryRunner.execute(session, compareSql);
+        assertEquals(rows, expectedRows);
 
+        // second from cache
+        rows = session == null ? queryRunner.execute(sql) : queryRunner.execute(session, sql);
         assertEquals(rows, expectedRows);
     }
 }

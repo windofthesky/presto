@@ -13,50 +13,98 @@
  */
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.plugin.cache.CacheMetadata.CacheMetadataFactory;
 import com.facebook.presto.spi.NodeManager;
+import com.facebook.presto.spi.RecordPageSource;
+import com.facebook.presto.spi.RecordSet;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorContext;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.facebook.presto.spi.connector.ConnectorPageSinkProvider;
+import com.facebook.presto.spi.connector.ConnectorPageSourceProvider;
+import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.BindingAnnotation;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 
 import javax.inject.Inject;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 
 public class CacheModule
         implements Module
 {
     private final String connectorId;
-    private final TypeManager typeManager;
-    private final NodeManager nodeManager;
+    private final ConnectorContext context;
 
-    public CacheModule(String connectorId, TypeManager typeManager, NodeManager nodeManager)
+    public CacheModule(String connectorId, ConnectorContext context)
     {
         this.connectorId = requireNonNull(connectorId, "connector id is null");
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.context = requireNonNull(context, "context is null");
     }
 
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(TypeManager.class).toInstance(typeManager);
-        binder.bind(NodeManager.class).toInstance(nodeManager);
+        binder.bind(TypeManager.class).toInstance(context.getTypeManager());
+        binder.bind(NodeManager.class).toInstance(context.getNodeManager());
+        binder.bind(ConnectorContext.class).toInstance(context);
+
+        ConnectorFactory factory = context.getConnectorFactory("tpch");
+        Connector sourceConnector = factory.create("cached_dunno", ImmutableMap.of(), context);
+
+        ConnectorFactory cachingFactory = context.getConnectorFactory("memory");
+        Connector cacheConnector = cachingFactory.create(
+                "caching_dunno",
+                ImmutableMap.of("memory.max-data-per-node", "4GB"),
+                context);
+
+        binder.bind(Connector.class).annotatedWith(Source.class).toInstance(sourceConnector);
+        binder.bind(ConnectorPageSourceProvider.class).annotatedWith(Source.class).toInstance(getSourcePageSourceProvider(sourceConnector));
+        binder.bind(ConnectorSplitManager.class).annotatedWith(Source.class).toInstance(sourceConnector.getSplitManager());
+
+        binder.bind(Connector.class).annotatedWith(Cache.class).toInstance(cacheConnector);
+        binder.bind(ConnectorPageSourceProvider.class).annotatedWith(Cache.class).toInstance(cacheConnector.getPageSourceProvider());
+        binder.bind(ConnectorPageSinkProvider.class).annotatedWith(Cache.class).toInstance(cacheConnector.getPageSinkProvider());
+        binder.bind(ConnectorSplitManager.class).annotatedWith(Cache.class).toInstance(cacheConnector.getSplitManager());
 
         binder.bind(CacheConnector.class).in(Scopes.SINGLETON);
         binder.bind(CacheConnectorId.class).toInstance(new CacheConnectorId(connectorId));
-        binder.bind(CacheMetadata.class).in(Scopes.SINGLETON);
         binder.bind(CacheSplitManager.class).in(Scopes.SINGLETON);
-        binder.bind(CachePagesStore.class).in(Scopes.SINGLETON);
         binder.bind(CachePageSourceProvider.class).in(Scopes.SINGLETON);
-        binder.bind(CachePageSinkProvider.class).in(Scopes.SINGLETON);
+        binder.bind(CacheMetadataFactory.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(CacheConfig.class);
+    }
+
+    private static ConnectorPageSourceProvider getSourcePageSourceProvider(Connector sourceConnector)
+    {
+        try {
+            return sourceConnector.getPageSourceProvider();
+        }
+        catch (UnsupportedOperationException ex) {
+            return (transactionHandle, session, split, columns) -> {
+                RecordSet recordSet = sourceConnector.getRecordSetProvider().getRecordSet(
+                        transactionHandle,
+                        session,
+                        split,
+                        columns);
+                return new RecordPageSource(recordSet);
+            };
+        }
     }
 
     public static final class TypeDeserializer
@@ -78,5 +126,13 @@ public class CacheModule
             checkArgument(type != null, "Unknown type %s", value);
             return type;
         }
+    }
+
+    @BindingAnnotation @Target({PARAMETER}) @Retention(RUNTIME)
+    @interface Cache {
+    }
+
+    @BindingAnnotation @Target({PARAMETER}) @Retention(RUNTIME)
+    @interface Source {
     }
 }

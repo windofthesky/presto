@@ -14,89 +14,56 @@
 
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.spi.ConnectorInsertTableHandle;
 import com.facebook.presto.spi.ConnectorTableHandle;
-import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.HostAddress;
-import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 
 public final class CacheTableHandle
         implements ConnectorTableHandle
 {
-    private final String connectorId;
-    private final String schemaName;
-    private final String tableName;
-    private final Long tableId;
-    private final List<CacheColumnHandle> columnHandles;
+    private final Optional<ConnectorTableHandle> cacheTableHandle;
+    private final Optional<ConnectorTableHandle> sourceTableHandle;
+    private final Optional<ConnectorInsertTableHandle> insertToCacheTableHandle;
     private final List<HostAddress> hosts;
-
-    public CacheTableHandle(
-            String connectorId,
-            Long tableId,
-            ConnectorTableMetadata tableMetadata,
-            List<HostAddress> hosts)
-    {
-        this(connectorId,
-                tableMetadata.getTable().getSchemaName(),
-                tableMetadata.getTable().getTableName(),
-                tableId,
-                CacheColumnHandle.extractColumnHandles(tableMetadata.getColumns()),
-                hosts);
-    }
 
     @JsonCreator
     public CacheTableHandle(
-            @JsonProperty("connectorId") String connectorId,
-            @JsonProperty("schemaName") String schemaName,
-            @JsonProperty("tableName") String tableName,
-            @JsonProperty("tableId") Long tableId,
-            @JsonProperty("columnHandles") List<CacheColumnHandle> columnHandles,
+            @JsonProperty("cacheTableHandle") Optional<ConnectorTableHandle> cacheTableHandle,
+            @JsonProperty("sourceTableHandle") Optional<ConnectorTableHandle> sourceTableHandle,
+            @JsonProperty("insertToCacheTableHandle") Optional<ConnectorInsertTableHandle> insertToCacheTableHandle,
             @JsonProperty("hosts") List<HostAddress> hosts)
     {
-        this.connectorId = requireNonNull(connectorId, "connectorId is null");
-        this.schemaName = requireNonNull(schemaName, "schemaName is null");
-        this.tableName = requireNonNull(tableName, "tableName is null");
-        this.tableId = requireNonNull(tableId, "tableId is null");
-        this.columnHandles = requireNonNull(columnHandles, "columnHandles is null");
+        this.cacheTableHandle = requireNonNull(cacheTableHandle, "cacheTableHandle is null");
+        this.sourceTableHandle = requireNonNull(sourceTableHandle, "sourceTableHandle is null");
+        this.insertToCacheTableHandle = requireNonNull(insertToCacheTableHandle, "insertToCacheTableHandle is null");
         this.hosts = requireNonNull(hosts, "hosts is null");
     }
 
     @JsonProperty
-    public String getConnectorId()
+    public Optional<ConnectorTableHandle> getSourceTableHandle()
     {
-        return connectorId;
+        return sourceTableHandle;
     }
 
     @JsonProperty
-    public String getSchemaName()
+    public Optional<ConnectorTableHandle> getCacheTableHandle()
     {
-        return schemaName;
+        return cacheTableHandle;
     }
 
     @JsonProperty
-    public String getTableName()
+    public Optional<ConnectorInsertTableHandle> getInsertToCacheTableHandle()
     {
-        return tableName;
-    }
-
-    @JsonProperty
-    public Long getTableId()
-    {
-        return tableId;
-    }
-
-    @JsonProperty
-    public List<CacheColumnHandle> getColumnHandles()
-    {
-        return columnHandles;
+        return insertToCacheTableHandle;
     }
 
     @JsonProperty
@@ -105,22 +72,14 @@ public final class CacheTableHandle
         return hosts;
     }
 
-    public ConnectorTableMetadata toTableMetadata()
-    {
-        return new ConnectorTableMetadata(
-                toSchemaTableName(),
-                columnHandles.stream().map(CacheColumnHandle::toColumnMetadata).collect(toList()));
-    }
-
-    public SchemaTableName toSchemaTableName()
-    {
-        return new SchemaTableName(schemaName, tableName);
-    }
-
     @Override
     public int hashCode()
     {
-        return Objects.hash(getConnectorId(), getTableId());
+        return Objects.hash(
+                getSourceTableHandle(),
+                getCacheTableHandle(),
+                getInsertToCacheTableHandle(),
+                getHosts());
     }
 
     @Override
@@ -133,19 +92,45 @@ public final class CacheTableHandle
             return false;
         }
         CacheTableHandle other = (CacheTableHandle) obj;
-        return Objects.equals(this.getConnectorId(), other.getConnectorId()) &&
-                Objects.equals(this.getTableId(), other.getTableId());
+        return Objects.equals(this.getSourceTableHandle(), other.getSourceTableHandle()) &&
+                Objects.equals(this.getCacheTableHandle(), other.getCacheTableHandle()) &&
+                Objects.equals(this.getInsertToCacheTableHandle(), other.getInsertToCacheTableHandle()) &&
+                Objects.equals(this.getHosts(), other.getHosts());
     }
 
     @Override
     public String toString()
     {
         return toStringHelper(this)
-                .add("connectorId", connectorId)
-                .add("schemaName", schemaName)
-                .add("tableName", tableName)
-                .add("tableId", tableId)
-                .add("columnHandles", columnHandles)
+                .add("sourceTableHandle", prettyOptional(sourceTableHandle))
+                .add("cacheTableHandle", prettyOptional(cacheTableHandle))
+                .add("insertToCacheTableHandle", prettyOptional(insertToCacheTableHandle))
                 .toString();
+    }
+
+    public static ConnectorTableHandle cached(ConnectorTableHandle cacheTableHandle, List<HostAddress> hosts)
+    {
+        return new CacheTableHandle(
+                Optional.of(cacheTableHandle),
+                Optional.empty(),
+                Optional.empty(),
+                hosts);
+    }
+
+    public static ConnectorTableHandle scanAndCache(
+            ConnectorTableHandle sourceTableHandle,
+            ConnectorInsertTableHandle cacheInsertTableHandle,
+            List<HostAddress> hosts)
+    {
+        return new CacheTableHandle(
+                Optional.empty(),
+                Optional.of(sourceTableHandle),
+                Optional.of(cacheInsertTableHandle),
+                hosts);
+    }
+
+    private static <T> String prettyOptional(Optional<T> optional)
+    {
+        return optional.map(Object::toString).orElse("?");
     }
 }

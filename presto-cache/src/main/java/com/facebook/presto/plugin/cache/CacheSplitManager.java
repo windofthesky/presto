@@ -14,29 +14,39 @@
 
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.plugin.cache.CacheModule.Cache;
+import com.facebook.presto.plugin.cache.CacheModule.Source;
+import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.FixedSplitSource;
-import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.google.common.collect.ImmutableList;
 
 import javax.inject.Inject;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
 public final class CacheSplitManager
         implements ConnectorSplitManager
 {
-    private final int splitsPerNode;
+    private final ConnectorSplitManager sourceSplitManager;
+    private final ConnectorSplitManager cacheSplitManager;
 
     @Inject
-    public CacheSplitManager(CacheConfig config)
+    public CacheSplitManager(
+            @Source ConnectorSplitManager sourceSplitManager,
+            @Cache ConnectorSplitManager cacheSplitManager)
     {
-        this.splitsPerNode = config.getSplitsPerNode();
+        this.sourceSplitManager = requireNonNull(sourceSplitManager, "sourceSplitManager is null");
+        this.cacheSplitManager = requireNonNull(cacheSplitManager, "cacheSplitManager is null");
     }
 
     @Override
@@ -44,19 +54,67 @@ public final class CacheSplitManager
     {
         CacheTableLayoutHandle layout = (CacheTableLayoutHandle) layoutHandle;
 
-        List<HostAddress> hosts = layout.getTable().getHosts();
-
-        ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
-        for (HostAddress host : hosts) {
-            for (int i = 0; i < splitsPerNode; i++) {
-                splits.add(
-                        new CacheSplit(
-                                layout.getTable(),
-                                i,
-                                splitsPerNode,
-                                ImmutableList.of(host)));
-            }
+        if (layout.getCacheTableLayoutHandle().isPresent()) {
+            return cached(cacheSplitManager.getSplits(transactionHandle, session, layout.getCacheTableLayoutHandle().get()));
         }
-        return new FixedSplitSource(splits.build());
+        checkState(layout.getSourceTableLayoutHandle().isPresent(), "both source and cache layout handles can not be empty");
+
+        return scanAndCache(
+                sourceSplitManager.getSplits(transactionHandle, session, layout.getSourceTableLayoutHandle().get()),
+                layout.getCacheOutputTableHandle().get(),
+                layout.getSourceColumnHandles().get());
+    }
+
+    private ConnectorSplitSource cached(ConnectorSplitSource cacheSplitSource)
+    {
+        return new ConnectorSplitSource() {
+            @Override
+            public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize)
+            {
+                return cacheSplitSource.getNextBatch(maxSize).thenApply(
+                        cachedSplits -> cachedSplits.stream().map(CacheSplit::cached).collect(toImmutableList()));
+            }
+
+            @Override
+            public void close()
+            {
+                cacheSplitSource.close();
+            }
+
+            @Override
+            public boolean isFinished()
+            {
+                return cacheSplitSource.isFinished();
+            }
+        };
+    }
+
+    private ConnectorSplitSource scanAndCache(
+            ConnectorSplitSource sourceSplitSource,
+            ConnectorOutputTableHandle outputTableHandle,
+            List<ColumnHandle> sourceColumnHandles)
+    {
+        return new ConnectorSplitSource() {
+            @Override
+            public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize)
+            {
+                return sourceSplitSource.getNextBatch(maxSize).thenApply(
+                        cachedSplits -> cachedSplits.stream()
+                                .map(split -> CacheSplit.scanAndCache(split, outputTableHandle, sourceColumnHandles))
+                                .collect(toImmutableList()));
+            }
+
+            @Override
+            public void close()
+            {
+                sourceSplitSource.close();
+            }
+
+            @Override
+            public boolean isFinished()
+            {
+                return sourceSplitSource.isFinished();
+            }
+        };
     }
 }

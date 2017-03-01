@@ -17,7 +17,10 @@ import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.PageIndexerFactory;
 import com.facebook.presto.spi.PageSorter;
 import com.facebook.presto.spi.connector.ConnectorContext;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.type.TypeManager;
+
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -28,17 +31,20 @@ public class ConnectorContextInstance
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
+    private final Map<String, ConnectorFactory> connectorFactories;
 
     public ConnectorContextInstance(
             NodeManager nodeManager,
             TypeManager typeManager,
             PageSorter pageSorter,
-            PageIndexerFactory pageIndexerFactory)
+            PageIndexerFactory pageIndexerFactory,
+            Map<String, ConnectorFactory> connectorFactories)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.connectorFactories = requireNonNull(connectorFactories, "connectorFactories is null");
     }
 
     @Override
@@ -63,5 +69,11 @@ public class ConnectorContextInstance
     public PageIndexerFactory getPageIndexerFactory()
     {
         return pageIndexerFactory;
+    }
+
+    @Override
+    public ConnectorFactory getConnectorFactory(String name)
+    {
+        return connectorFactories.get(name);
     }
 }

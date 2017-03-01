@@ -298,7 +298,8 @@ public class ConnectorManager
                 new ConnectorAwareNodeManager(nodeManager, nodeInfo.getEnvironment(), connectorId),
                 typeManager,
                 pageSorter,
-                pageIndexerFactory);
+                pageIndexerFactory,
+                connectorFactories);
 
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
             return factory.create(connectorId.getCatalogName(), properties, context);

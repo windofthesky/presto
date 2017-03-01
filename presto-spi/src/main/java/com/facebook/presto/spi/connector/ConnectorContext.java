@@ -39,4 +39,9 @@ public interface ConnectorContext
     {
         throw new UnsupportedOperationException();
     }
+
+    default ConnectorFactory getConnectorFactory(String name)
+    {
+        throw new UnsupportedOperationException();
+    }
 }

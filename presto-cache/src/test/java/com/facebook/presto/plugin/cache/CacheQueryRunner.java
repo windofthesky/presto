@@ -14,18 +14,16 @@
 package com.facebook.presto.plugin.cache;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.plugin.memory.MemoryPlugin;
 import com.facebook.presto.tests.DistributedQueryRunner;
 import com.facebook.presto.tpch.TpchPlugin;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
-import io.airlift.tpch.TpchTable;
 
 import java.util.Map;
 
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
-import static com.facebook.presto.tests.QueryAssertions.copyTpchTables;
-import static com.facebook.presto.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 
 public final class CacheQueryRunner
@@ -43,20 +41,20 @@ public final class CacheQueryRunner
     {
         Session session = testSessionBuilder()
                 .setCatalog("cache")
-                .setSchema("default")
+                .setSchema("tiny")
                 .build();
 
         DistributedQueryRunner queryRunner = new DistributedQueryRunner(session, 4, extraProperties);
 
         try {
-            queryRunner.installPlugin(new CachePlugin());
-            queryRunner.createCatalog("cache", "cache", ImmutableMap.of());
-
             queryRunner.installPlugin(new TpchPlugin());
             queryRunner.createCatalog("tpch", "tpch", ImmutableMap.of());
 
-            copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, session, TpchTable.getTables());
+            queryRunner.installPlugin(new MemoryPlugin());
+            queryRunner.createCatalog("memory", "memory", ImmutableMap.of());
 
+            queryRunner.installPlugin(new CachePlugin());
+            queryRunner.createCatalog("cache", "cache", ImmutableMap.of());
             return queryRunner;
         }
         catch (Exception e) {

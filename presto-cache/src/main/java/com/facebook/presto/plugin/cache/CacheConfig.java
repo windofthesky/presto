@@ -48,4 +48,9 @@ public class CacheConfig
         this.maxDataPerNode = maxDataPerNode;
         return this;
     }
+
+    public String getCachedConnector()
+    {
+        return "tpch";
+    }
 }

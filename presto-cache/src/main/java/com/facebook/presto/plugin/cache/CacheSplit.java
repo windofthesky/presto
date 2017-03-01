@@ -13,14 +13,16 @@
  */
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
@@ -29,63 +31,96 @@ import static java.util.Objects.requireNonNull;
 public class CacheSplit
         implements ConnectorSplit
 {
-    private final CacheTableHandle tableHandle;
-    private final int totalPartsPerWorker; // how many concurrent reads there will be from one worker
-    private final int partNumber; // part of the pages on one worker that this splits is responsible
-    private final List<HostAddress> addresses;
+    private final Optional<ConnectorSplit> cacheSplit;
+    private final Optional<ConnectorSplit> sourceSplit;
+    private final Optional<ConnectorOutputTableHandle> cacheOutputTableHandle;
+    private final Optional<List<ColumnHandle>> sourceColumnHandles;
+
+    public static CacheSplit cached(ConnectorSplit cacheSplit)
+    {
+        return new CacheSplit(
+                Optional.of(cacheSplit),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
+    public static CacheSplit scanAndCache(
+            ConnectorSplit sourceSplit,
+            ConnectorOutputTableHandle cacheOutputTableHandle,
+            List<ColumnHandle> sourceColumnHandles)
+    {
+        return new CacheSplit(
+                Optional.empty(),
+                Optional.of(sourceSplit),
+                Optional.of(cacheOutputTableHandle),
+                Optional.of(sourceColumnHandles));
+    }
 
     @JsonCreator
     public CacheSplit(
-            @JsonProperty("tableHandle") CacheTableHandle tableHandle,
-            @JsonProperty("partNumber") int partNumber,
-            @JsonProperty("totalPartsPerWorker") int totalPartsPerWorker,
-            @JsonProperty("addresses") List<HostAddress> addresses)
+            @JsonProperty("cacheSplit") Optional<ConnectorSplit> cacheSplit,
+            @JsonProperty("sourceSplit") Optional<ConnectorSplit> sourceSplit,
+            @JsonProperty("cacheOutputTableHandle") Optional<ConnectorOutputTableHandle> cacheOutputTableHandle,
+            @JsonProperty("sourceColumnHandles") Optional<List<ColumnHandle>> sourceColumnHandles)
     {
-        checkState(partNumber >= 0, "partNumber must be >= 0");
-        checkState(totalPartsPerWorker >= 1, "totalPartsPerWorker must be >= 1");
-        checkState(totalPartsPerWorker > partNumber, "totalPartsPerWorker must be > partNumber");
-
-        this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
-        this.partNumber = partNumber;
-        this.totalPartsPerWorker = totalPartsPerWorker;
-        this.addresses = ImmutableList.copyOf(requireNonNull(addresses, "addresses is null"));
+        checkState(cacheSplit.isPresent() ^ (sourceSplit.isPresent() && cacheOutputTableHandle.isPresent()),
+                "CacheSplit can not have empty both cache and source splits");
+        this.cacheSplit = requireNonNull(cacheSplit, "cacheSplit is null");
+        this.sourceSplit = requireNonNull(sourceSplit, "sourceSplit is null");
+        this.cacheOutputTableHandle = requireNonNull(cacheOutputTableHandle, "cacheOutputTableHandle is null");
+        this.sourceColumnHandles = requireNonNull(sourceColumnHandles, "sourceColumnHandles is null");
     }
 
     @JsonProperty
-    public CacheTableHandle getTableHandle()
+    public Optional<ConnectorSplit> getCacheSplit()
     {
-        return tableHandle;
+        return cacheSplit;
     }
 
     @JsonProperty
-    public int getTotalPartsPerWorker()
+    public Optional<ConnectorSplit> getSourceSplit()
     {
-        return totalPartsPerWorker;
+        return sourceSplit;
     }
 
     @JsonProperty
-    public int getPartNumber()
+    public Optional<ConnectorOutputTableHandle> getCacheOutputTableHandle()
     {
-        return partNumber;
+        return cacheOutputTableHandle;
     }
 
-    @Override
-    public Object getInfo()
+    @JsonProperty
+    public Optional<List<ColumnHandle>> getSourceColumnHandles()
     {
-        return this;
+        return sourceColumnHandles;
     }
 
     @Override
     public boolean isRemotelyAccessible()
     {
-        return false;
+        return getSplit().isRemotelyAccessible();
     }
 
-    @JsonProperty
     @Override
     public List<HostAddress> getAddresses()
     {
-        return addresses;
+        return getSplit().getAddresses();
+    }
+
+    @Override
+    public Object getInfo()
+    {
+        return getSplit().getAddresses();
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(
+                getCacheSplit(),
+                getSourceSplit(),
+                getCacheOutputTableHandle());
     }
 
     @Override
@@ -94,28 +129,32 @@ public class CacheSplit
         if (this == obj) {
             return true;
         }
-        if ((obj == null) || (getClass() != obj.getClass())) {
+        if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
         CacheSplit other = (CacheSplit) obj;
-        return Objects.equals(this.tableHandle, other.tableHandle) &&
-                Objects.equals(this.totalPartsPerWorker, other.totalPartsPerWorker) &&
-                Objects.equals(this.partNumber, other.partNumber);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(tableHandle, totalPartsPerWorker, partNumber);
+        return Objects.equals(this.getCacheSplit(), other.getCacheSplit()) &&
+                Objects.equals(this.getSourceSplit(), other.getSourceSplit()) &&
+                Objects.equals(this.getCacheOutputTableHandle(), other.getCacheOutputTableHandle());
     }
 
     @Override
     public String toString()
     {
         return toStringHelper(this)
-                .add("tableHandle", tableHandle)
-                .add("partNumber", partNumber)
-                .add("totalPartsPerWorker", totalPartsPerWorker)
+                .add("cacheSplit", prettyOptional(cacheSplit))
+                .add("sourceSplit", prettyOptional(sourceSplit))
+                .add("cacheOutputTableHandle", prettyOptional(cacheOutputTableHandle))
                 .toString();
+    }
+
+    private static <T> String prettyOptional(Optional<T> optional)
+    {
+        return optional.map(Object::toString).orElse("?");
+    }
+
+    private ConnectorSplit getSplit()
+    {
+        return cacheSplit.orElseGet(sourceSplit::get);
     }
 }

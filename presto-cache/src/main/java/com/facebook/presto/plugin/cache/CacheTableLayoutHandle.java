@@ -13,37 +13,121 @@
  */
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 public class CacheTableLayoutHandle
         implements ConnectorTableLayoutHandle
 {
-    private final CacheTableHandle table;
+    private final Optional<ConnectorTableLayoutHandle> cacheTableLayoutHandle;
+    private final Optional<ConnectorTableLayoutHandle> sourceTableLayoutHandle;
+    private final Optional<ConnectorOutputTableHandle> cacheOutputTableHandle;
+    private final Optional<List<ColumnHandle>> sourceColumnHandles;
+
+    public static CacheTableLayoutHandle cached(ConnectorTableLayoutHandle cacheTableLayoutHandle)
+    {
+        return new CacheTableLayoutHandle(
+                Optional.of(cacheTableLayoutHandle),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
+    public static CacheTableLayoutHandle scanAndCache(
+            ConnectorTableLayoutHandle sourceTableLayoutHandle,
+            ConnectorOutputTableHandle cacheOutputTableHandle,
+            List<ColumnHandle> sourceColumnHandles)
+    {
+        return new CacheTableLayoutHandle(
+                Optional.empty(),
+                Optional.of(sourceTableLayoutHandle),
+                Optional.of(cacheOutputTableHandle),
+                Optional.of(sourceColumnHandles));
+    }
 
     @JsonCreator
-    public CacheTableLayoutHandle(@JsonProperty("table") CacheTableHandle table)
+    public CacheTableLayoutHandle(
+            @JsonProperty("cacheTableLayoutHandle") Optional<ConnectorTableLayoutHandle> cacheTableLayoutHandle,
+            @JsonProperty("sourceTableLayoutHandle") Optional<ConnectorTableLayoutHandle> sourceTableLayoutHandle,
+            @JsonProperty("cacheOutputTableHandle") Optional<ConnectorOutputTableHandle> cacheOutputTableHandle,
+            @JsonProperty("sourceColumnHandles") Optional<List<ColumnHandle>> sourceColumnHandles)
     {
-        this.table = requireNonNull(table, "table is null");
+        this.cacheTableLayoutHandle = requireNonNull(cacheTableLayoutHandle, "cacheTableLayoutHandle is null");
+        this.sourceTableLayoutHandle = requireNonNull(sourceTableLayoutHandle, "sourceTableLayoutHandle is null");
+        this.cacheOutputTableHandle = requireNonNull(cacheOutputTableHandle, "cacheOutputTableHandle is null");
+        this.sourceColumnHandles = requireNonNull(sourceColumnHandles, "sourceColumnHandles is null");
     }
 
     @JsonProperty
-    public CacheTableHandle getTable()
+    public Optional<ConnectorTableLayoutHandle> getCacheTableLayoutHandle()
     {
-        return table;
+        return cacheTableLayoutHandle;
     }
 
-    public String getConnectorId()
+    @JsonProperty
+    public Optional<ConnectorTableLayoutHandle> getSourceTableLayoutHandle()
     {
-        return table.getConnectorId();
+        return sourceTableLayoutHandle;
+    }
+
+    @JsonProperty
+    public Optional<ConnectorOutputTableHandle> getCacheOutputTableHandle()
+    {
+        return cacheOutputTableHandle;
+    }
+
+    @JsonProperty
+    public Optional<List<ColumnHandle>> getSourceColumnHandles()
+    {
+        return sourceColumnHandles;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(
+                getCacheTableLayoutHandle(),
+                getSourceTableLayoutHandle(),
+                getCacheOutputTableHandle());
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        CacheTableLayoutHandle other = (CacheTableLayoutHandle) obj;
+        return Objects.equals(this.getCacheTableLayoutHandle(), other.getCacheTableLayoutHandle()) &&
+                Objects.equals(this.getSourceTableLayoutHandle(), other.getSourceTableLayoutHandle()) &&
+                Objects.equals(this.getCacheOutputTableHandle(), other.getCacheOutputTableHandle());
     }
 
     @Override
     public String toString()
     {
-        return table.toString();
+        return toStringHelper(this)
+                .add("cacheTableLayoutHandle", prettyOptional(cacheTableLayoutHandle))
+                .add("sourceTableLayoutHandle", prettyOptional(sourceTableLayoutHandle))
+                .add("cacheOutputTableHandle", prettyOptional(cacheOutputTableHandle))
+                .toString();
+    }
+
+    private static <T> String prettyOptional(Optional<T> optional)
+    {
+        return optional.map(Object::toString).orElse("?");
     }
 }

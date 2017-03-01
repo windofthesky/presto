@@ -50,7 +50,7 @@ public class CacheConnectorFactory
             // A plugin is not required to use Guice; it is just very convenient
             Bootstrap app = new Bootstrap(
                     new JsonModule(),
-                    new CacheModule(connectorId, context.getTypeManager(), context.getNodeManager()));
+                    new CacheModule(connectorId, context));
 
             Injector injector = app
                     .strictConfig()

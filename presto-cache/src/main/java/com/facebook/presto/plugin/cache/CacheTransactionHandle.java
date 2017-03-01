@@ -14,9 +14,35 @@
 package com.facebook.presto.plugin.cache;
 
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public enum CacheTransactionHandle
+import static java.util.Objects.requireNonNull;
+
+public class CacheTransactionHandle
         implements ConnectorTransactionHandle
 {
-    INSTANCE
+    private final ConnectorTransactionHandle sourceTransaction;
+    private final ConnectorTransactionHandle cacheTransaction;
+
+    @JsonCreator
+    public CacheTransactionHandle(
+            @JsonProperty("sourceTransaction") ConnectorTransactionHandle sourceTransaction,
+            @JsonProperty("cacheTransaction") ConnectorTransactionHandle cacheTransaction)
+    {
+        this.sourceTransaction = requireNonNull(sourceTransaction, "sourceTransaction is null");
+        this.cacheTransaction = requireNonNull(cacheTransaction, "cacheTransaction is null");
+    }
+
+    @JsonProperty
+    public ConnectorTransactionHandle getSourceTransaction()
+    {
+        return sourceTransaction;
+    }
+
+    @JsonProperty
+    public ConnectorTransactionHandle getCacheTransaction()
+    {
+        return cacheTransaction;
+    }
 }

@@ -14,9 +14,12 @@
 
 package com.facebook.presto.plugin.cache;
 
+import com.facebook.presto.plugin.cache.CacheMetadata.CacheMetadataFactory;
+import com.facebook.presto.plugin.cache.CacheModule.Cache;
+import com.facebook.presto.plugin.cache.CacheModule.Source;
 import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorContext;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
-import com.facebook.presto.spi.connector.ConnectorPageSinkProvider;
 import com.facebook.presto.spi.connector.ConnectorPageSourceProvider;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
@@ -24,37 +27,49 @@ import com.facebook.presto.spi.transaction.IsolationLevel;
 
 import javax.inject.Inject;
 
+import static java.util.Objects.requireNonNull;
+
 public class CacheConnector
         implements Connector
 {
-    private final CacheMetadata metadata;
+    private final CacheMetadataFactory metadataFactory;
     private final CacheSplitManager splitManager;
     private final CachePageSourceProvider pageSourceProvider;
-    private final CachePageSinkProvider pageSinkProvider;
+    private final Connector cachedConnector;
+    private final Connector cachingConnector;
 
     @Inject
     public CacheConnector(
-            CacheMetadata metadata,
+            CacheConfig config,
+            ConnectorContext connectorContext,
+            CacheMetadataFactory metadataFactory,
+            @Source Connector sourceConnector,
+            @Cache Connector cacheConnector,
             CacheSplitManager splitManager,
-            CachePageSourceProvider pageSourceProvider,
-            CachePageSinkProvider pageSinkProvider)
+            CachePageSourceProvider pageSourceProvider)
     {
-        this.metadata = metadata;
         this.splitManager = splitManager;
         this.pageSourceProvider = pageSourceProvider;
-        this.pageSinkProvider = pageSinkProvider;
+        this.metadataFactory = requireNonNull(metadataFactory, "metadataFactory is null");
+        this.cachedConnector = requireNonNull(sourceConnector, "sourceConnector is null");
+        this.cachingConnector = requireNonNull(cacheConnector, "cacheConnector is null");
     }
 
     @Override
     public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly)
     {
-        return CacheTransactionHandle.INSTANCE;
+        return new CacheTransactionHandle(
+                cachedConnector.beginTransaction(isolationLevel, readOnly),
+                cachingConnector.beginTransaction(isolationLevel, readOnly));
     }
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle)
     {
-        return metadata;
+        CacheTransactionHandle cacheTransactionHandle = (CacheTransactionHandle) transactionHandle;
+        return metadataFactory.create(
+                cachedConnector.getMetadata(cacheTransactionHandle.getSourceTransaction()),
+                cachingConnector.getMetadata(cacheTransactionHandle.getCacheTransaction()));
     }
 
     @Override
@@ -67,11 +82,5 @@ public class CacheConnector
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
         return pageSourceProvider;
-    }
-
-    @Override
-    public ConnectorPageSinkProvider getPageSinkProvider()
-    {
-        return pageSinkProvider;
     }
 }

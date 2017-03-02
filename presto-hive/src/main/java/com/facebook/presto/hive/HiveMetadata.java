@@ -133,6 +133,7 @@ import static com.facebook.presto.hive.HiveWriteUtils.initializeSerializer;
 import static com.facebook.presto.hive.HiveWriteUtils.isWritableType;
 import static com.facebook.presto.hive.metastore.HivePrivilegeInfo.toHivePrivilege;
 import static com.facebook.presto.hive.metastore.MetastoreUtil.getHiveSchema;
+import static com.facebook.presto.hive.metastore.MetastoreUtil.listApplicableTablePrivileges;
 import static com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore.WriteMode.DIRECT_TO_TARGET_EXISTING_DIRECTORY;
 import static com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore.WriteMode.DIRECT_TO_TARGET_NEW_DIRECTORY;
 import static com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore.WriteMode.STAGE_AND_MOVE_TO_TARGET_DIRECTORY;
@@ -1576,11 +1577,13 @@ public class HiveMetadata
     {
         ImmutableList.Builder<GrantInfo> grantInfoBuilder = ImmutableList.builder();
         for (SchemaTableName tableName : listTables(session, schemaTablePrefix)) {
-            Set<PrivilegeInfo> privilegeInfoSet = metastore.getTablePrivileges(grantee, tableName.getSchemaName(), tableName.getTableName()).stream()
-                    .map(HivePrivilegeInfo::toPrivilegeInfo)
-                    .flatMap(p -> p.stream())
-                    .distinct()
-                    .collect(toSet());
+            Set<PrivilegeInfo> privilegeInfoSet =
+                    listApplicableTablePrivileges(metastore, tableName.getSchemaName(), tableName.getTableName(), new PrestoPrincipal(USER, grantee))
+                            .stream()
+                            .map(HivePrivilegeInfo::toPrivilegeInfo)
+                            .flatMap(p -> p.stream())
+                            .distinct()
+                            .collect(toSet());
 
             grantInfoBuilder.add(
                     new GrantInfo(

@@ -45,6 +45,7 @@ import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -68,6 +69,7 @@ import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 import static org.apache.hadoop.hive.metastore.MetaStoreUtils.typeToThriftType;
 import static org.apache.hadoop.hive.metastore.ProtectMode.getProtectModeFromString;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.BUCKET_COUNT;
@@ -545,6 +547,27 @@ public class MetastoreUtil
         }
 
         return ImmutableSet.copyOf(roles);
+    }
+
+    public static Set<String> listApplicableRoles(SemiTransactionalHiveMetastore metastore, PrestoPrincipal principal)
+    {
+        return listApplicableRoles(principal, metastore::listRoleGrants)
+                .stream()
+                .map(RoleGrant::getRoleName)
+                .collect(toSet());
+    }
+
+    public static Set<HivePrivilegeInfo> listApplicableTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, PrestoPrincipal principal)
+    {
+        Set<String> applicableRoles = listApplicableRoles(metastore, principal);
+        List<PrestoPrincipal> principals = new ArrayList<>();
+        principals.add(principal);
+        applicableRoles.stream().map(role -> new PrestoPrincipal(ROLE, role)).forEach(principals::add);
+        ImmutableSet.Builder<HivePrivilegeInfo> result = ImmutableSet.builder();
+        for (PrestoPrincipal current : principals) {
+            result.addAll(metastore.listTablePrivileges(databaseName, tableName, current));
+        }
+        return result.build();
     }
 
     private static PrincipalType fromMetastoreApiPrincipalType(org.apache.hadoop.hive.metastore.api.PrincipalType principalType)

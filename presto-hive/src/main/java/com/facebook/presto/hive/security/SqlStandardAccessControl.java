@@ -18,7 +18,6 @@ import com.facebook.presto.hive.HiveTransactionHandle;
 import com.facebook.presto.hive.metastore.Database;
 import com.facebook.presto.hive.metastore.ExtendedHiveMetastore;
 import com.facebook.presto.hive.metastore.HivePrivilegeInfo;
-import com.facebook.presto.hive.metastore.MetastoreUtil;
 import com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
@@ -34,9 +33,7 @@ import com.google.common.collect.ImmutableSet;
 
 import javax.inject.Inject;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -48,6 +45,8 @@ import static com.facebook.presto.hive.metastore.HivePrivilegeInfo.HivePrivilege
 import static com.facebook.presto.hive.metastore.HivePrivilegeInfo.HivePrivilege.OWNERSHIP;
 import static com.facebook.presto.hive.metastore.HivePrivilegeInfo.HivePrivilege.SELECT;
 import static com.facebook.presto.hive.metastore.HivePrivilegeInfo.toHivePrivilege;
+import static com.facebook.presto.hive.metastore.MetastoreUtil.listApplicableRoles;
+import static com.facebook.presto.hive.metastore.MetastoreUtil.listApplicableTablePrivileges;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyAddColumn;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateSchema;
@@ -261,7 +260,7 @@ public class SqlStandardAccessControl
     public void checkCanSetCatalogSessionProperty(Identity identity, String propertyName)
     {
         // TODO: when this is updated to have a transaction, use isAdmin()
-        Set<String> roles = MetastoreUtil.listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants)
+        Set<String> roles = listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants)
                 .stream()
                 .map(RoleGrant::getRoleName)
                 .collect(toSet());
@@ -369,7 +368,7 @@ public class SqlStandardAccessControl
     private boolean hasAdminOption(ConnectorTransactionHandle transaction, Identity identity, Set<String> roles)
     {
         SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
-        Set<RoleGrant> grants = MetastoreUtil.listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants);
+        Set<RoleGrant> grants = listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants);
         Set<String> rolesWithGrantOption = grants.stream()
                 .filter(RoleGrant::isGrantable)
                 .map(RoleGrant::getRoleName)
@@ -462,26 +461,5 @@ public class SqlStandardAccessControl
             return true;
         }
         return false;
-    }
-
-    private static Set<String> listApplicableRoles(SemiTransactionalHiveMetastore metastore, PrestoPrincipal principal)
-    {
-        return MetastoreUtil.listApplicableRoles(principal, metastore::listRoleGrants)
-                .stream()
-                .map(RoleGrant::getRoleName)
-                .collect(toSet());
-    }
-
-    private static Set<HivePrivilegeInfo> listApplicableTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, PrestoPrincipal principal)
-    {
-        Set<String> applicableRoles = listApplicableRoles(metastore, principal);
-        List<PrestoPrincipal> principals = new ArrayList<>();
-        principals.add(principal);
-        applicableRoles.stream().map(role -> new PrestoPrincipal(ROLE, role)).forEach(principals::add);
-        ImmutableSet.Builder<HivePrivilegeInfo> result = ImmutableSet.builder();
-        for (PrestoPrincipal current : principals) {
-            result.addAll(metastore.listTablePrivileges(databaseName, tableName, current));
-        }
-        return result.build();
     }
 }

@@ -83,6 +83,7 @@ public class ClientSession
                 session.getRoles(),
                 session.getTransactionId(),
                 session.isDebug(),
+                session.isQuiet(),
                 session.getClientRequestTimeout());
     }
 
@@ -181,26 +182,7 @@ public class ClientSession
             boolean quiet,
             Duration clientRequestTimeout)
     {
-        this(server, user, source, clientInfo, catalog, schema, timeZoneId, locale, properties, emptyMap(), transactionId, debug, quiet, clientRequestTimeout);
-    }
-
-    public ClientSession(
-            URI server,
-            String user,
-            String source,
-            String clientInfo,
-            String catalog,
-            String schema,
-            String timeZoneId,
-            Locale locale,
-            Map<String, String> properties,
-            Map<String, String> preparedStatements,
-            String transactionId,
-            boolean debug,
-            boolean quiet,
-            Duration clientRequestTimeout)
-    {
-        this(server, user, source, clientInfo, catalog, schema, timeZoneId, locale, properties, preparedStatements, emptyMap(), transactionId, debug, clientRequestTimeout);
+        this(server, user, source, clientInfo, catalog, schema, timeZoneId, locale, properties, emptyMap(), emptyMap(), transactionId, debug, quiet, clientRequestTimeout);
     }
 
     public ClientSession(
@@ -217,6 +199,7 @@ public class ClientSession
             Map<String, SelectedRole> roles,
             String transactionId,
             boolean debug,
+            boolean quiet,
             Duration clientRequestTimeout)
     {
         this.server = requireNonNull(server, "server is null");

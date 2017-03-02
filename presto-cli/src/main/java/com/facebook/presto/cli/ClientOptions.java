@@ -147,6 +147,7 @@ public class ClientOptions
                 Locale.getDefault(),
                 toProperties(sessionProperties),
                 emptyMap(),
+                emptyMap(),
                 null,
                 debug,
                 quiet,

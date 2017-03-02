@@ -300,15 +300,4 @@ public class TableWriterNode
             return handle.toString();
         }
     }
-
-    // This handle is for use in unit tests
-    public static class TestingHandle
-            extends WriterTarget
-    {
-        @Override
-        public String toString()
-        {
-            return "testing handle";
-        }
-    }
 }

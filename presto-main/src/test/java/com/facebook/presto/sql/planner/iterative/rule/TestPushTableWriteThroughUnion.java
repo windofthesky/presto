@@ -14,16 +14,12 @@
 package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.sql.planner.iterative.rule.test.RuleTester;
-import com.facebook.presto.sql.planner.plan.TableWriterNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
-import java.util.Optional;
-
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
-import static com.facebook.presto.spi.type.VarbinaryType.VARBINARY;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.tableWriter;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.union;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values;
@@ -43,13 +39,9 @@ public class TestPushTableWriteThroughUnion
                                                 p.symbol("A2", BIGINT), p.symbol("A", BIGINT),
                                                 p.symbol("A2", BIGINT), p.symbol("B1", BIGINT),
                                                 p.symbol("B2", BIGINT), p.symbol("B", BIGINT),
-                                                p.symbol("B2", BIGINT), p.symbol("A1", BIGINT)),
-                                        ImmutableList.of()),
-                                new TableWriterNode.TestingHandle(),
+                                                p.symbol("B2", BIGINT), p.symbol("A1", BIGINT))),
                                 ImmutableList.of(p.symbol("A2", BIGINT), p.symbol("B2", BIGINT)),
-                                ImmutableList.of("a", "b"),
-                                ImmutableList.of(p.symbol("partialrows", BIGINT), p.symbol("fragment", VARBINARY)),
-                                Optional.empty()))
+                                ImmutableList.of("a", "b")))
                 .matches(union(
                         tableWriter(
                                 values(ImmutableMap.of("A", 0, "B", 1)),

@@ -38,8 +38,8 @@ import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughProject;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughExchange;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughUnion;
-import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
 import com.facebook.presto.sql.planner.iterative.rule.PushTableWriteThroughUnion;
+import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
 import com.facebook.presto.sql.planner.iterative.rule.SimplifyCountOverConstant;
@@ -172,7 +172,7 @@ public class PlanOptimizers
                                         new PruneValuesColumns(),
                                         new PruneTableScanColumns()))
                                 .build()
-                        ),
+                ),
                 new IterativeOptimizer(
                         stats,
                         ImmutableList.of(

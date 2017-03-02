@@ -25,7 +25,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 
 public class PushTableWriteThroughUnion
         implements Rule
@@ -61,7 +62,7 @@ public class PushTableWriteThroughUnion
                     tableWriterNode.getTarget(),
                     tableWriterNode.getColumns().stream()
                             .map(column -> unionNode.getSymbolMapping().get(column).get(index))
-                            .collect(Collectors.toList()),
+                            .collect(toImmutableList()),
                     tableWriterNode.getColumnNames(),
                     newSymbols.build(),
                     tableWriterNode.getPartitioningScheme()));

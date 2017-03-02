@@ -64,8 +64,7 @@ public class TestPushProjectionThroughUnion
                                     ImmutableListMultimap.<Symbol, Symbol>builder()
                                             .put(c, a)
                                             .put(c, b)
-                                            .build(),
-                                    ImmutableList.of(c)));
+                                            .build()));
                 })
                 .matches(
                         union(

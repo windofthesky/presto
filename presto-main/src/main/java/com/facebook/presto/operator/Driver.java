@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -341,7 +342,7 @@ public class Driver
                     .map(Operator::getOperatorContext)
                     .map(OperatorContext::getMemoryRevokingRequestedFuture)
                     .collect(toImmutableList());
-            Optional<SettableFuture<?>> doneRevokingRequestedFuture = revokingRequestedFutures.stream().filter(SettableFuture::isDone).findAny();
+            Optional<SettableFuture<?>> doneRevokingRequestedFuture = revokingRequestedFutures.stream().filter(Future::isDone).findAny();
             if (doneRevokingRequestedFuture.isPresent()) {
                 // revoking already requested for one of operators; return completed future
                 return doneRevokingRequestedFuture.get();

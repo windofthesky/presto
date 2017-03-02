@@ -71,12 +71,6 @@ public interface HiveMetastore
 
     Optional<Table> getTable(String databaseName, String tableName);
 
-    void createRole(String role, String grantor);
-
-    void dropRole(String role);
-
-    Set<String> listRoles();
-
     Optional<Set<ColumnStatisticsObj>> getTableColumnStatistics(String databaseName, String tableName, Set<String> columnNames);
 
     Optional<Map<String, Set<ColumnStatisticsObj>>> getPartitionColumnStatistics(String databaseName, String tableName, Set<String> partitionNames, Set<String> columnNames);

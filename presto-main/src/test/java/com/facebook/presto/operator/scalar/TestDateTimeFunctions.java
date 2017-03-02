@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator.scalar;
 
+import org.joda.time.DateTime;
 import org.testng.annotations.Test;
 
 import static com.facebook.presto.spi.StandardErrorCode.FUNCTION_NOT_FOUND;
@@ -27,6 +28,7 @@ public class TestDateTimeFunctions extends TestDateTimeFunctionsBase
                 testSessionBuilder()
                         .setTimeZoneKey(TIME_ZONE_KEY)
                         .setSystemProperty("legacy_timestamp", "false")
+                        .setStartTime(new DateTime(2017, 04, 01, 12, 34, 56, 789, UTC_TIME_ZONE).getMillis())
                         .build()
         );
     }

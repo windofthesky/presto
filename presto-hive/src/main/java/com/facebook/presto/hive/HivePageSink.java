@@ -27,6 +27,7 @@ import com.facebook.presto.spi.type.TypeManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import io.airlift.json.JsonCodec;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -41,6 +42,7 @@ import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_TOO_MANY_OPEN_PARTITIONS;
+import static com.facebook.presto.hive.HiveErrorCode.HIVE_WRITER_CLOSE_ERROR;
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.Slices.wrappedBuffer;
@@ -51,6 +53,8 @@ import static java.util.stream.Collectors.toList;
 public class HivePageSink
         implements ConnectorPageSink
 {
+    private static final Logger log = Logger.get(HivePageSink.class);
+
     private final HiveWriterFactory writerFactory;
 
     private final int[] dataColumnInputIndex; // ordinal of columns (not counting sample weight column)
@@ -166,8 +170,23 @@ public class HivePageSink
 
     private void doAbort()
     {
+        Map<HiveWriter, Exception> exceptions = new HashMap<>();
         for (HiveWriter writer : writers) {
-            writer.rollback();
+            // writers can contain nulls if an exception is thrown when doAppend expends the writer list
+            if (writer != null) {
+                try {
+                    writer.rollback();
+                }
+                catch (Exception e) {
+                    exceptions.put(writer, e);
+                }
+            }
+        }
+        if (!exceptions.isEmpty()) {
+            exceptions.entrySet().forEach(
+                    entry -> log.warn("exception '%s' while rollback on %s", entry.getValue(), entry.getKey())
+            );
+            throw new PrestoException(HIVE_WRITER_CLOSE_ERROR, "Error rolling back write to Hive");
         }
     }
 

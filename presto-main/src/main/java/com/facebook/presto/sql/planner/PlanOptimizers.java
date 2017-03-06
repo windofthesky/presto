@@ -23,6 +23,7 @@ import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.iterative.IterativeOptimizer;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.iterative.rule.AddIntermediateAggregations;
+import com.facebook.presto.sql.planner.iterative.rule.AddTableLayout;
 import com.facebook.presto.sql.planner.iterative.rule.EliminateCrossJoins;
 import com.facebook.presto.sql.planner.iterative.rule.EvaluateZeroLimit;
 import com.facebook.presto.sql.planner.iterative.rule.EvaluateZeroSample;
@@ -295,7 +296,13 @@ public class PlanOptimizers
             builder.add(new AddExchanges(metadata, sqlParser));
         }
 
-        builder.add(new PickLayout(metadata));
+        builder.add(
+                new IterativeOptimizer(
+                        stats,
+                        statsCalculator,
+                        costCalculator,
+                        ImmutableList.of(new PickLayout(metadata)),
+                        ImmutableSet.of(new AddTableLayout(metadata))));
 
         builder.add(
                 new IterativeOptimizer(

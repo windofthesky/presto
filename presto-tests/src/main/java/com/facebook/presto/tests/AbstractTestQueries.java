@@ -2120,6 +2120,30 @@ public abstract class AbstractTestQueries
     }
 
     @Test
+    public void testJoinWithConstantExpressionWithCoercion()
+    {
+        // Covers #7520
+        {
+            MaterializedResult actual = computeActual("select count(*) > 0 from nation join region on (cast ('a' as char(1)) = cast ('a' as char(2)))");
+
+            MaterializedResult expected = resultBuilder(getSession(), BOOLEAN)
+                    .row(false)
+                    .build();
+
+            assertEquals(actual, expected);
+        }
+        {
+            MaterializedResult actual = computeActual("select count(*) > 0 from nation join region on (real '1.2' = cast(1.2 as decimal(2,1)))");
+
+            MaterializedResult expected = resultBuilder(getSession(), BOOLEAN)
+                    .row(true)
+                    .build();
+
+            assertEquals(actual, expected);
+        }
+    }
+
+    @Test
     public void testJoinWithConstantPredicatePushDown()
     {
         assertQuery("" +

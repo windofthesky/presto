@@ -32,6 +32,7 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.TestingTableHandle;
 import com.facebook.presto.sql.planner.TestingWriterTarget;
+import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.Assignments;
@@ -380,6 +381,19 @@ public class PlanBuilder
                 Optional.empty());
     }
 
+    public JoinNode join(
+            JoinNode.Type type,
+            PlanNode left,
+            PlanNode right,
+            List<JoinNode.EquiJoinClause> criteria,
+            List<Symbol> outputSymbols,
+            Optional<Expression> filter,
+            Optional<Symbol> leftHashSymbol,
+            Optional<Symbol> rightHashSymbol)
+    {
+        return new JoinNode(idAllocator.getNextId(), type, left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, Optional.empty());
+    }
+
     public Symbol symbol(String name, Type type)
     {
         Symbol symbol = new Symbol(name);
@@ -406,6 +420,18 @@ public class PlanBuilder
                 Optional.empty(),
                 ImmutableSet.of(),
                 0);
+    }
+
+    public PlanNode aggregate(ImmutableMap<Symbol, AggregationNode.Aggregation> assignments, List<List<Symbol>> groupingSets, PlanNode source)
+    {
+        return new AggregationNode(idAllocator.getNextId(),
+                source,
+                assignments,
+                groupingSets,
+                AggregationNode.Step.SINGLE,
+                Optional.empty(),
+                Optional.empty()
+        );
     }
 
     public static Expression expression(String sql)

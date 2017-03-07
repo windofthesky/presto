@@ -32,6 +32,7 @@ import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.DeleteNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
+import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
@@ -226,6 +227,30 @@ public class PlanBuilder
     public UnionNode union(List<? extends PlanNode> sources, ListMultimap<Symbol, Symbol> outputsToInputs, List<Symbol> outputs)
     {
         return new UnionNode(idAllocator.getNextId(), (List<PlanNode>) sources, outputsToInputs, outputs);
+    }
+
+    public AggregationNode aggregation(
+            PlanNode source,
+            Map<Symbol, AggregationNode.Aggregation> assignments,
+            List<List<Symbol>> groupingSets,
+            AggregationNode.Step step,
+            Optional<Symbol> hashSymbol,
+            Optional<Symbol> groupIdSymbol)
+    {
+        return new AggregationNode(idAllocator.getNextId(), source, assignments, groupingSets, step, hashSymbol, groupIdSymbol);
+    }
+
+    public JoinNode join(
+            JoinNode.Type type,
+            PlanNode left,
+            PlanNode right,
+            List<JoinNode.EquiJoinClause> criteria,
+            List<Symbol> outputSymbols,
+            Optional<Expression> filter,
+            Optional<Symbol> leftHashSymbol,
+            Optional<Symbol> rightHashSymbol)
+    {
+        return new JoinNode(idAllocator.getNextId(), type, left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, Optional.empty());
     }
 
     public Symbol symbol(String name, Type type)

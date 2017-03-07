@@ -1061,7 +1061,9 @@ class StatementAnalyzer
                 // we do it further down when after we determine which subexpressions apply to left vs right tuple)
                 ExpressionAnalyzer analyzer = ExpressionAnalyzer.create(analysis, session, metadata, sqlParser, accessControl);
 
-                Type clauseType = analyzer.analyze(expression, output);
+                // need to register coercions in case when join criteria requires coercion (e.g. join on char(1) = char(2))
+                ExpressionAnalysis expressionAnalysis = analyzeExpression(expression, output);
+                Type clauseType = expressionAnalysis.getType(expression);
                 if (!clauseType.equals(BOOLEAN)) {
                     if (!clauseType.equals(UNKNOWN)) {
                         throw new SemanticException(TYPE_MISMATCH, expression, "JOIN ON clause must evaluate to a boolean: actual type %s", clauseType);

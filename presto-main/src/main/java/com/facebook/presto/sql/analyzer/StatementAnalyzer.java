@@ -1076,7 +1076,7 @@ class StatementAnalyzer
                 // expressionInterpreter/optimizer only understands a subset of expression types
                 // TODO: remove this when the new expression tree is implemented
                 Expression canonicalized = CanonicalizeExpressions.canonicalizeExpression(expression);
-                analyzer.analyze(canonicalized, output);
+                analyzeExpression(canonicalized, output);
 
                 Set<Expression> postJoinConjuncts = new HashSet<>();
 

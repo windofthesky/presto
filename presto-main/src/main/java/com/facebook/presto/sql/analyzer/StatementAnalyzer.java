@@ -37,7 +37,6 @@ import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.DependencyExtractor;
 import com.facebook.presto.sql.planner.ExpressionInterpreter;
-import com.facebook.presto.sql.planner.NoOpSymbolResolver;
 import com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions;
 import com.facebook.presto.sql.tree.AddColumn;
 import com.facebook.presto.sql.tree.AliasedRelation;
@@ -1079,31 +1078,9 @@ class StatementAnalyzer
                 Expression canonicalized = CanonicalizeExpressions.canonicalizeExpression(expression);
                 analyzer.analyze(canonicalized, output);
 
-                Object optimizedExpression = expressionOptimizer(canonicalized, metadata, session, analyzer.getExpressionTypes()).optimize(NoOpSymbolResolver.INSTANCE);
-
-                if (!(optimizedExpression instanceof Expression) && (optimizedExpression instanceof Boolean || optimizedExpression == null)) {
-                    // If the JoinOn clause evaluates to a boolean expression, simulate a cross join by adding the relevant redundant expression
-                    // optimizedExpression can be TRUE, FALSE or NULL here
-                    if (optimizedExpression != null && optimizedExpression.equals(Boolean.TRUE)) {
-                        optimizedExpression = new ComparisonExpression(EQUAL, new LongLiteral("0"), new LongLiteral("0"));
-                    }
-                    else {
-                        optimizedExpression = new ComparisonExpression(EQUAL, new LongLiteral("0"), new LongLiteral("1"));
-                    }
-                }
-
-                if (!(optimizedExpression instanceof Expression)) {
-                    throw new SemanticException(TYPE_MISMATCH, node, "Join clause must be a boolean expression");
-                }
-                // The optimization above may have rewritten the expression tree which breaks all the identity maps, so redo the analysis
-                // to re-analyze coercions that might be necessary
-                analyzer = ExpressionAnalyzer.create(analysis, session, metadata, sqlParser, accessControl);
-                analyzer.analyze((Expression) optimizedExpression, output);
-                analysis.addCoercions(analyzer.getExpressionCoercions(), analyzer.getTypeOnlyCoercions());
-
                 Set<Expression> postJoinConjuncts = new HashSet<>();
 
-                for (Expression conjunct : ExpressionUtils.extractConjuncts((Expression) optimizedExpression)) {
+                for (Expression conjunct : ExpressionUtils.extractConjuncts(canonicalized)) {
                     conjunct = ExpressionUtils.normalize(conjunct);
 
                     if (conjunct instanceof ComparisonExpression
@@ -1147,7 +1124,7 @@ class StatementAnalyzer
                 }
                 Expression postJoinPredicate = ExpressionUtils.combineConjuncts(postJoinConjuncts);
                 analysis.recordSubqueries(node, analyzeExpression(postJoinPredicate, output));
-                analysis.setJoinCriteria(node, (Expression) optimizedExpression);
+                analysis.setJoinCriteria(node, canonicalized);
             }
             else {
                 throw new UnsupportedOperationException("unsupported join criteria: " + criteria.getClass().getName());

@@ -27,18 +27,41 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TopNNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 
+import java.util.function.Function;
+
+import static java.util.function.Function.identity;
+
 public final class DistinctOutputQueryUtil
 {
     private DistinctOutputQueryUtil() {}
 
     public static boolean isDistinct(PlanNode node)
     {
-        return node.accept(new IsDistinctPlanVisitor(), null);
+        return node.accept(new IsDistinctPlanVisitor(identity()), null);
+    }
+
+    public static boolean isDistinct(PlanNode node, Function<PlanNode, PlanNode> lookupFunction)
+    {
+        return node.accept(new IsDistinctPlanVisitor(lookupFunction), null);
     }
 
     private static final class IsDistinctPlanVisitor
             extends PlanVisitor<Void, Boolean>
     {
+        /*
+        With the iterative optimizer, plan nodes are replaced with
+        GroupReference nodes. This requires the rules that look deeper
+        in the tree than the rewritten node and its immediate sources
+        to use Lookup for resolving the nodes corresponding to the
+        GroupReferences.
+        */
+        private final Function<PlanNode, PlanNode> lookupFunction;
+
+        private IsDistinctPlanVisitor(Function<PlanNode, PlanNode> lookupFunction)
+        {
+            this.lookupFunction = lookupFunction;
+        }
+
         @Override
         protected Boolean visitPlan(PlanNode node, Void context)
         {
@@ -78,7 +101,7 @@ public final class DistinctOutputQueryUtil
         @Override
         public Boolean visitFilter(FilterNode node, Void context)
         {
-            return node.getSource().accept(this, null);
+            return lookupFunction.apply(node.getSource()).accept(this, null);
         }
 
         @Override
@@ -90,7 +113,7 @@ public final class DistinctOutputQueryUtil
         @Override
         public Boolean visitProject(ProjectNode node, Void context)
         {
-            return node.isIdentity() && node.getSource().accept(this, null);
+            return node.isIdentity() && lookupFunction.apply(node.getSource()).accept(this, null);
         }
 
         @Override

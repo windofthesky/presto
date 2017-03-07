@@ -300,3 +300,4 @@ Release 0.157.1-t.1
 The following has been added to 0.157.1-t.1:
 
 * Add support for SQL Server connector.
+* Fix bug where partially created files on S3 are not removed after failed CTAS.

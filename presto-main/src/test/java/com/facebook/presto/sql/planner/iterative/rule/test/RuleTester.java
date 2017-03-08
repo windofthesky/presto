@@ -52,7 +52,7 @@ public class RuleTester
 
     public RuleAssert assertThat(Rule rule)
     {
-        return new RuleAssert(metadata, costCalculator, session, rule);
+        return new RuleAssert(metadata, costCalculator, session, queryRunner.getTransactionManager(), queryRunner.getAccessControl(), rule);
     }
 
     @Override

@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.metadata.TableHandle;
+import com.facebook.presto.metadata.TableLayoutHandle;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.predicate.TupleDomain;
@@ -116,15 +117,26 @@ public class PlanBuilder
 
     public TableScanNode tableScan(List<Symbol> symbols, Map<Symbol, ColumnHandle> assignments)
     {
+        TableHandle tableHandle = new TableHandle(
+                new ConnectorId("testConnector"),
+                new TestingTableHandle());
+        return tableScanWithTableLayout(symbols, assignments, tableHandle, null);
+    }
+
+    public TableScanNode tableScan(List<Symbol> symbols, Map<Symbol, ColumnHandle> assignments, TableHandle tableHandle)
+    {
+        return tableScanWithTableLayout(symbols, assignments, tableHandle, null);
+    }
+
+    public TableScanNode tableScanWithTableLayout(List<Symbol> symbols, Map<Symbol, ColumnHandle> assignments, TableHandle tableHandle, TableLayoutHandle tableLayout)
+    {
         Expression originalConstraint = null;
         return new TableScanNode(
                 idAllocator.getNextId(),
-                new TableHandle(
-                        new ConnectorId("testConnector"),
-                        new TestingTableHandle()),
+                tableHandle,
                 symbols,
                 assignments,
-                Optional.empty(),
+                Optional.ofNullable(tableLayout),
                 TupleDomain.all(),
                 originalConstraint
         );

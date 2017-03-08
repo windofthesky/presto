@@ -79,4 +79,14 @@ public class RuleTester
     {
         queryRunner.close();
     }
+
+    public Metadata getMetadata()
+    {
+        return metadata;
+    }
+
+    public ConnectorId getCurrentConnectorId()
+    {
+        return queryRunner.inTransaction(transactionSession -> metadata.getCatalogHandle(transactionSession, session.getCatalog().get())).get();
+    }
 }

@@ -40,7 +40,7 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toSet;
 
 public class TestGrantRevoke
-    extends ProductTest
+        extends ProductTest
 {
     private static final Set<String> PREDEFINED_ROLES = ImmutableSet.of("admin", "public");
 
@@ -148,13 +148,13 @@ public class TestGrantRevoke
     @Test(groups = {HIVE_CONNECTOR, AUTHORIZATION, PROFILE_SPECIFIC_TESTS})
     public void testAll()
     {
-        aliceExecutor.executeQuery(format("GRANT ALL PRIVILEGES ON %s TO bob", tableName));
+        aliceExecutor.executeQuery(format("GRANT ALL PRIVILEGES ON %s TO USER bob", tableName));
         assertThat(bobExecutor.executeQuery(format("INSERT INTO %s VALUES (4, 13)", tableName))).hasRowsCount(1);
         assertThat(bobExecutor.executeQuery(format("SELECT * FROM %s", tableName))).hasRowsCount(1);
         bobExecutor.executeQuery(format("DELETE FROM %s", tableName));
         assertThat(bobExecutor.executeQuery(format("SELECT * FROM %s", tableName))).hasNoRows();
 
-        aliceExecutor.executeQuery(format("REVOKE ALL PRIVILEGES ON %s FROM bob", tableName));
+        aliceExecutor.executeQuery(format("REVOKE ALL PRIVILEGES ON %s FROM USER bob", tableName));
         assertAccessDeniedOnAllOperationsOnTable(bobExecutor, tableName);
 
         assertThat(bobExecutor.executeQuery(format("SHOW GRANTS ON %s", tableName))).hasNoRows();
@@ -163,7 +163,7 @@ public class TestGrantRevoke
     @Test(groups = {HIVE_CONNECTOR, AUTHORIZATION, PROFILE_SPECIFIC_TESTS})
     public void testPublic()
     {
-        aliceExecutor.executeQuery(format("GRANT SELECT ON %s TO PUBLIC", tableName));
+        aliceExecutor.executeQuery(format("GRANT SELECT ON %s TO ROLE PUBLIC", tableName));
         assertThat(bobExecutor.executeQuery(format("SELECT * FROM %s", tableName))).hasNoRows();
         aliceExecutor.executeQuery(format("REVOKE SELECT ON %s FROM ROLE PUBLIC", tableName));
         assertThat(() -> bobExecutor.executeQuery(format("SELECT * FROM %s", tableName))).

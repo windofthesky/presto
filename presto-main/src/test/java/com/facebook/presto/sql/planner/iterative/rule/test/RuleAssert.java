@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -26,6 +27,7 @@ import com.facebook.presto.sql.planner.iterative.Memo;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.planPrinter.PlanPrinter;
+import com.facebook.presto.transaction.TransactionManager;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.Map;
@@ -33,6 +35,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.facebook.presto.sql.planner.assertions.PlanAssert.assertPlan;
+import static com.facebook.presto.transaction.TransactionBuilder.transaction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.testng.Assert.fail;
 
@@ -40,6 +43,8 @@ public class RuleAssert
 {
     private final Metadata metadata;
     private final Session session;
+    private final TransactionManager transactionManager;
+    private final AccessControl accessControl;
     private final Rule rule;
 
     private final PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
@@ -47,10 +52,12 @@ public class RuleAssert
     private Map<Symbol, Type> symbols;
     private PlanNode plan;
 
-    public RuleAssert(Metadata metadata, Session session, Rule rule)
+    public RuleAssert(Metadata metadata, Session session, TransactionManager transactionManager, AccessControl accessControl, Rule rule)
     {
         this.metadata = metadata;
         this.session = session;
+        this.transactionManager = transactionManager;
+        this.accessControl = accessControl;
         this.rule = rule;
     }
 
@@ -67,7 +74,11 @@ public class RuleAssert
     public void doesNotFire()
     {
         SymbolAllocator symbolAllocator = new SymbolAllocator(symbols);
-        Optional<PlanNode> result = rule.apply(plan, x -> x, idAllocator, symbolAllocator, session);
+        Optional<PlanNode> result = transaction(transactionManager, accessControl)
+                .singleStatement()
+                .execute(session, transactionSession -> {
+                    return rule.apply(plan, x -> x, idAllocator, symbolAllocator, session);
+                });
 
         if (result.isPresent()) {
             fail(String.format(
@@ -78,6 +89,19 @@ public class RuleAssert
     }
 
     public void matches(PlanMatchPattern pattern)
+    {
+        transaction(transactionManager, accessControl)
+                .singleStatement()
+                .execute(session, transactionSession -> {
+                    // We don't need the catalog handle here, but fetching it properly populates the
+                    // TransactionMetadata with the catalog information
+                    metadata.getCatalogHandle(transactionSession, session.getCatalog().get());
+
+                    matchesInternal(transactionSession, pattern);
+                });
+    }
+
+    private void matchesInternal(Session session, PlanMatchPattern pattern)
     {
         SymbolAllocator symbolAllocator = new SymbolAllocator(symbols);
 

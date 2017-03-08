@@ -778,8 +778,6 @@ class AstBuilder
     @Override
     public Node visitGrant(SqlBaseParser.GrantContext context)
     {
-        String grantee = context.grantee.getText();
-
         Optional<List<String>> privileges;
         if (context.ALL() != null) {
             privileges = Optional.empty();
@@ -794,7 +792,7 @@ class AstBuilder
                 privileges,
                 context.TABLE() != null,
                 getQualifiedName(context.qualifiedName()),
-                grantee,
+                getPrincipalSpecification(context.grantee),
                 context.OPTION() != null);
     }
 
@@ -816,7 +814,7 @@ class AstBuilder
                 privileges,
                 context.TABLE() != null,
                 getQualifiedName(context.qualifiedName()),
-                context.grantee.getText());
+                getPrincipalSpecification(context.grantee));
     }
 
     @Override

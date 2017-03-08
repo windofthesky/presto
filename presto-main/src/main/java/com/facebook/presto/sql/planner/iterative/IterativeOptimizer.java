@@ -79,7 +79,7 @@ public class IterativeOptimizer
         };
 
         Duration timeout = SystemSessionProperties.getOptimizerTimeout(session);
-        exploreGroup(memo.getRootGroup(), new Context(memo, lookup, idAllocator, symbolAllocator, System.nanoTime(), timeout.toMillis()));
+        exploreGroup(memo.getRootGroup(), new Context(memo, lookup, idAllocator, symbolAllocator, System.nanoTime(), timeout.toMillis(), session));
 
         return memo.extract();
     }
@@ -122,7 +122,7 @@ public class IterativeOptimizer
                 long duration;
                 try {
                     long start = System.nanoTime();
-                    transformed = rule.apply(node, context.getLookup(), context.getIdAllocator(), context.getSymbolAllocator());
+                    transformed = rule.apply(node, context.getLookup(), context.getIdAllocator(), context.getSymbolAllocator(), context.getSession());
                     duration = System.nanoTime() - start;
                 }
                 catch (RuntimeException e) {
@@ -176,8 +176,16 @@ public class IterativeOptimizer
         private final SymbolAllocator symbolAllocator;
         private final long startTimeInNanos;
         private final Optional<Long> timeoutInMilliseconds;
+        private final Session session;
 
-        public Context(Memo memo, Lookup lookup, PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, long startTimeInNanos, long timeoutInMilliseconds)
+        public Context(
+                Memo memo,
+                Lookup lookup,
+                PlanNodeIdAllocator idAllocator,
+                SymbolAllocator symbolAllocator,
+                long startTimeInNanos,
+                long timeoutInMilliseconds,
+                Session session)
         {
             this.memo = memo;
             this.lookup = lookup;
@@ -191,6 +199,7 @@ public class IterativeOptimizer
             else {
                 this.timeoutInMilliseconds = Optional.of(timeoutInMilliseconds);
             }
+            this.session = session;
         }
 
         public Memo getMemo()
@@ -221,6 +230,11 @@ public class IterativeOptimizer
         public Optional<Long> getTimeoutInMilliseconds()
         {
             return timeoutInMilliseconds;
+        }
+
+        public Session getSession()
+        {
+            return session;
         }
     }
 }

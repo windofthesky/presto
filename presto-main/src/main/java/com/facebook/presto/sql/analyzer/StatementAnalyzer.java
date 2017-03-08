@@ -37,7 +37,6 @@ import com.facebook.presto.sql.parser.ParsingOptions;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.DependencyExtractor;
 import com.facebook.presto.sql.planner.ExpressionInterpreter;
-import com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions;
 import com.facebook.presto.sql.tree.AddColumn;
 import com.facebook.presto.sql.tree.AliasedRelation;
 import com.facebook.presto.sql.tree.AllColumns;
@@ -1069,12 +1068,9 @@ class StatementAnalyzer
 
                 Analyzer.verifyNoAggregatesOrWindowFunctions(metadata.getFunctionRegistry(), expression, "JOIN clause");
 
-                Expression canonicalized = CanonicalizeExpressions.canonicalizeExpression(expression);
-                analyzeExpression(canonicalized, output);
-
                 Set<Expression> postJoinConjuncts = new HashSet<>();
 
-                for (Expression conjunct : ExpressionUtils.extractConjuncts(canonicalized)) {
+                for (Expression conjunct : ExpressionUtils.extractConjuncts(expression)) {
                     conjunct = ExpressionUtils.normalize(conjunct);
 
                     if (conjunct instanceof ComparisonExpression
@@ -1118,7 +1114,7 @@ class StatementAnalyzer
                 }
                 Expression postJoinPredicate = ExpressionUtils.combineConjuncts(postJoinConjuncts);
                 analysis.recordSubqueries(node, analyzeExpression(postJoinPredicate, output));
-                analysis.setJoinCriteria(node, canonicalized);
+                analysis.setJoinCriteria(node, expression);
             }
             else {
                 throw new UnsupportedOperationException("unsupported join criteria: " + criteria.getClass().getName());

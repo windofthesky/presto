@@ -1056,10 +1056,6 @@ class StatementAnalyzer
             else if (criteria instanceof JoinOn) {
                 Expression expression = ((JoinOn) criteria).getExpression();
 
-                // ensure all names can be resolved, types match, etc (we don't need to record resolved names, subexpression types, etc. because
-                // we do it further down when after we determine which subexpressions apply to left vs right tuple)
-                ExpressionAnalyzer analyzer = ExpressionAnalyzer.create(analysis, session, metadata, sqlParser, accessControl);
-
                 // need to register coercions in case when join criteria requires coercion (e.g. join on char(1) = char(2))
                 ExpressionAnalysis expressionAnalysis = analyzeExpression(expression, output);
                 Type clauseType = expressionAnalysis.getType(expression);
@@ -1073,8 +1069,6 @@ class StatementAnalyzer
 
                 Analyzer.verifyNoAggregatesOrWindowFunctions(metadata.getFunctionRegistry(), expression, "JOIN clause");
 
-                // expressionInterpreter/optimizer only understands a subset of expression types
-                // TODO: remove this when the new expression tree is implemented
                 Expression canonicalized = CanonicalizeExpressions.canonicalizeExpression(expression);
                 analyzeExpression(canonicalized, output);
 
@@ -1087,8 +1081,8 @@ class StatementAnalyzer
                             && (((ComparisonExpression) conjunct).getType() == EQUAL || node.getType() == Join.Type.INNER)) {
                         Expression conjunctFirst = ((ComparisonExpression) conjunct).getLeft();
                         Expression conjunctSecond = ((ComparisonExpression) conjunct).getRight();
-                        Set<QualifiedName> firstDependencies = DependencyExtractor.extractNames(conjunctFirst, analyzer.getColumnReferences().keySet());
-                        Set<QualifiedName> secondDependencies = DependencyExtractor.extractNames(conjunctSecond, analyzer.getColumnReferences().keySet());
+                        Set<QualifiedName> firstDependencies = DependencyExtractor.extractNames(conjunctFirst, expressionAnalysis.getColumnReferences());
+                        Set<QualifiedName> secondDependencies = DependencyExtractor.extractNames(conjunctSecond, expressionAnalysis.getColumnReferences());
 
                         Expression leftExpression = null;
                         Expression rightExpression = null;

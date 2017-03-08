@@ -22,6 +22,7 @@ import com.facebook.presto.sql.tree.LambdaArgumentDeclaration;
 import com.facebook.presto.sql.tree.QuantifiedComparisonExpression;
 import com.facebook.presto.sql.tree.SubqueryExpression;
 import com.facebook.presto.util.maps.IdentityLinkedHashMap;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.Set;
 
@@ -90,6 +91,11 @@ public class ExpressionAnalysis
     public boolean isColumnReference(Expression node)
     {
         return columnReferences.keySet().contains(node);
+    }
+
+    public Set<Expression> getColumnReferences()
+    {
+        return ImmutableSet.copyOf(columnReferences.keySet());
     }
 
     public Set<InPredicate> getSubqueryInPredicates()

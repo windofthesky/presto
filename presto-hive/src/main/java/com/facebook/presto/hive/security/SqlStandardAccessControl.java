@@ -348,20 +348,6 @@ public class SqlStandardAccessControl
         }
     }
 
-    private boolean hasAdminOptionForRoles(ConnectorTransactionHandle transaction, Identity identity, Set<String> roles)
-    {
-        if (isAdmin(transaction, identity)) {
-            return true;
-        }
-        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
-        Set<RoleGrant> grants = listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants);
-        Set<String> rolesWithGrantOption = grants.stream()
-                .filter(RoleGrant::isGrantable)
-                .map(RoleGrant::getRoleName)
-                .collect(toSet());
-        return rolesWithGrantOption.containsAll(roles);
-    }
-
     @Override
     public void checkCanShowGrants(ConnectorTransactionHandle transaction, Identity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
     {
@@ -397,39 +383,6 @@ public class SqlStandardAccessControl
     {
     }
 
-    private boolean getGrantOptionForPrivilege(ConnectorTransactionHandle transaction, Identity identity, Privilege privilege, SchemaTableName tableName)
-    {
-        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
-        return listApplicableTablePrivileges(
-                metastore,
-                tableName.getSchemaName(),
-                tableName.getTableName(),
-                new PrestoPrincipal(USER, identity.getUser()))
-                .contains(new HivePrivilegeInfo(toHivePrivilege(privilege), true));
-    }
-
-    private boolean checkTablePermission(ConnectorTransactionHandle transaction, Identity identity, SchemaTableName tableName, HivePrivilege... requiredPrivileges)
-    {
-        if (tableName.equals(ROLES) && !isAdmin(transaction, identity)) {
-            return false;
-        }
-
-        if (INFORMATION_SCHEMA_NAME.equals(tableName.getSchemaName())) {
-            return true;
-        }
-
-        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
-        Set<HivePrivilege> privilegeSet = listApplicableTablePrivileges(
-                metastore,
-                tableName.getSchemaName(),
-                tableName.getTableName(),
-                new PrestoPrincipal(USER, identity.getUser()))
-                .stream()
-                .map(HivePrivilegeInfo::getHivePrivilege)
-                .collect(toSet());
-        return privilegeSet.containsAll(ImmutableSet.copyOf(requiredPrivileges));
-    }
-
     private boolean isAdmin(ConnectorTransactionHandle transaction, Identity identity)
     {
         SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
@@ -459,5 +412,52 @@ public class SqlStandardAccessControl
             return true;
         }
         return false;
+    }
+
+    private boolean checkTablePermission(ConnectorTransactionHandle transaction, Identity identity, SchemaTableName tableName, HivePrivilege... requiredPrivileges)
+    {
+        if (tableName.equals(ROLES) && !isAdmin(transaction, identity)) {
+            return false;
+        }
+
+        if (INFORMATION_SCHEMA_NAME.equals(tableName.getSchemaName())) {
+            return true;
+        }
+
+        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
+        Set<HivePrivilege> privilegeSet = listApplicableTablePrivileges(
+                metastore,
+                tableName.getSchemaName(),
+                tableName.getTableName(),
+                new PrestoPrincipal(USER, identity.getUser()))
+                .stream()
+                .map(HivePrivilegeInfo::getHivePrivilege)
+                .collect(toSet());
+        return privilegeSet.containsAll(ImmutableSet.copyOf(requiredPrivileges));
+    }
+
+    private boolean getGrantOptionForPrivilege(ConnectorTransactionHandle transaction, Identity identity, Privilege privilege, SchemaTableName tableName)
+    {
+        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
+        return listApplicableTablePrivileges(
+                metastore,
+                tableName.getSchemaName(),
+                tableName.getTableName(),
+                new PrestoPrincipal(USER, identity.getUser()))
+                .contains(new HivePrivilegeInfo(toHivePrivilege(privilege), true));
+    }
+
+    private boolean hasAdminOptionForRoles(ConnectorTransactionHandle transaction, Identity identity, Set<String> roles)
+    {
+        if (isAdmin(transaction, identity)) {
+            return true;
+        }
+        SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
+        Set<RoleGrant> grants = listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants);
+        Set<String> rolesWithGrantOption = grants.stream()
+                .filter(RoleGrant::isGrantable)
+                .map(RoleGrant::getRoleName)
+                .collect(toSet());
+        return rolesWithGrantOption.containsAll(roles);
     }
 }

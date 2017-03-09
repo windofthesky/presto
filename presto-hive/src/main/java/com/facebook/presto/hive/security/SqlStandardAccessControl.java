@@ -322,10 +322,7 @@ public class SqlStandardAccessControl
         if (grantor.isPresent()) {
             throw new AccessDeniedException("Hive Connector does not support GRANTED BY statement");
         }
-        if (isAdmin(transactionHandle, identity)) {
-            return;
-        }
-        if (!hasAdminOption(transactionHandle, identity, roles)) {
+        if (!hasAdminOptionForRoles(transactionHandle, identity, roles)) {
             denyGrantRoles(roles, grantees);
         }
     }
@@ -337,10 +334,7 @@ public class SqlStandardAccessControl
         if (grantor.isPresent()) {
             throw new AccessDeniedException("Hive Connector does not support GRANTED BY statement");
         }
-        if (isAdmin(transactionHandle, identity)) {
-            return;
-        }
-        if (!hasAdminOption(transactionHandle, identity, roles)) {
+        if (!hasAdminOptionForRoles(transactionHandle, identity, roles)) {
             denyRevokeRoles(roles, grantees);
         }
     }
@@ -354,8 +348,11 @@ public class SqlStandardAccessControl
         }
     }
 
-    private boolean hasAdminOption(ConnectorTransactionHandle transaction, Identity identity, Set<String> roles)
+    private boolean hasAdminOptionForRoles(ConnectorTransactionHandle transaction, Identity identity, Set<String> roles)
     {
+        if (isAdmin(transaction, identity)) {
+            return true;
+        }
         SemiTransactionalHiveMetastore metastore = metastoreProvider.apply(((HiveTransactionHandle) transaction));
         Set<RoleGrant> grants = listApplicableRoles(new PrestoPrincipal(USER, identity.getUser()), metastore::listRoleGrants);
         Set<String> rolesWithGrantOption = grants.stream()

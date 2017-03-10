@@ -83,8 +83,10 @@ public class AggregateWindowFunction
             accumulator.addInput(end - start + 1);
         }
         else {
-            for (int i = 0; i < function.getParameterTypes().size(); ++i) {
-                accumulator.addInput(windowIndex, argumentChannels[i], start, end);
+            for (int position = start; position <= end; position++) {
+                for (int i = 0; i < function.getParameterTypes().size(); ++i) {
+                    accumulator.addInput(windowIndex, argumentChannels[i], position);
+                }
             }
         }
     }

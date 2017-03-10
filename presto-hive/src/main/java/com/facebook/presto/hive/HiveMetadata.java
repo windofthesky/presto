@@ -51,7 +51,6 @@ import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.NullableValue;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.security.GrantInfo;
-import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.PrivilegeInfo;
@@ -1579,12 +1578,12 @@ public class HiveMetadata
     }
 
     @Override
-    public List<GrantInfo> listTablePrivileges(ConnectorSession session, SchemaTablePrefix schemaTablePrefix, String grantee)
+    public List<GrantInfo> listTablePrivileges(ConnectorSession session, SchemaTablePrefix schemaTablePrefix)
     {
         ImmutableList.Builder<GrantInfo> grantInfoBuilder = ImmutableList.builder();
         for (SchemaTableName tableName : listTables(session, schemaTablePrefix)) {
             Set<PrivilegeInfo> privilegeInfoSet =
-                    listApplicableTablePrivileges(metastore, tableName.getSchemaName(), tableName.getTableName(), new PrestoPrincipal(USER, grantee))
+                    listApplicableTablePrivileges(metastore, tableName.getSchemaName(), tableName.getTableName(), new PrestoPrincipal(USER, session.getUser()))
                             .stream()
                             .map(HivePrivilegeInfo::toPrivilegeInfo)
                             .flatMap(p -> p.stream())
@@ -1594,7 +1593,7 @@ public class HiveMetadata
             grantInfoBuilder.add(
                     new GrantInfo(
                             privilegeInfoSet,
-                            new Identity(grantee, Optional.empty()),
+                            session.getIdentity(),
                             tableName,
                             Optional.empty(), // Can't access grantor
                             Optional.empty())); // Can't access withHierarchy

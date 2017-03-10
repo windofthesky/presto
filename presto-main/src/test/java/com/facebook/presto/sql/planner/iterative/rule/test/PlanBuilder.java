@@ -337,6 +337,11 @@ public class PlanBuilder
                 sources.length);
     }
 
+    public MarkDistinctNode markDistinct(Symbol markerSymbol, List<Symbol> distinctSymbols, PlanNode source)
+    {
+        return new MarkDistinctNode(idAllocator.getNextId(), source, markerSymbol, distinctSymbols, Optional.empty());
+    }
+
     public UnionNode union(List<? extends PlanNode> sources, ListMultimap<Symbol, Symbol> outputsToInputs, List<Symbol> outputs)
     {
         return new UnionNode(idAllocator.getNextId(), (List<PlanNode>) sources, outputsToInputs, outputs);

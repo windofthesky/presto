@@ -329,7 +329,7 @@ public interface Metadata
     void revokeTablePrivileges(Session session, QualifiedObjectName tableName, Set<Privilege> privileges, String grantee, boolean grantOption);
 
     /**
-     * Gets the privileges for the specified table available to the given grantee
+     * Gets the privileges for the specified table available to the given grantee considering the selected session role
      */
     List<GrantInfo> listTablePrivileges(Session session, QualifiedTablePrefix prefix);
 

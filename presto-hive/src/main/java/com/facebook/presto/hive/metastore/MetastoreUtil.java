@@ -515,23 +515,26 @@ public class MetastoreUtil
         return ImmutableSet.copyOf(result);
     }
 
-<<<<<<< HEAD
-    public static Set<String> listEnabledRoles(Identity identity, Function<PrestoPrincipal, Set<RoleGrant>> listRoleGrants)
-=======
-    public static Set<String> listApplicableRoles(SemiTransactionalHiveMetastore metastore, PrestoPrincipal principal)
+    public static Set<HivePrivilegeInfo> listEnabledTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, ConnectorIdentity identity)
     {
-        return listApplicableRoles(principal, metastore::listRoleGrants)
-                .stream()
-                .map(RoleGrant::getRoleName)
-                .collect(toSet());
+        ImmutableSet.Builder<PrestoPrincipal> principals = ImmutableSet.builder();
+        PrestoPrincipal userPrincipal = new PrestoPrincipal(USER, identity.getUser());
+        principals.add(userPrincipal);
+        listEnabledRoles(identity, metastore::listRoleGrants).stream().map(role -> new PrestoPrincipal(ROLE, role)).forEach(principals::add);
+        return listTablePrivileges(metastore, databaseName, tableName, principals.build());
     }
 
-    public static Set<HivePrivilegeInfo> listApplicableTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, PrestoPrincipal principal)
+    public static Set<HivePrivilegeInfo> listApplicableTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, String user)
     {
-        Set<String> applicableRoles = listApplicableRoles(metastore, principal);
-        List<PrestoPrincipal> principals = new ArrayList<>();
-        principals.add(principal);
-        applicableRoles.stream().map(role -> new PrestoPrincipal(ROLE, role)).forEach(principals::add);
+        ImmutableSet.Builder<PrestoPrincipal> principals = ImmutableSet.builder();
+        PrestoPrincipal userPrincipal = new PrestoPrincipal(USER, user);
+        principals.add(userPrincipal);
+        listApplicableRoles(metastore, userPrincipal).stream().map(role -> new PrestoPrincipal(ROLE, role)).forEach(principals::add);
+        return listTablePrivileges(metastore, databaseName, tableName, principals.build());
+    }
+
+    private static Set<HivePrivilegeInfo> listTablePrivileges(SemiTransactionalHiveMetastore metastore, String databaseName, String tableName, Set<PrestoPrincipal> principals)
+    {
         ImmutableSet.Builder<HivePrivilegeInfo> result = ImmutableSet.builder();
         for (PrestoPrincipal current : principals) {
             result.addAll(metastore.listTablePrivileges(databaseName, tableName, current));
@@ -540,7 +543,6 @@ public class MetastoreUtil
     }
 
     public static Set<String> listEnabledRoles(ConnectorIdentity identity, Function<PrestoPrincipal, Set<RoleGrant>> listRoleGrants)
->>>>>>> 5a005b88dd... Introduce ConnectorIdentity
     {
         Optional<SelectedRole> role = identity.getRole();
 

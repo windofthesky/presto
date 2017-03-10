@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.spi.function;
 
-import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import io.airlift.slice.Slice;
 
@@ -71,14 +70,6 @@ public interface WindowIndex
      * @param position row within the partition, starting at zero
      */
     Slice getSlice(int channel, int position);
-
-    /**
-     * Gets a value stored as a {@link Block}.
-     * @param channel argument number
-     * @param position row within the partition, starting at zero
-     * @return
-     */
-    Block getSingleValueBlock(int channel, int position);
 
     /**
      * Outputs a value from the index. This is useful for "value"

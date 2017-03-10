@@ -23,12 +23,14 @@ import com.facebook.presto.sql.tree.DoubleLiteral;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.GenericLiteral;
+import com.facebook.presto.sql.tree.IfExpression;
 import com.facebook.presto.sql.tree.InListExpression;
 import com.facebook.presto.sql.tree.InPredicate;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NotExpression;
+import com.facebook.presto.sql.tree.NullLiteral;
 import com.facebook.presto.sql.tree.StringLiteral;
 import com.facebook.presto.sql.tree.SymbolReference;
 
@@ -142,6 +144,18 @@ final class NodeVerifier
     }
 
     @Override
+    protected Boolean visitIfExpression(IfExpression actual, Node expectedExpression)
+    {
+        if (expectedExpression instanceof IfExpression) {
+            IfExpression expected = (IfExpression) expectedExpression;
+            return process(actual.getCondition(), expected.getCondition()) &&
+                    process(actual.getTrueValue(), expected.getTrueValue()) &&
+                    process(actual.getFalseValue().orElse(null), expected.getFalseValue().orElse(null));
+        }
+        return false;
+    }
+
+    @Override
     protected Boolean visitArithmeticBinary(ArithmeticBinaryExpression actual, Node expectedExpression)
     {
         if (expectedExpression instanceof ArithmeticBinaryExpression) {
@@ -151,6 +165,12 @@ final class NodeVerifier
             }
         }
         return false;
+    }
+
+    @Override
+    protected Boolean visitNullLiteral(NullLiteral actual, Node expected)
+    {
+        return expected instanceof NullLiteral;
     }
 
     protected Boolean visitGenericLiteral(GenericLiteral actual, Node expected)

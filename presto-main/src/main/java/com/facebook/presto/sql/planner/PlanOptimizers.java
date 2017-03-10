@@ -250,7 +250,10 @@ public class PlanOptimizers
                     new PruneUnreferencedOutputs());
         }
 
-        builder.add(new OptimizeMixedDistinctAggregations(metadata));
+        builder.add(new IterativeOptimizer(
+                stats,
+                ImmutableList.of(new OptimizeMixedDistinctAggregations(metadata)),
+                ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations(metadata.getFunctionRegistry()))));
 
         if (!forceSingleNode) {
             builder.add(new DetermineJoinDistributionType(costCalculator, globalProperties, nodeCount)); // Must run before AddExchanges

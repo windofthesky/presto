@@ -295,6 +295,11 @@ public class PlanBuilder
         return new AssignUniqueId(idAllocator.getNextId(), source, uniqueId);
     }
 
+    public MarkDistinctNode markDistinct(Symbol markerSymbol, List<Symbol> distinctSymbols, PlanNode source)
+    {
+        return new MarkDistinctNode(idAllocator.getNextId(), source, markerSymbol, distinctSymbols, Optional.empty());
+    }
+
     public PlanNode markDistinct(Symbol marker, PlanNode source)
     {
         return new MarkDistinctNode(idAllocator.getNextId(), source, marker, source.getOutputSymbols(), Optional.empty());

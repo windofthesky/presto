@@ -88,6 +88,7 @@ statement
     | SHOW COLUMNS (FROM | IN) qualifiedName                           #showColumns
     | SHOW STATS (FOR | ON)? qualifiedName                             #showStats
     | SHOW STATS (FOR | ON)? '(' querySpecification ')'                #showStatsParametrized
+    | SHOW ROLES ((FROM | IN) identifier)?                             #showRoles
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions
@@ -494,7 +495,7 @@ nonReserved
     | INPUT | OUTPUT
     | INCLUDING | EXCLUDING | PROPERTIES
     | NONE | ALL | SOME | ANY
-    | USER | ROLE | ADMIN | GRANTED
+    | USER | ROLE | ADMIN | GRANTED | ROLES
     ;
 
 normalForm
@@ -612,6 +613,7 @@ PRIVILEGES: 'PRIVILEGES';
 PUBLIC: 'PUBLIC';
 OPTION: 'OPTION';
 GRANTS: 'GRANTS';
+ROLES: 'ROLES';
 EXPLAIN: 'EXPLAIN';
 ANALYZE: 'ANALYZE';
 FORMAT: 'FORMAT';

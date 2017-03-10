@@ -31,8 +31,6 @@ public interface Accumulator
 
     void addInput(WindowIndex index, int channel, int position);
 
-    void addInput(int positionCount);
-
     void addIntermediate(Block block);
 
     void evaluateIntermediate(BlockBuilder blockBuilder);

@@ -88,6 +88,7 @@ statement
     | SHOW SCHEMAS ((FROM | IN) identifier)? (LIKE pattern=string)?    #showSchemas
     | SHOW CATALOGS (LIKE pattern=string)?                             #showCatalogs
     | SHOW COLUMNS (FROM | IN) qualifiedName                           #showColumns
+    | SHOW ROLES ((FROM | IN) identifier)?                             #showRoles
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions
@@ -499,7 +500,7 @@ nonReserved
     | INPUT | OUTPUT
     | INCLUDING | EXCLUDING | PROPERTIES
     | NONE | ALL | SOME | ANY
-    | USER | ROLE | ADMIN | GRANTED
+    | USER | ROLE | ADMIN | GRANTED | ROLES
     ;
 
 normalForm
@@ -617,6 +618,7 @@ PRIVILEGES: 'PRIVILEGES';
 PUBLIC: 'PUBLIC';
 OPTION: 'OPTION';
 GRANTS: 'GRANTS';
+ROLES: 'ROLES';
 EXPLAIN: 'EXPLAIN';
 ANALYZE: 'ANALYZE';
 FORMAT: 'FORMAT';

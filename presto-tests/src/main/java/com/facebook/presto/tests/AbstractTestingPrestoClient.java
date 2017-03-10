@@ -145,7 +145,6 @@ public abstract class AbstractTestingPrestoClient<T>
                 session.getLocale(),
                 properties.build(),
                 session.getPreparedStatements(),
-                session.getUnprocessedRoles(),
                 session.getTransactionId().map(Object::toString).orElse(null),
                 debug,
                 quiet,

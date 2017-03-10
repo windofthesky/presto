@@ -82,8 +82,6 @@ final class HttpRequestSessionFactory
     private final Map<String, String> systemProperties;
     private final Map<String, Map<String, String>> catalogSessionProperties;
 
-    private final Map<String, SelectedRole> roles;
-
     private final Map<String, String> preparedStatements;
 
     private final Optional<TransactionId> transactionId;
@@ -99,7 +97,7 @@ final class HttpRequestSessionFactory
 
         String user = trimEmptyToNull(servletRequest.getHeader(PRESTO_USER));
         assertRequest(user != null, "User must be set");
-        identity = new Identity(user, Optional.ofNullable(servletRequest.getUserPrincipal()));
+        identity = new Identity(user, Optional.ofNullable(servletRequest.getUserPrincipal()), parseRoleHeaders(servletRequest));
 
         source = servletRequest.getHeader(PRESTO_SOURCE);
         userAgent = servletRequest.getHeader(USER_AGENT);
@@ -140,8 +138,6 @@ final class HttpRequestSessionFactory
         this.systemProperties = systemProperties.build();
         this.catalogSessionProperties = catalogSessionProperties.entrySet().stream()
                 .collect(toImmutableMap(Entry::getKey, entry -> ImmutableMap.copyOf(entry.getValue())));
-
-        this.roles = parseRoleHeaders(servletRequest);
 
         preparedStatements = parsePreparedStatementsHeaders(servletRequest);
         preparedStatements.putAll(additionalPreparedStatements);
@@ -192,12 +188,6 @@ final class HttpRequestSessionFactory
             for (Entry<String, String> entry : catalogProperties.getValue().entrySet()) {
                 sessionBuilder.setCatalogSessionProperty(catalog, entry.getKey(), entry.getValue());
             }
-        }
-
-        for (Entry<String, SelectedRole> entry : roles.entrySet()) {
-            String catalog = entry.getKey();
-            SelectedRole role = entry.getValue();
-            sessionBuilder.setRole(catalog, role);
         }
 
         for (Entry<String, String> preparedStatement : preparedStatements.entrySet()) {

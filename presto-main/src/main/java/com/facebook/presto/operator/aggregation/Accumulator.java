@@ -16,7 +16,6 @@ package com.facebook.presto.operator.aggregation;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
-import com.facebook.presto.spi.function.WindowIndex;
 import com.facebook.presto.spi.type.Type;
 
 public interface Accumulator
@@ -28,8 +27,6 @@ public interface Accumulator
     Type getIntermediateType();
 
     void addInput(Page page);
-
-    void addInput(WindowIndex index, int channel, int position);
 
     void addIntermediate(Block block);
 

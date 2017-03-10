@@ -236,7 +236,10 @@ public class PlanOptimizers
                     new PruneUnreferencedOutputs());
         }
 
-        builder.add(new OptimizeMixedDistinctAggregations(metadata));
+        builder.add(new IterativeOptimizer(
+                stats,
+                ImmutableList.of(new OptimizeMixedDistinctAggregations(metadata)),
+                ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations(metadata.getFunctionRegistry()))));
         builder.add(new IterativeOptimizer(
                 stats,
                 ImmutableSet.of(

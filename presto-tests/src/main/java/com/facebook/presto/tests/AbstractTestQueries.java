@@ -906,7 +906,7 @@ public abstract class AbstractTestQueries
     }
 
     @Test
-    public void testExtractDistinctAggregationOptimizer()
+    public void testOptimizeMixedDistinctAggregations()
     {
         assertQuery("SELECT max(orderstatus), COUNT(orderkey), sum(DISTINCT orderkey) FROM orders");
 

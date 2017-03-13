@@ -89,6 +89,7 @@ statement
     | SHOW STATS (FOR | ON)? qualifiedName                             #showStats
     | SHOW STATS (FOR | ON)? '(' querySpecification ')'                #showStatsParametrized
     | SHOW CURRENT? ROLES ((FROM | IN) identifier)?                    #showRoles
+    | SHOW ROLE GRANTS ((FROM | IN) identifier)?                       #showRoleGrants
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions

@@ -88,7 +88,7 @@ statement
     | SHOW SCHEMAS ((FROM | IN) identifier)? (LIKE pattern=string)?    #showSchemas
     | SHOW CATALOGS (LIKE pattern=string)?                             #showCatalogs
     | SHOW COLUMNS (FROM | IN) qualifiedName                           #showColumns
-    | SHOW ROLES ((FROM | IN) identifier)?                             #showRoles
+    | SHOW CURRENT? ROLES ((FROM | IN) identifier)?                    #showRoles
     | DESCRIBE qualifiedName                                           #showColumns
     | DESC qualifiedName                                               #showColumns
     | SHOW FUNCTIONS                                                   #showFunctions

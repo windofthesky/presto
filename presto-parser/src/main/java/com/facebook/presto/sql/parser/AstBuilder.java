@@ -857,7 +857,8 @@ class AstBuilder
     {
         return new ShowRoles(
                 getLocation(context),
-                getTextIfPresent(context.identifier()));
+                getTextIfPresent(context.identifier()),
+                context.CURRENT() != null);
     }
 
     // ***************** boolean expressions ******************

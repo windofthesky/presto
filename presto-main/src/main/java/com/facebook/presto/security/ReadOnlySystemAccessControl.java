@@ -135,4 +135,8 @@ public class ReadOnlySystemAccessControl
     public void checkCanShowRoleGrants(Identity identity, String catalogName)
     {
     }
+
+    public void checkCanSetRole(Identity identity, String role, String catalogName)
+    {
+    }
 }

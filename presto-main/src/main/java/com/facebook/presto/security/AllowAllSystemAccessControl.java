@@ -19,12 +19,14 @@ import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Identity;
+import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.SystemAccessControl;
 import com.facebook.presto.spi.security.SystemAccessControlFactory;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -217,6 +219,31 @@ public class AllowAllSystemAccessControl
 
     @Override
     public void checkCanShowRoleGrants(Identity identity, String catalogName)
+    {
+    }
+
+    @Override
+    public void checkCanCreateRole(Identity identity, String role, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+    }
+
+    @Override
+    public void checkCanDropRole(Identity identity, String role, String catalogName)
+    {
+    }
+
+    @Override
+    public void checkCanGrantRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean withAdminOption, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+    }
+
+    @Override
+    public void checkCanRevokeRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOptionFor, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+    }
+
+    @Override
+    public void checkCanSetRole(Identity identity, String role, String catalogName)
     {
     }
 }

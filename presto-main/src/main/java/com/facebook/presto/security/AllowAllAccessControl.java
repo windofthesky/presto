@@ -193,7 +193,7 @@ public class AllowAllAccessControl
     }
 
     @Override
-    public void checkCanSetRole(TransactionId requiredTransactionId, Identity identity, String role, String catalog)
+    public void checkCanSetRole(TransactionId requiredTransactionId, Identity identity, String role, String catalogName)
     {
     }
 

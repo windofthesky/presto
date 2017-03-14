@@ -20,26 +20,32 @@ import com.facebook.presto.spi.SchemaTablePrefix;
 
 import java.security.Principal;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.spi.security.AccessDeniedException.denyAddColumn;
+import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateView;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateViewWithSelect;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDeleteTable;
+import static com.facebook.presto.spi.security.AccessDeniedException.denyDropRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropView;
+import static com.facebook.presto.spi.security.AccessDeniedException.denyGrantRoles;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyGrantTablePrivilege;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyInsertTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameColumn;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameTable;
+import static com.facebook.presto.spi.security.AccessDeniedException.denyRevokeRoles;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRevokeTablePrivilege;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySelectTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySelectView;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySetCatalogSessionProperty;
+import static com.facebook.presto.spi.security.AccessDeniedException.denySetRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowCurrentRoles;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowGrants;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowRoleGrants;
@@ -356,5 +362,55 @@ public interface SystemAccessControl
     default void checkCanShowRoleGrants(Identity identity, String catalogName)
     {
         denyShowRoleGrants(catalogName);
+    }
+
+    /**
+     * Check if identity is allowed to create the specified role.
+     *
+     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanCreateRole(Identity identity, String role, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+        denyCreateRole(role);
+    }
+
+    /**
+     * Check if identity is allowed to drop the specified role.
+     *
+     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanDropRole(Identity identity, String role, String catalogName)
+    {
+        denyDropRole(role);
+    }
+
+    /**
+     * Check if identity is allowed to grant the specified roles to the specified principals.
+     *
+     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanGrantRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean withAdminOption, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+        denyGrantRoles(roles, grantees);
+    }
+
+    /**
+     * Check if identity is allowed to revoke the specified roles from the specified principals.
+     *
+     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanRevokeRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOptionFor, Optional<PrestoPrincipal> grantor, String catalogName)
+    {
+        denyRevokeRoles(roles, grantees);
+    }
+
+    /**
+     * Check if identity is allowed to set role for specified catalog.
+     *
+     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanSetRole(Identity identity, String role, String catalogName)
+    {
+        denySetRole(role);
     }
 }

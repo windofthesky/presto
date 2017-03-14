@@ -66,3 +66,4 @@ The following SQL statements are not yet supported:
 * :doc:`/sql/revoke`
 * :doc:`/sql/show-grants`
 * :doc:`/sql/show-roles`
+* :doc:`/sql/show-role-grants`

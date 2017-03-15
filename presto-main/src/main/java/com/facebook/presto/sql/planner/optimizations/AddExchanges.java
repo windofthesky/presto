@@ -1103,7 +1103,7 @@ public class AddExchanges
                                         idAllocator.getNextId(),
                                         REPARTITION,
                                         REMOTE,
-                                        new PartitioningScheme(Partitioning.create(FIXED_RANDOM_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
+                                        new PartitioningScheme(Partitioning.create(FIXED_ARBITRARY_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
                                         partitionedChildren,
                                         partitionedOutputLayouts));
                     }

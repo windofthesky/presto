@@ -165,4 +165,16 @@ public class ReadOnlyAccessControl
     {
         return roles;
     }
+
+    @Override
+    public void checkCanShowCurrentRoles(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, String catalogName)
+    {
+        // allow
+    }
+
+    @Override
+    public void checkCanShowRoleGrants(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, String catalogName)
+    {
+        // allow
+    }
 }

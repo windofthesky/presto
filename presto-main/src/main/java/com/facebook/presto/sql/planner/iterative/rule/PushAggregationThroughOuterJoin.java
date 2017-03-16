@@ -14,7 +14,6 @@
 package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.sql.planner.ExpressionSymbolInliner;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
@@ -28,7 +27,6 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.tree.CoalesceExpression;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.NullLiteral;
 import com.facebook.presto.sql.tree.SymbolReference;

@@ -78,8 +78,8 @@ import static com.facebook.presto.spi.type.VarbinaryType.VARBINARY;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static jersey.repackaged.com.google.common.base.Preconditions.checkArgument;
 
 public class PlanBuilder
 {
@@ -222,9 +222,9 @@ public class PlanBuilder
         List<Symbol> outputSymbols = ImmutableList.copyOf(mapping.keySet());
         List<List<Symbol>> inputs = IntStream.range(0, sources.length)
                 .mapToObj(i -> outputSymbols.stream()
-                    .map(mapping::get)
-                    .map(columnValues -> columnValues.get(i))
-                    .collect(toImmutableList()))
+                        .map(mapping::get)
+                        .map(columnValues -> columnValues.get(i))
+                        .collect(toImmutableList()))
                 .collect(toImmutableList());
 
         return new ExchangeNode(

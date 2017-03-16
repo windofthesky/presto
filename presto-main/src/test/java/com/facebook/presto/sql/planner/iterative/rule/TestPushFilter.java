@@ -23,8 +23,6 @@ import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
 import com.facebook.presto.sql.planner.plan.SortNode;
-import com.facebook.presto.sql.planner.plan.UnionNode;
-import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -291,6 +289,6 @@ public class TestPushFilter
                                 project(
                                         ImmutableMap.of("r", expression("random()"), "d", expression("a = 1")),
                                         filter("a = 1",
-                                        values(ImmutableMap.of("a", 0))))));
+                                                values(ImmutableMap.of("a", 0))))));
     }
 }

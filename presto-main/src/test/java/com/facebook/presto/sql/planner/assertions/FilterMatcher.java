@@ -47,7 +47,7 @@ final class FilterMatcher
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
 
         FilterNode filterNode = (FilterNode) node;
-        NodeVerifier verifier = new NodeVerifier(symbolAliases);
+        ExpressionVerifier verifier = new ExpressionVerifier(symbolAliases);
         return new MatchResult(verifier.process(filterNode.getPredicate(), predicate));
     }
 

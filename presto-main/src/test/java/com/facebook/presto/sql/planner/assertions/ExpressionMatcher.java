@@ -61,7 +61,7 @@ public class ExpressionMatcher
             return result;
         }
 
-        NodeVerifier verifier = new NodeVerifier(symbolAliases);
+        ExpressionVerifier verifier = new ExpressionVerifier(symbolAliases);
 
         for (Map.Entry<Symbol, Expression> assignment : assignments.entrySet()) {
             if (verifier.process(assignment.getValue(), expression)) {

@@ -79,7 +79,7 @@ final class JoinMatcher
             if (!joinNode.getFilter().isPresent()) {
                 return NO_MATCH;
             }
-            if (!new NodeVerifier(symbolAliases).process(joinNode.getFilter().get(), filter.get())) {
+            if (!new ExpressionVerifier(symbolAliases).process(joinNode.getFilter().get(), filter.get())) {
                 return NO_MATCH;
             }
         }

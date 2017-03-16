@@ -32,14 +32,14 @@ public class TestPushTableWriteThroughUnion
         new RuleTester().assertThat(new PushTableWriteThroughUnion())
                 .on(p ->
                         p.tableWriter(
-                                p.union(ImmutableList.of(
-                                        p.values(p.symbol("A", BIGINT), p.symbol("B", BIGINT)),
-                                        p.values(p.symbol("A1", BIGINT), p.symbol("B1", BIGINT))),
+                                p.union(
                                         ImmutableListMultimap.of(
                                                 p.symbol("A2", BIGINT), p.symbol("A", BIGINT),
                                                 p.symbol("A2", BIGINT), p.symbol("B1", BIGINT),
                                                 p.symbol("B2", BIGINT), p.symbol("B", BIGINT),
-                                                p.symbol("B2", BIGINT), p.symbol("A1", BIGINT))),
+                                                p.symbol("B2", BIGINT), p.symbol("A1", BIGINT)),
+                                        p.values(p.symbol("A", BIGINT), p.symbol("B", BIGINT)),
+                                        p.values(p.symbol("A1", BIGINT), p.symbol("B1", BIGINT))),
                                 ImmutableList.of(p.symbol("A2", BIGINT), p.symbol("B2", BIGINT)),
                                 ImmutableList.of("a", "b")))
                 .matches(union(

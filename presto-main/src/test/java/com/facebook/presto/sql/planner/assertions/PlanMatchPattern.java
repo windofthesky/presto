@@ -328,7 +328,7 @@ public final class PlanMatchPattern
     {
         PlanMatchPattern result = node(ValuesNode.class);
         aliasToIndex.entrySet().forEach(
-                aliasWithIndex -> result.withAlias(aliasWithIndex.getKey(), new ValuesMatcher(aliasWithIndex.getValue())));
+                aliasWithIndex -> result.withAlias(aliasWithIndex.getKey(), new SymbolMatcher(aliasWithIndex.getValue())));
         return result;
     }
 
@@ -342,7 +342,7 @@ public final class PlanMatchPattern
         PlanMatchPattern result = node(ValuesNode.class).withNumberOfOutputColumns(aliases.size());
         int index = 0;
         for (String alias : aliases) {
-            result.withAlias(alias, new ValuesMatcher(index));
+            result.withAlias(alias, new SymbolMatcher(index));
             ++index;
         }
         return result;

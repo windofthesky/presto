@@ -16,6 +16,7 @@ package com.facebook.presto.sql.planner;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.DistinctLimitNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
@@ -69,9 +70,9 @@ import static com.google.common.base.Predicates.in;
 public class EffectivePredicateExtractor
         extends PlanVisitor<Void, Expression>
 {
-    public static Expression extract(PlanNode node)
+    public static Expression extract(PlanNode node, Map<Symbol, Type> symbolTypes)
     {
-        return node.accept(new EffectivePredicateExtractor(), null);
+        return node.accept(new EffectivePredicateExtractor(symbolTypes), null);
     }
 
     private static final Predicate<Map.Entry<Symbol, ? extends Expression>> SYMBOL_MATCHES_EXPRESSION =
@@ -84,6 +85,13 @@ public class EffectivePredicateExtractor
                 // TODO: switch this to 'IS NOT DISTINCT FROM' syntax when EqualityInference properly supports it
                 return new ComparisonExpression(ComparisonExpressionType.EQUAL, reference, expression);
             };
+
+    private final Map<Symbol, Type> symbolTypes;
+
+    public EffectivePredicateExtractor(Map<Symbol, Type> symbolTypes)
+    {
+        this.symbolTypes = symbolTypes;
+    }
 
     @Override
     protected Expression visitPlan(PlanNode node, Void context)

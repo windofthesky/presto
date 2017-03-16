@@ -16,7 +16,6 @@ package com.facebook.presto.sql.planner.iterative.rule.test;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.rule.PushProjectionThroughUnion;
 import com.facebook.presto.sql.planner.plan.Assignments;
-import com.facebook.presto.sql.tree.ArithmeticBinaryExpression;
 import com.facebook.presto.sql.tree.LongLiteral;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;

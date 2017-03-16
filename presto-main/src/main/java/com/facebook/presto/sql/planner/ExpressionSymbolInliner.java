@@ -30,7 +30,7 @@ public class ExpressionSymbolInliner
     {
     }
 
-    public static <T extends Expression> T inlineSymbols(Map<Symbol, ? extends Expression> mappings, T expression)
+    public static Expression inlineSymbols(Map<Symbol, ? extends Expression> mappings, Expression expression)
     {
         return ExpressionTreeRewriter.rewriteWith(new Rewriter(mappings), expression);
     }

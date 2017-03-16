@@ -19,13 +19,11 @@ import com.facebook.presto.metadata.TableLayoutHandle;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.block.SortOrder;
-import com.facebook.presto.spi.connector.ConnectorPartitioningHandle;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.ExpressionUtils;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.Partitioning;
-import com.facebook.presto.sql.planner.PartitioningHandle;
 import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
@@ -36,13 +34,10 @@ import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.DeleteNode;
-import com.facebook.presto.sql.planner.plan.ExceptNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
-import com.facebook.presto.sql.planner.plan.IntersectNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
-import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
@@ -55,7 +50,6 @@ import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.planner.plan.WindowNode;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
@@ -69,7 +63,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.spi.block.SortOrder.ASC_NULLS_LAST;
@@ -79,7 +72,6 @@ import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HAS
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static java.lang.String.format;
-import static jersey.repackaged.com.google.common.base.Preconditions.checkArgument;
 
 public class PlanBuilder
 {
@@ -196,46 +188,6 @@ public class PlanBuilder
         );
     }
 
-    public PlanNode markDistinct(Symbol marker, PlanNode source)
-    {
-        return new MarkDistinctNode(idAllocator.getNextId(), source, marker, source.getOutputSymbols(), Optional.empty());
-    }
-
-    public ExchangeNode exchange(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
-    {
-        ConnectorPartitioningHandle connectorPartitioningHandle = new ConnectorPartitioningHandle()
-        {
-            @Override
-            public boolean isSingleNode()
-            {
-                return false;
-            }
-
-            @Override
-            public boolean isCoordinatorOnly()
-            {
-                return false;
-            }
-        };
-        PartitioningHandle handle = new PartitioningHandle(Optional.empty(), Optional.empty(), connectorPartitioningHandle);
-
-        List<Symbol> outputSymbols = ImmutableList.copyOf(mapping.keySet());
-        List<List<Symbol>> inputs = IntStream.range(0, sources.length)
-                .mapToObj(i -> outputSymbols.stream()
-                    .map(mapping::get)
-                    .map(columnValues -> columnValues.get(i))
-                    .collect(toImmutableList()))
-                .collect(toImmutableList());
-
-        return new ExchangeNode(
-                idAllocator.getNextId(),
-                ExchangeNode.Type.GATHER,
-                ExchangeNode.Scope.REMOTE,
-                new PartitioningScheme(Partitioning.create(handle, outputSymbols), outputSymbols),
-                ImmutableList.copyOf(sources),
-                inputs);
-    }
-
     public ExchangeNode exchange(Consumer<ExchangeBuilder> exchangeBuilderConsumer)
     {
         ExchangeBuilder exchangeBuilder = new ExchangeBuilder();
@@ -307,34 +259,10 @@ public class PlanBuilder
         return new AggregationNode(idAllocator.getNextId(), source, assignments, groupingSets, AggregationNode.Step.SINGLE, Optional.empty(), Optional.empty());
     }
 
-    public UnionNode union(ImmutableListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
+    public UnionNode union(List<? extends PlanNode> sources, ListMultimap<Symbol, Symbol> outputsToInputs)
     {
-        checkMappingsMatchesSources(mapping, sources);
-        ImmutableList<Symbol> outputs = ImmutableList.copyOf(mapping.keySet());
-        return new UnionNode(idAllocator.getNextId(), ImmutableList.copyOf(sources), mapping, outputs);
-    }
-
-    public PlanNode intersect(ImmutableListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
-    {
-        checkMappingsMatchesSources(mapping, sources);
-        ImmutableList<Symbol> outputs = ImmutableList.copyOf(mapping.keySet());
-        return new IntersectNode(idAllocator.getNextId(), ImmutableList.copyOf(sources), mapping, outputs);
-    }
-
-    public ExceptNode except(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
-    {
-        checkMappingsMatchesSources(mapping, sources);
-        ImmutableList<Symbol> outputs = ImmutableList.copyOf(mapping.keySet());
-        return new ExceptNode(idAllocator.getNextId(), ImmutableList.copyOf(sources), mapping, outputs);
-    }
-
-    private void checkMappingsMatchesSources(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
-    {
-        checkArgument(
-                mapping.keySet().size() == sources.length,
-                "Mapping keys size does not match length of sources: %s vs %s",
-                mapping.keySet().size(),
-                sources.length);
+        ImmutableList<Symbol> outputs = outputsToInputs.keySet().stream().collect(toImmutableList());
+        return new UnionNode(idAllocator.getNextId(), (List<PlanNode>) sources, outputsToInputs, outputs);
     }
 
     public AggregationNode aggregation(

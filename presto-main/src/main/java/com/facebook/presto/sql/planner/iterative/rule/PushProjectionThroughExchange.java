@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.sql.planner.ExpressionSymbolInliner;
 import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
@@ -26,6 +27,7 @@ import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableList;
 
@@ -34,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.facebook.presto.sql.planner.ExpressionSymbolInliner.inlineSymbols;
 import static com.facebook.presto.sql.planner.plan.Assignments.identity;
 
 /**
@@ -112,7 +113,7 @@ public class PushProjectionThroughExchange
                 inputs.add(exchange.getPartitioningScheme().getHashColumn().get());
             }
             for (Map.Entry<Symbol, Expression> projection : project.getAssignments().entrySet()) {
-                Expression translatedExpression = inlineSymbols(outputToInputMap, projection.getValue());
+                Expression translatedExpression = translateExpression(projection.getValue(), outputToInputMap);
                 Type type = symbolAllocator.getTypes().get(projection.getKey());
                 Symbol symbol = symbolAllocator.newSymbol(translatedExpression, type);
                 projections.put(symbol, translatedExpression);
@@ -169,5 +170,10 @@ public class PushProjectionThroughExchange
             outputToInputMap.put(exchange.getOutputSymbols().get(i), exchange.getInputs().get(sourceIndex).get(i).toSymbolReference());
         }
         return outputToInputMap;
+    }
+
+    private static Expression translateExpression(Expression inputExpression, Map<Symbol, SymbolReference> symbolMapping)
+    {
+        return ExpressionTreeRewriter.rewriteWith(new ExpressionSymbolInliner(symbolMapping), inputExpression);
     }
 }

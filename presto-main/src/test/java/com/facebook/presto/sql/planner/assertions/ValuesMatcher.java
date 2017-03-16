@@ -11,24 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.facebook.presto.sql.planner.assertions;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.ValuesNode;
 
 import java.util.Optional;
 
-import static com.google.common.base.MoreObjects.toStringHelper;
-
-public class SymbolMatcher
+public class ValuesMatcher
         implements RvalueMatcher
 {
-    private final int outputIndex;
+    int outputIndex;
 
-    public SymbolMatcher(int outputIndex)
+    public ValuesMatcher(int outputIndex)
     {
         this.outputIndex = outputIndex;
     }
@@ -36,14 +34,12 @@ public class SymbolMatcher
     @Override
     public Optional<Symbol> getAssignedSymbol(PlanNode node, Session session, Metadata metadata, SymbolAliases symbolAliases)
     {
-        return Optional.of(node.getOutputSymbols().get(outputIndex));
-    }
+        if (!(node instanceof ValuesNode)) {
+            return Optional.empty();
+        }
 
-    @Override
-    public String toString()
-    {
-        return toStringHelper(this)
-                .add("outputIndex", outputIndex)
-                .toString();
+        ValuesNode valuesNode = (ValuesNode) node;
+
+        return Optional.of(valuesNode.getOutputSymbols().get(outputIndex));
     }
 }

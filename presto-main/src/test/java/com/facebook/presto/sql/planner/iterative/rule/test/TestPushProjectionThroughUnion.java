@@ -56,11 +56,10 @@ public class TestPushProjectionThroughUnion
                     Symbol c = p.symbol("c", BIGINT);
                     Symbol cTimes3 = p.symbol("c_times_3", BIGINT);
                     return p.project(
-                            Assignments.of(cTimes3, new ArithmeticBinaryExpression(ArithmeticBinaryExpression.Type.MULTIPLY, c.toSymbolReference(), new LongLiteral("3"))),
+                            Assignments.of(cTimes3, p.expression("c * 3")),
                             p.union(
                                     ImmutableListMultimap.<Symbol, Symbol>builder()
-                                            .put(c, a)
-                                            .put(c, b)
+                                            .putAll(c, a, b)
                                             .build(),
                                     p.values(a),
                                     p.values(b)));

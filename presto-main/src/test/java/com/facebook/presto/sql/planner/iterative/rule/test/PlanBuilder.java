@@ -80,6 +80,7 @@ import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DI
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
+import static java.util.Arrays.stream;
 
 public class PlanBuilder
 {
@@ -330,8 +331,13 @@ public class PlanBuilder
 
     private void checkMappingsMatchesSources(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
     {
+        checkArgument(sources.length > 0, "Sources should not be empty");
+        int sourceOutputSymbolsSize = sources[0].getOutputSymbols().size();
         checkArgument(
-                mapping.keySet().size() == sources.length,
+                stream(sources).allMatch(source -> source.getOutputSymbols().size() == sourceOutputSymbolsSize),
+                "All the sources should have the same number of output symbols");
+        checkArgument(
+                mapping.keySet().size() == sourceOutputSymbolsSize,
                 "Mapping keys size does not match length of sources: %s vs %s",
                 mapping.keySet().size(),
                 sources.length);

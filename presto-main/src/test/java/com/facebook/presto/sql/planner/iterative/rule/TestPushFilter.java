@@ -19,8 +19,6 @@ import com.facebook.presto.sql.planner.assertions.SymbolMatcher;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.iterative.rule.test.RuleTester;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
-import com.facebook.presto.sql.planner.plan.Assignments;
-import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
 import com.facebook.presto.sql.planner.plan.SortNode;
 import com.google.common.collect.ImmutableList;
@@ -32,11 +30,9 @@ import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.except;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.exchange;
-import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.expression;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.filter;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.intersect;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.node;
-import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.union;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values;
 import static com.facebook.presto.sql.planner.plan.SampleNode.Type.BERNOULLI;
@@ -244,51 +240,5 @@ public class TestPushFilter
                 .matches(node(SortNode.class,
                         filter("a",
                                 values(ImmutableMap.of("a", 0)))));
-    }
-
-    @Test
-    public void testMarkDistinct()
-            throws Exception
-    {
-        tester.assertThat(rule)
-                .on(p ->
-                        p.filter(p.expression("a"),
-                                p.markDistinct(p.symbol("marker", BOOLEAN),
-                                        p.values(p.symbol("a", BOOLEAN)))))
-                .matches(node(MarkDistinctNode.class,
-                        filter("a",
-                                values(ImmutableMap.of("a", 0)))));
-
-        tester.assertThat(rule)
-                .on(p ->
-                        p.filter(p.expression("a AND marker"),
-                                p.markDistinct(p.symbol("marker", BOOLEAN),
-                                        p.values(p.symbol("a", BOOLEAN)))))
-                .matches(
-                        filter("uid",
-                                node(MarkDistinctNode.class,
-                                        filter("a",
-                                                values(ImmutableMap.of("a", 0))))
-                                        .withAlias("uid", new SymbolMatcher(1))));
-    }
-
-    @Test
-    public void testProject()
-            throws Exception
-    {
-        tester.assertThat(rule)
-                .on(p ->
-                        p.filter(p.expression("r AND d"),
-                                p.project(
-                                        Assignments.of(
-                                                p.symbol("r", BOOLEAN), p.expression("random()"),
-                                                p.symbol("d", BOOLEAN), p.expression("a = 1")),
-                                        p.values(p.symbol("a", BIGINT)))))
-                .matches(
-                        filter("r",
-                                project(
-                                        ImmutableMap.of("r", expression("random()"), "d", expression("a = 1")),
-                                        filter("a = 1",
-                                        values(ImmutableMap.of("a", 0))))));
     }
 }

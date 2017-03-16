@@ -22,42 +22,29 @@ import com.facebook.presto.sql.tree.SymbolReference;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkState;
-import static java.util.Objects.requireNonNull;
 
 public class ExpressionSymbolInliner
+        extends ExpressionRewriter<Void>
 {
-    private ExpressionSymbolInliner()
+    private final Map<Symbol, ? extends Expression> mappings;
+
+    public ExpressionSymbolInliner(Map<Symbol, ? extends Expression> mappings)
     {
+        this.mappings = mappings;
     }
 
-    public static Expression inlineSymbols(Map<Symbol, ? extends Expression> mappings, Expression expression)
+    @Override
+    public Expression rewriteSymbolReference(SymbolReference node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
     {
-        return ExpressionTreeRewriter.rewriteWith(new Rewriter(mappings), expression);
+        Expression expression = mappings.get(Symbol.from(node));
+        checkState(expression != null, "Cannot resolve symbol %s", node.getName());
+        return expression;
     }
 
-    private static class Rewriter
-            extends ExpressionRewriter<Void>
+    @Override
+    public Expression rewriteLambdaExpression(LambdaExpression node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
     {
-        private final Map<Symbol, ? extends Expression> mappings;
-
-        private Rewriter(Map<Symbol, ? extends Expression> mappings)
-        {
-            this.mappings = requireNonNull(mappings, "mappings is null");
-        }
-
-        @Override
-        public Expression rewriteSymbolReference(SymbolReference node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
-        {
-            Expression expression = mappings.get(Symbol.from(node));
-            checkState(expression != null, "Cannot resolve symbol %s", node.getName());
-            return expression;
-        }
-
-        @Override
-        public Expression rewriteLambdaExpression(LambdaExpression node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
-        {
-            // Lambda does not support capture yet. As a result, relation/columns can not exist in lambda.
-            return node;
-        }
+        // Lambda does not support capture yet. As a result, relation/columns can not exist in lambda.
+        return node;
     }
 }

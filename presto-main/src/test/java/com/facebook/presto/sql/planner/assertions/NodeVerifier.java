@@ -241,7 +241,7 @@ final class NodeVerifier
     }
 
     @Override
-    protected Boolean visitCoalesceExpression(CoalesceExpression actual, Expression expected)
+    protected Boolean visitCoalesceExpression(CoalesceExpression actual, Node expected)
     {
         if (!(expected instanceof CoalesceExpression)) {
             return false;

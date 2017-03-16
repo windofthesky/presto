@@ -29,6 +29,7 @@ import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.tree.CoalesceExpression;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
+import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.NullLiteral;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableList;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.facebook.presto.sql.planner.ExpressionSymbolInliner.inlineSymbols;
 import static com.facebook.presto.sql.planner.iterative.DistinctOutputQueryUtil.isDistinct;
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkState;
@@ -214,8 +216,9 @@ public class PushAggregationThroughOuterJoin
         ImmutableMap.Builder<Symbol, Symbol> aggregationsSymbolMappingBuilder = ImmutableMap.builder();
         ImmutableMap.Builder<Symbol, AggregationNode.Aggregation> aggregationsOverNullBuilder = ImmutableMap.builder();
         for (Map.Entry<Symbol, AggregationNode.Aggregation> entry : referenceAggregation.getAssignments().entrySet()) {
+            FunctionCall functionCall = inlineSymbols(sourcesSymbolMapping, entry.getValue().getCall());
             AggregationNode.Aggregation overNullAggregation = new AggregationNode.Aggregation(
-                    ExpressionTreeRewriter.rewriteWith(new ExpressionSymbolInliner(sourcesSymbolMapping), entry.getValue().getCall()),
+                    functionCall,
                     entry.getValue().getSignature(),
                     entry.getValue().getMask().map(x -> Symbol.from(sourcesSymbolMapping.get(x))));
             Symbol overNullSymbol = symbolAllocator.newSymbol(overNullAggregation.getCall(), symbolAllocator.getTypes().get(entry.getKey()));

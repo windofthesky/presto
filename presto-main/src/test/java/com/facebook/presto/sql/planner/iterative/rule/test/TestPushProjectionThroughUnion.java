@@ -58,13 +58,12 @@ public class TestPushProjectionThroughUnion
                     return p.project(
                             Assignments.of(cTimes3, new ArithmeticBinaryExpression(ArithmeticBinaryExpression.Type.MULTIPLY, c.toSymbolReference(), new LongLiteral("3"))),
                             p.union(
-                                    ImmutableList.of(
-                                            p.values(a),
-                                            p.values(b)),
                                     ImmutableListMultimap.<Symbol, Symbol>builder()
                                             .put(c, a)
                                             .put(c, b)
-                                            .build()));
+                                            .build(),
+                                    p.values(a),
+                                    p.values(b)));
                 })
                 .matches(
                         union(

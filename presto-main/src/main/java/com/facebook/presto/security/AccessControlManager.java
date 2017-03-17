@@ -83,6 +83,7 @@ public class AccessControlManager
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         addSystemAccessControlFactory(new AllowAllSystemAccessControl.Factory());
         addSystemAccessControlFactory(new ReadOnlySystemAccessControl.Factory());
+        addSystemAccessControlFactory(new FileBasedSystemAccessControl.Factory());
     }
 
     public void addSystemAccessControlFactory(SystemAccessControlFactory accessControlFactory)

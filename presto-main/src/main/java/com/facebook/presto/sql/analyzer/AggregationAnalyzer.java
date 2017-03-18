@@ -68,6 +68,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.facebook.presto.sql.analyzer.ExpressionTreeUtils.getAggregateExtractorFunction;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.INVALID_PROCEDURE_ARGUMENTS;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.MUST_BE_AGGREGATE_OR_GROUP_BY;
 import static com.facebook.presto.sql.analyzer.SemanticErrorCode.MUST_BE_AGGREGATION_FUNCTION;
@@ -320,28 +321,29 @@ class AggregationAnalyzer
         {
             if (metadata.isAggregationFunction(node.getName())) {
                 if (!node.getWindow().isPresent()) {
-                    AggregateExtractor aggregateExtractor = new AggregateExtractor(metadata.getFunctionRegistry());
-                    WindowFunctionExtractor windowExtractor = new WindowFunctionExtractor();
+                    List<FunctionCall> aggregateFunctions = ExpressionTreeUtils.extractExpressionsOfTypeUsingPredicate(
+                            node.getArguments(),
+                            FunctionCall.class,
+                            getAggregateExtractorFunction(metadata.getFunctionRegistry()));
+                    List<FunctionCall> windowFunctions = ExpressionTreeUtils.extractExpressionsOfTypeUsingPredicate(
+                            node.getArguments(),
+                            FunctionCall.class,
+                            ExpressionTreeUtils::isWindowFunction);
 
-                    for (Expression argument : node.getArguments()) {
-                        aggregateExtractor.process(argument, null);
-                        windowExtractor.process(argument, null);
-                    }
-
-                    if (!aggregateExtractor.getAggregates().isEmpty()) {
+                    if (!aggregateFunctions.isEmpty()) {
                         throw new SemanticException(NESTED_AGGREGATION,
                                 node,
                                 "Cannot nest aggregations inside aggregation '%s': %s",
                                 node.getName(),
-                                aggregateExtractor.getAggregates());
+                                aggregateFunctions);
                     }
 
-                    if (!windowExtractor.getWindowFunctions().isEmpty()) {
+                    if (!windowFunctions.isEmpty()) {
                         throw new SemanticException(NESTED_WINDOW,
                                 node,
                                 "Cannot nest window functions inside aggregation '%s': %s",
                                 node.getName(),
-                                windowExtractor.getWindowFunctions());
+                                windowFunctions);
                     }
 
                     if (node.getFilter().isPresent() && node.isDistinct()) {

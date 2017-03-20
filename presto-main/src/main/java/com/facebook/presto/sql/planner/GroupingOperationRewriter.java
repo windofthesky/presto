@@ -19,8 +19,6 @@ import com.facebook.presto.sql.analyzer.TypeSignatureProvider;
 import com.facebook.presto.sql.tree.ArrayConstructor;
 import com.facebook.presto.sql.tree.Cast;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionRewriter;
-import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.GroupingOperation;
 import com.facebook.presto.sql.tree.LongLiteral;
@@ -41,32 +39,18 @@ import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public class GroupingOperationRewriter
-        extends ExpressionRewriter<Void>
+public final class GroupingOperationRewriter
 {
-    private final QuerySpecification queryNode;
-    private final Analysis analysis;
-    private final Metadata metadata;
-    private final Optional<Symbol> groupIdSymbol;
+    private GroupingOperationRewriter() {}
 
-    public GroupingOperationRewriter(QuerySpecification queryNode, Analysis analysis, Metadata metadata, Optional<Symbol> groupIdSymbol)
+    public static Expression rewriteGroupingOperation(GroupingOperation expression, QuerySpecification queryNode, Analysis analysis, Metadata metadata, Optional<Symbol> groupIdSymbol)
     {
-        this.queryNode = requireNonNull(queryNode, "node is null");
-        this.analysis = requireNonNull(analysis, "analysis is null");
-        this.metadata = requireNonNull(metadata, "metadata is null");
-        this.groupIdSymbol = requireNonNull(groupIdSymbol, "groupIdSymbol is null");
-    }
+        requireNonNull(queryNode, "node is null");
+        requireNonNull(analysis, "analysis is null");
+        requireNonNull(metadata, "metadata is null");
+        requireNonNull(groupIdSymbol, "groupIdSymbol is null");
 
-    @Override
-    public Expression rewriteExpression(Expression node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
-    {
-        return treeRewriter.defaultRewrite(node, context);
-    }
-
-    @Override
-    public Expression rewriteGroupingOperation(GroupingOperation node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
-    {
-        Expression rewrittenExpression = rewriteGroupingOperationToExpression(node, queryNode);
+        Expression rewrittenExpression = rewriteGroupingOperationToExpression(expression, queryNode, analysis, groupIdSymbol);
         if (rewrittenExpression instanceof FunctionCall) {
             FunctionCall rewrittenFunctionCall = (FunctionCall) rewrittenExpression;
             List<TypeSignatureProvider> functionTypes = Arrays.asList(
@@ -80,7 +64,7 @@ public class GroupingOperationRewriter
         return rewrittenExpression;
     }
 
-    private Expression rewriteGroupingOperationToExpression(GroupingOperation expression, QuerySpecification node)
+    private static Expression rewriteGroupingOperationToExpression(GroupingOperation expression, QuerySpecification queryNode, Analysis analysis, Optional<Symbol> groupIdSymbol)
     {
         List<Expression> columnReferences = ImmutableList.copyOf(analysis.getColumnReferences());
         List<Expression> groupingOrdinals = expression.getGroupingColumns().stream()
@@ -90,7 +74,7 @@ public class GroupingOperationRewriter
 
         List<List<Expression>> groupingSetOrdinals;
         ImmutableList.Builder<List<Expression>> groupingSetOrdinalsBuilder = ImmutableList.builder();
-        for (List<Expression> groupingSet : analysis.getGroupingSets(node)) {
+        for (List<Expression> groupingSet : analysis.getGroupingSets(queryNode)) {
             groupingSetOrdinalsBuilder.add(groupingSet.stream()
                     .map(columnReferences::indexOf)
                     .map(columnOrdinal -> new LongLiteral(Integer.toString(columnOrdinal)))
@@ -98,14 +82,14 @@ public class GroupingOperationRewriter
         }
         groupingSetOrdinals = groupingSetOrdinalsBuilder.build();
 
-        checkState(node.getGroupBy().isPresent(), "GroupBy node must be present");
+        checkState(queryNode.getGroupBy().isPresent(), "GroupBy node must be present");
         Expression firstArgument;
         // No GroupIdNode and a GROUPING() operation imply a single grouping, which
         // means that any columns specified as arguments to GROUPING() will be included
         // in the group and none of them will be aggregated over. Hence, re-write the
         // GroupingOperation to a constant literal of 0.
         // See SQL:2011:4.16.2 and SQL:2011:6.9.10.
-        boolean isSimpleGroupByPresent = node.getGroupBy().get().getGroupingElements().stream().anyMatch(SimpleGroupBy.class::isInstance);
+        boolean isSimpleGroupByPresent = queryNode.getGroupBy().get().getGroupingElements().stream().anyMatch(SimpleGroupBy.class::isInstance);
         if (isSimpleGroupByPresent) {
             return new LongLiteral("0");
         }

@@ -21,6 +21,7 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.tree.ExistsPredicate;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.GroupingOperation;
 import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.InPredicate;
 import com.facebook.presto.sql.tree.Join;
@@ -54,6 +55,7 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.newSetFromMap;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
@@ -98,7 +100,7 @@ public class Analysis
 
     private final IdentityLinkedHashMap<SampledRelation, Double> sampleRatios = new IdentityLinkedHashMap<>();
 
-    private final IdentityLinkedHashMap<QuerySpecification, List<Expression>> groupingOperations = new IdentityLinkedHashMap<>();
+    private final IdentityLinkedHashMap<QuerySpecification, List<GroupingOperation>> groupingOperations = new IdentityLinkedHashMap<>();
 
     // for create table
     private Optional<QualifiedObjectName> createTableDestination = Optional.empty();
@@ -535,14 +537,14 @@ public class Analysis
         return sampleRatios.get(relation);
     }
 
-    public void setGroupingOperations(QuerySpecification querySpecification, List<Expression> groupingOperations)
+    public void setGroupingOperations(QuerySpecification querySpecification, List<GroupingOperation> groupingOperations)
     {
         this.groupingOperations.put(querySpecification, groupingOperations);
     }
 
-    public List<Expression> getGroupingOperations(QuerySpecification querySpecification)
+    public List<GroupingOperation> getGroupingOperations(QuerySpecification querySpecification)
     {
-        return groupingOperations.get(querySpecification);
+        return unmodifiableList(groupingOperations.get(querySpecification));
     }
 
     public List<Expression> getParameters()

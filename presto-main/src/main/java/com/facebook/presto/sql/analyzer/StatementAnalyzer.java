@@ -882,7 +882,7 @@ class StatementAnalyzer
             List<Expression> expressions = new ArrayList<>();
             expressions.addAll(sourceExpressions);
             expressions.addAll(orderByExpressions);
-            analyzeGroupingFunctions(node, expressions);
+            List<GroupingOperation> groupingExpressions = analyzeGroupingOperations(node, expressions);
 
             List<FunctionCall> aggregations = analyzeAggregations(node, sourceScope, orderByScope, groupByExpressions, sourceExpressions, orderByExpressions);
             analyzeWindowFunctions(node, outputExpressions, orderByExpressions);
@@ -893,7 +893,7 @@ class StatementAnalyzer
                 // Original ORDER BY scope "sees" FROM query fields. However, during planning
                 // and when aggregation is present, ORDER BY expressions should only be resolvable against
                 // output scope, group by expressions and aggregation expressions.
-                computeAndAssignOrderByScopeWithAggregation(node.getOrderBy().get(), outputScope, aggregations, groupByExpressions);
+                computeAndAssignOrderByScopeWithAggregation(node.getOrderBy().get(), outputScope, aggregations, groupByExpressions, groupingExpressions);
             }
 
             return outputScope;
@@ -928,7 +928,7 @@ class StatementAnalyzer
             expressions.addAll(orderByExpressions);
             node.getHaving().ifPresent(expressions::add);
 
-            analyzeGroupingFunctions(node, expressions);
+            analyzeGroupingOperations(node, expressions);
             analyzeAggregations(node, sourceScope, Optional.empty(), groupByExpressions, expressions, emptyList());
             analysis.setWindowFunctions(node, analyzeWindowFunctions(node, expressions));
 
@@ -1623,10 +1623,10 @@ class StatementAnalyzer
             return orderByScope;
         }
 
-        private Scope computeAndAssignOrderByScopeWithAggregation(OrderBy node, Scope outputScope, List<FunctionCall> aggregations, List<List<Expression>> groupByExpressions)
+        private Scope computeAndAssignOrderByScopeWithAggregation(OrderBy node, Scope outputScope, List<FunctionCall> aggregations, List<List<Expression>> groupByExpressions, List<GroupingOperation> groupingExpressions)
         {
             // This scope is only used for planning. When aggregation is present then
-            // only output fields, groups and aggregation expressions should be visible.
+            // only output fields, groups, aggregation and grouping expressions should be visible.
             ImmutableList.Builder<Field> aggregatedSourceFields = ImmutableList.builder();
             ImmutableList.Builder<Expression> aggregatedSourceExpressions = ImmutableList.builder();
             if (groupByExpressions.size() == 1) {
@@ -1639,6 +1639,10 @@ class StatementAnalyzer
                         aggregatedSourceExpressions.add(groupByExpression);
                     }
                 }
+            }
+            for (Expression groupingExpression : groupingExpressions) {
+                aggregatedSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(groupingExpression)));
+                aggregatedSourceExpressions.add(groupingExpression);
             }
             for (FunctionCall aggregation : aggregations) {
                 aggregatedSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(aggregation)));
@@ -1737,7 +1741,7 @@ class StatementAnalyzer
             return createScope(scope);
         }
 
-        private void analyzeGroupingFunctions(QuerySpecification node, List<Expression> expressions)
+        private List<GroupingOperation> analyzeGroupingOperations(QuerySpecification node, List<Expression> expressions)
         {
             boolean isGroupingOperationPresent = !ExpressionTreeUtils.extractExpressionsOfTypeUsingPredicate(expressions, GroupingOperation.class, Predicates.alwaysTrue()).isEmpty();
 
@@ -1749,11 +1753,8 @@ class StatementAnalyzer
             }
 
             List<GroupingOperation> groupingOperations = ExpressionTreeUtils.extractExpressionsOfTypeUsingPredicate(expressions, GroupingOperation.class, Predicates.alwaysTrue());
-
-            analysis.setGroupingOperations(
-                    node,
-                    groupingOperations.stream().map(Expression.class::cast).collect(toImmutableList())
-            );
+            analysis.setGroupingOperations(node, groupingOperations);
+            return groupingOperations;
         }
 
         private List<FunctionCall> analyzeAggregations(

@@ -1474,8 +1474,6 @@ public class PlanPrinter
             return sqrt(max(variance, 0d));
         }
 
-
-
         public PlanNodeId getPlanNodeId()
         {
             return planNodeId;

@@ -42,6 +42,7 @@ public final class HiveSessionProperties
     private static final String RCFILE_OPTIMIZED_WRITER_VALIDATE = "rcfile_optimized_writer_validate";
     private static final String MULTI_FILE_BUCKETING_ENABLED = "multi_file_bucketing_enabled";
     private static final String EMPTY_BUCKETED_PARTITIONS_ENABLED = "empty_bucketed_partitions_enabled";
+    private static final String STATISTICS_ENABLED = "statistics_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -123,7 +124,12 @@ public final class HiveSessionProperties
                         EMPTY_BUCKETED_PARTITIONS_ENABLED,
                         "Allow partitions without files for clustered table",
                         config.isEmptyBucketedPartitionsEnabled(),
-                        true));
+                        true),
+                booleanSessionProperty(
+                        STATISTICS_ENABLED,
+                        "Experimental: Expose table statistics",
+                        true,
+                        false));
     }
 
     public List<PropertyMetadata<?>> getSessionProperties()
@@ -204,6 +210,11 @@ public final class HiveSessionProperties
     public static boolean isEmptyBucketedPartitionsEnabled(ConnectorSession session)
     {
         return session.getProperty(EMPTY_BUCKETED_PARTITIONS_ENABLED, Boolean.class);
+    }
+
+    public static boolean isStatisticsEnabled(ConnectorSession session)
+    {
+        return session.getProperty(STATISTICS_ENABLED, Boolean.class);
     }
 
     public static PropertyMetadata<DataSize> dataSizeSessionProperty(String name, String description, DataSize defaultValue, boolean hidden)

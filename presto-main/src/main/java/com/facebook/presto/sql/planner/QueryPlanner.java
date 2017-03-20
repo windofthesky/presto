@@ -49,6 +49,7 @@ import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.FieldReference;
 import com.facebook.presto.sql.tree.FrameBound;
 import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.GroupingOperation;
 import com.facebook.presto.sql.tree.LambdaArgumentDeclaration;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.OrderBy;
@@ -603,19 +604,12 @@ class QueryPlanner
         }
 
         // 4. Project and re-write all grouping functions
-        subPlan = handleGroupingFunctions(subPlan, analysis.getGroupingOperations(node), node, groupIdSymbol);
-
-        return subPlan;
+        return handleGroupingOperations(subPlan, node, groupIdSymbol);
     }
 
-    private PlanBuilder window(PlanBuilder subPlan, OrderBy node)
+    private PlanBuilder handleGroupingOperations(PlanBuilder subPlan, QuerySpecification node, Optional<Symbol> groupIdSymbol)
     {
-        return window(subPlan, ImmutableList.copyOf(analysis.getOrderByWindowFunctions(node)));
-    }
-
-    private PlanBuilder handleGroupingFunctions(PlanBuilder subPlan, List<Expression> groupingOperations, QuerySpecification node, Optional<Symbol> groupIdSymbol)
-    {
-        if (groupingOperations.isEmpty()) {
+        if (analysis.getGroupingOperations(node).isEmpty()) {
             return subPlan;
         }
 
@@ -629,36 +623,24 @@ class QueryPlanner
         }
 
         ImmutableMap.Builder<Symbol, Expression> newTranslations = ImmutableMap.builder();
-        for (Expression expression : groupingOperations) {
-            ImmutableList.Builder<Expression> toRewrite = ImmutableList.builder();
-            if (expression instanceof FunctionCall && ((FunctionCall) expression).getWindow().isPresent()) {
-                // Deconstruct window functions to individual parts and re-write them. The window() method will
-                // then appropriately re-write the window function inputs to make use of these output symbols.
-                FunctionCall windowFunction = (FunctionCall) expression;
-                Window window = windowFunction.getWindow().get();
-                toRewrite.addAll(windowFunction.getArguments())
-                        .addAll(window.getPartitionBy())
-                        .addAll(Iterables.transform(window.getOrderBy(), SortItem::getSortKey));
-            }
-            else {
-                toRewrite.add(expression);
-            }
-
-            for (Expression toBeRewritten : toRewrite.build()) {
-                Expression rewritten = ExpressionTreeRewriter.rewriteWith(new GroupingOperationRewriter(node, analysis, metadata, groupIdSymbol), toBeRewritten);
-                translations.addIntermediateMapping(toBeRewritten, rewritten);
-                Symbol symbol = symbolAllocator.newSymbol(rewritten, analysis.getTypeWithCoercions(toBeRewritten));
-                projections.put(symbol, translations.rewrite(rewritten));
-                newTranslations.put(symbol, toBeRewritten);
-            }
+        for (GroupingOperation groupingOperation : analysis.getGroupingOperations(node)) {
+            Expression rewritten = GroupingOperationRewriter.rewriteGroupingOperation(groupingOperation, node, analysis, metadata, groupIdSymbol);
+            translations.addIntermediateMapping(groupingOperation, rewritten);
+            Symbol symbol = symbolAllocator.newSymbol(rewritten, analysis.getTypeWithCoercions(groupingOperation));
+            projections.put(symbol, translations.rewrite(rewritten));
+            newTranslations.put(symbol, rewritten);
         }
-
         // Now append the new translations into the TranslationMap
         for (Map.Entry<Symbol, Expression> entry : newTranslations.build().entrySet()) {
             translations.put(entry.getValue(), entry.getKey());
         }
 
         return new PlanBuilder(translations, new ProjectNode(idAllocator.getNextId(), subPlan.getRoot(), projections.build()), analysis.getParameters());
+    }
+
+    private PlanBuilder window(PlanBuilder subPlan, OrderBy node)
+    {
+        return window(subPlan, ImmutableList.copyOf(analysis.getOrderByWindowFunctions(node)));
     }
 
     private PlanBuilder window(PlanBuilder subPlan, QuerySpecification node)

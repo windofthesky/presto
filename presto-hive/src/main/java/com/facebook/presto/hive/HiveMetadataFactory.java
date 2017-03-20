@@ -16,6 +16,7 @@ package com.facebook.presto.hive;
 import com.facebook.presto.hive.metastore.CachingHiveMetastore;
 import com.facebook.presto.hive.metastore.ExtendedHiveMetastore;
 import com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore;
+import com.facebook.presto.hive.statistics.MetastoreHiveStatisticsProvider;
 import com.facebook.presto.spi.type.TypeManager;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.json.JsonCodec;
@@ -141,13 +142,15 @@ public class HiveMetadataFactory
 
     public HiveMetadata create()
     {
+        SemiTransactionalHiveMetastore metastore = new SemiTransactionalHiveMetastore(
+                hdfsEnvironment,
+                CachingHiveMetastore.memoizeMetastore(this.metastore, perTransactionCacheMaximumSize), // per-transaction cache
+                renameExecution,
+                skipDeletionForAlter);
+
         return new HiveMetadata(
                 connectorId,
-                new SemiTransactionalHiveMetastore(
-                        hdfsEnvironment,
-                        CachingHiveMetastore.memoizeMetastore(metastore, perTransactionCacheMaximumSize), // per-transaction cache
-                        renameExecution,
-                        skipDeletionForAlter),
+                metastore,
                 hdfsEnvironment,
                 partitionManager,
                 timeZone,
@@ -160,6 +163,7 @@ public class HiveMetadataFactory
                 tableParameterCodec,
                 partitionUpdateCodec,
                 typeTranslator,
-                prestoVersion);
+                prestoVersion,
+                new MetastoreHiveStatisticsProvider(typeManager, metastore));
     }
 }

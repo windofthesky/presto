@@ -576,7 +576,7 @@ class AggregationAnalyzer
         getReferencesToScope(node, analysis, orderByScope.get()).stream()
                 .findFirst()
                 .ifPresent(expression -> {
-                    throw new SemanticException(REFERENCE_TO_OUTPUT_ATTRIBUTE_WITHIN_ORDER_BY_AGGREGATION, node, "Invalid reference to output projection attribute from ORDER BY aggregation");
+                    throw new SemanticException(REFERENCE_TO_OUTPUT_ATTRIBUTE_WITHIN_ORDER_BY_AGGREGATION, expression, "Invalid reference to output projection attribute from ORDER BY aggregation");
                 });
     }
 }

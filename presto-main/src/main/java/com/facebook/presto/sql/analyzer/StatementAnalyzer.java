@@ -107,6 +107,7 @@ import com.facebook.presto.sql.tree.Window;
 import com.facebook.presto.sql.tree.WindowFrame;
 import com.facebook.presto.sql.tree.With;
 import com.facebook.presto.sql.tree.WithQuery;
+import com.facebook.presto.sql.util.AstUtils;
 import com.facebook.presto.type.ArrayType;
 import com.facebook.presto.type.MapType;
 import com.facebook.presto.type.RowType;
@@ -1589,7 +1590,7 @@ class StatementAnalyzer
 
             // Don't add aggregate expression that contains references to output column because the names would clash in TranslationMap during planning.
             List<Expression> aggregatedSourceExpressions = aggregatedSourceExpressionsBuilder.build().stream()
-                    .filter(expression -> !hasReferencesToScope(expression, analysis, outputScope))
+                    .filter(expression -> !hasEqualOrderByExpressionWithOutputColumnReference(expression, node, outputScope))
                     .collect(toImmutableList());
 
             // generate placeholder fields
@@ -1607,6 +1608,14 @@ class StatementAnalyzer
             analysis.setScope(node, orderByScope);
             analysis.setOrderByAggregates(node, aggregatedSourceExpressions);
             return orderByScope;
+        }
+
+        private boolean hasEqualOrderByExpressionWithOutputColumnReference(Node aggregation, OrderBy orderByNode, Scope outputScope)
+        {
+            return AstUtils.preOrder(orderByNode)
+                    .filter(aggregation::equals)
+                    .filter(orderByExpressionEqualToAggregation -> hasReferencesToScope(orderByExpressionEqualToAggregation, analysis, outputScope))
+                    .findAny().isPresent();
         }
 
         private List<Expression> analyzeSelect(QuerySpecification node, Scope scope)

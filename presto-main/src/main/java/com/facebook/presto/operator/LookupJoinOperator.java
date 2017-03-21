@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.facebook.presto.operator.LookupJoinOperators.JoinType.FULL_OUTER;
 import static com.facebook.presto.operator.LookupJoinOperators.JoinType.PROBE_OUTER;
 import static com.google.common.base.Preconditions.checkState;
-import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static java.util.Objects.requireNonNull;
 
@@ -55,7 +54,6 @@ public class LookupJoinOperator
     private final boolean probeOnOuterSide;
 
     private Optional<SpillledLookupJoiner> spilledLookupJoiner = Optional.empty();
-    private LookupSource lookupSource;
 
     private boolean finishing;
     private boolean closed;
@@ -206,9 +204,6 @@ public class LookupJoinOperator
     {
         checkState(lookupSourceFactory.hasSpilled());
         checkState(lookupSourceFuture.isDone());
-        if (lookupSource == null) {
-            lookupSource = getFutureValue(lookupSourceFuture);
-        }
         if (!spiller.isPresent()) {
             spiller = Optional.of(lookupSourceFactory.createProbeSpiller(operatorContext, probeTypes, hashGenerator));
         }

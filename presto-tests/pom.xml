@@ -212,6 +212,11 @@
                         <exclude>**/TestLocalQueriesIndexed.java</exclude>
                         <exclude>**/TestLocalBinarySpilledQueries.java</exclude>
                     </excludes>
+                    <systemPropertyVariables>
+                        <java.util.logging.config.file>
+                            ${project.build.directory}/test-classes/logging-test.properties
+                        </java.util.logging.config.file>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>

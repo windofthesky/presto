@@ -28,7 +28,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
-import java.security.Principal;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -320,7 +319,7 @@ public final class Session
                 transactionId,
                 clientTransactionSupport,
                 identity.getUser(),
-                identity.getPrincipal().map(Principal::toString),
+                identity.getPrincipal(),
                 source,
                 catalog,
                 schema,

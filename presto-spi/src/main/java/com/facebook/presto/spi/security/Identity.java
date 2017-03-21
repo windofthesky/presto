@@ -50,13 +50,14 @@ public class Identity
             return false;
         }
         Identity identity = (Identity) o;
-        return Objects.equals(user, identity.user);
+        return Objects.equals(user, identity.user) &&
+                Objects.equals(principal, identity.principal);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(user);
+        return Objects.hash(user, principal);
     }
 
     @Override

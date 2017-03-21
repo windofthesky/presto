@@ -55,6 +55,7 @@ import org.joda.time.DateTime;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import java.security.Principal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +105,7 @@ public class QueryMonitor
                         queryInfo.getQueryStats().getCreateTime().toDate().toInstant(),
                         new QueryContext(
                                 queryInfo.getSession().getUser(),
-                                queryInfo.getSession().getPrincipal(),
+                                queryInfo.getSession().getPrincipal().map(Principal::toString),
                                 queryInfo.getSession().getRemoteUserAddress(),
                                 queryInfo.getSession().getUserAgent(),
                                 queryInfo.getSession().getClientInfo(),
@@ -195,7 +196,7 @@ public class QueryMonitor
                                     objectMapper.writeValueAsString(queryInfo.getQueryStats().getOperatorSummaries())),
                             new QueryContext(
                                     queryInfo.getSession().getUser(),
-                                    queryInfo.getSession().getPrincipal(),
+                                    queryInfo.getSession().getPrincipal().map(Principal::toString),
                                     queryInfo.getSession().getRemoteUserAddress(),
                                     queryInfo.getSession().getUserAgent(),
                                     queryInfo.getSession().getClientInfo(),

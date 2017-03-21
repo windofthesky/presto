@@ -21,13 +21,31 @@ import com.facebook.presto.spi.type.TimeZoneKey;
 import com.facebook.presto.transaction.TransactionId;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.ImmutableMap;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.security.Principal;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public final class SessionRepresentation
@@ -36,7 +54,7 @@ public final class SessionRepresentation
     private final Optional<TransactionId> transactionId;
     private final boolean clientTransactionSupport;
     private final String user;
-    private final Optional<String> principal;
+    private final Optional<Principal> principal;
     private final Optional<String> source;
     private final Optional<String> catalog;
     private final Optional<String> schema;
@@ -56,7 +74,7 @@ public final class SessionRepresentation
             @JsonProperty("transactionId") Optional<TransactionId> transactionId,
             @JsonProperty("clientTransactionSupport") boolean clientTransactionSupport,
             @JsonProperty("user") String user,
-            @JsonProperty("principal") Optional<String> principal,
+            @JsonProperty("principal") Optional<Principal> principal,
             @JsonProperty("source") Optional<String> source,
             @JsonProperty("catalog") Optional<String> catalog,
             @JsonProperty("schema") Optional<String> schema,
@@ -119,7 +137,9 @@ public final class SessionRepresentation
     }
 
     @JsonProperty
-    public Optional<String> getPrincipal()
+    @JsonSerialize(using = PrincipalSerializer.class)
+    @JsonDeserialize(using = PrincipalDeserializer.class)
+    public Optional<Principal> getPrincipal()
     {
         return principal;
     }
@@ -202,7 +222,7 @@ public final class SessionRepresentation
                 new QueryId(queryId),
                 transactionId,
                 clientTransactionSupport,
-                new Identity(user, Optional.empty()),
+                new Identity(user, principal),
                 source,
                 catalog,
                 schema,
@@ -217,5 +237,72 @@ public final class SessionRepresentation
                 ImmutableMap.of(),
                 sessionPropertyManager,
                 preparedStatements);
+    }
+
+    public static class PrincipalSerializer
+            extends JsonSerializer<Optional<Principal>>
+    {
+        @Override
+        public void serialize(Optional<Principal> value, JsonGenerator generator, SerializerProvider serializers)
+                throws IOException
+        {
+            if (!value.isPresent()) {
+                generator.writeNull();
+                return;
+            }
+
+            Principal principal = value.get();
+            byte[] serialized = serialize(principal);
+            String base64encoded = Base64.getEncoder().encodeToString(serialized);
+            generator.writeString(base64encoded);
+        }
+
+        private static byte[] serialize(Principal principal)
+                throws IOException
+        {
+            checkArgument(principal instanceof Serializable, "Principal is not serializable: %s", principal.toString());
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            try (ObjectOutputStream output = new ObjectOutputStream(byteArrayOutputStream)) {
+                output.writeObject(principal);
+            }
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
+
+    public static class PrincipalDeserializer
+            extends JsonDeserializer<Optional<Principal>>
+    {
+        @Override
+        public Optional<Principal> deserialize(JsonParser parser, DeserializationContext ctxt)
+                throws IOException
+        {
+            String base64encoded = parser.getText();
+            requireNonNull(base64encoded, "base64encoded is null");
+            byte[] serialized = Base64.getDecoder().decode(base64encoded);
+            Principal principal = deserialize(serialized);
+            return Optional.of(principal);
+        }
+
+        @Override
+        public Optional<Principal> getNullValue(DeserializationContext ctxt)
+                throws JsonMappingException
+        {
+            return Optional.empty();
+        }
+
+        private static Principal deserialize(byte[] serialized)
+                throws IOException
+        {
+            try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(serialized))) {
+                try {
+                    Object object = input.readObject();
+                    checkArgument(object instanceof Principal, "Deserialized object is not instance of Principal: %s", object.toString());
+                    return (Principal) object;
+                }
+                catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }

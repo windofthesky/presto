@@ -13,13 +13,14 @@
  */
 package com.facebook.presto.server.security;
 
+import java.io.Serializable;
 import java.security.Principal;
 import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
 public final class LdapPrincipal
-        implements Principal
+        implements Principal, Serializable
 {
     private final String name;
 

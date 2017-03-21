@@ -20,7 +20,6 @@ import org.testng.annotations.Test;
 import java.math.BigDecimal;
 
 import static com.facebook.presto.testing.MaterializedResult.resultBuilder;
-import static com.facebook.presto.tpcds.TpcdsQueryRunner.createQueryRunner;
 import static org.testng.Assert.assertEquals;
 
 public class TestTpcds
@@ -30,7 +29,7 @@ public class TestTpcds
     public TestTpcds()
             throws Exception
     {
-        super(createQueryRunner());
+        super(TpcdsQueryRunner::createQueryRunner);
     }
 
     @Test

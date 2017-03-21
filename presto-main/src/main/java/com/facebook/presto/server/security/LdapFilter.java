@@ -337,48 +337,6 @@ public class LdapFilter
     @Override
     public void destroy() {}
 
-    private static final class LdapPrincipal
-            implements Principal
-    {
-        private final String name;
-
-        private LdapPrincipal(String name)
-        {
-            this.name = requireNonNull(name, "name is null");
-        }
-
-        @Override
-        public String getName()
-        {
-            return name;
-        }
-
-        @Override
-        public boolean equals(Object o)
-        {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            LdapPrincipal that = (LdapPrincipal) o;
-            return Objects.equals(name, that.name);
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash(name);
-        }
-
-        @Override
-        public String toString()
-        {
-            return name;
-        }
-    }
-
     private static class Credentials
     {
         private final String user;

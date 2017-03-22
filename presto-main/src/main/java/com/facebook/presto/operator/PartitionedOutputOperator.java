@@ -57,6 +57,7 @@ public class PartitionedOutputOperator
         private final List<Optional<NullableValue>> partitionConstants;
         private final OutputBuffer outputBuffer;
         private final OptionalInt nullChannel;
+        private boolean replicateFirstRow;
         private final DataSize maxMemory;
 
         public PartitionedOutputFactory(
@@ -64,6 +65,7 @@ public class PartitionedOutputOperator
                 List<Integer> partitionChannels,
                 List<Optional<NullableValue>> partitionConstants,
                 OptionalInt nullChannel,
+                boolean replicateFirstRow,
                 OutputBuffer outputBuffer,
                 DataSize maxMemory)
         {
@@ -71,6 +73,7 @@ public class PartitionedOutputOperator
             this.partitionChannels = requireNonNull(partitionChannels, "partitionChannels is null");
             this.partitionConstants = requireNonNull(partitionConstants, "partitionConstants is null");
             this.nullChannel = requireNonNull(nullChannel, "nullChannel is null");
+            this.replicateFirstRow = replicateFirstRow;
             this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
             this.maxMemory = requireNonNull(maxMemory, "maxMemory is null");
         }
@@ -92,6 +95,7 @@ public class PartitionedOutputOperator
                     partitionChannels,
                     partitionConstants,
                     nullChannel,
+                    replicateFirstRow,
                     outputBuffer,
                     serdeFactory,
                     maxMemory);
@@ -109,6 +113,7 @@ public class PartitionedOutputOperator
         private final List<Integer> partitionChannels;
         private final List<Optional<NullableValue>> partitionConstants;
         private final OptionalInt nullChannel;
+        private final boolean replicateFirstRow;
         private final OutputBuffer outputBuffer;
         private final PagesSerdeFactory serdeFactory;
         private final DataSize maxMemory;
@@ -122,6 +127,7 @@ public class PartitionedOutputOperator
                 List<Integer> partitionChannels,
                 List<Optional<NullableValue>> partitionConstants,
                 OptionalInt nullChannel,
+                boolean replicateFirstRow,
                 OutputBuffer outputBuffer,
                 PagesSerdeFactory serdeFactory,
                 DataSize maxMemory)
@@ -134,6 +140,7 @@ public class PartitionedOutputOperator
             this.partitionChannels = requireNonNull(partitionChannels, "partitionChannels is null");
             this.partitionConstants = requireNonNull(partitionConstants, "partitionConstants is null");
             this.nullChannel = requireNonNull(nullChannel, "nullChannel is null");
+            this.replicateFirstRow = replicateFirstRow;
             this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
             this.serdeFactory = requireNonNull(serdeFactory, "serdeFactory is null");
             this.maxMemory = requireNonNull(maxMemory, "maxMemory is null");
@@ -157,6 +164,7 @@ public class PartitionedOutputOperator
                     partitionChannels,
                     partitionConstants,
                     nullChannel,
+                    replicateFirstRow,
                     outputBuffer,
                     serdeFactory,
                     maxMemory);
@@ -179,6 +187,7 @@ public class PartitionedOutputOperator
                     partitionChannels,
                     partitionConstants,
                     nullChannel,
+                    replicateFirstRow,
                     outputBuffer,
                     serdeFactory,
                     maxMemory);
@@ -199,6 +208,7 @@ public class PartitionedOutputOperator
             List<Integer> partitionChannels,
             List<Optional<NullableValue>> partitionConstants,
             OptionalInt nullChannel,
+            boolean replicateFirstRow,
             OutputBuffer outputBuffer,
             PagesSerdeFactory serdeFactory,
             DataSize maxMemory)
@@ -210,6 +220,7 @@ public class PartitionedOutputOperator
                 partitionChannels,
                 partitionConstants,
                 nullChannel,
+                replicateFirstRow,
                 outputBuffer,
                 serdeFactory,
                 sourceTypes,
@@ -299,6 +310,7 @@ public class PartitionedOutputOperator
         private final PagesSerde serde;
         private final List<PageBuilder> pageBuilders;
         private final OptionalInt nullChannel; // when present, send the position to every partition if this channel is null.
+        private final boolean replicateFirstRow;
         private final AtomicLong rowsAdded = new AtomicLong();
         private final AtomicLong pagesAdded = new AtomicLong();
 
@@ -307,6 +319,7 @@ public class PartitionedOutputOperator
                 List<Integer> partitionChannels,
                 List<Optional<NullableValue>> partitionConstants,
                 OptionalInt nullChannel,
+                boolean replicateFirstRow,
                 OutputBuffer outputBuffer,
                 PagesSerdeFactory serdeFactory,
                 List<Type> sourceTypes,
@@ -318,6 +331,7 @@ public class PartitionedOutputOperator
                     .map(constant -> constant.map(NullableValue::asBlock))
                     .collect(toImmutableList());
             this.nullChannel = requireNonNull(nullChannel, "nullChannel is null");
+            this.replicateFirstRow = replicateFirstRow;
             this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
             this.sourceTypes = requireNonNull(sourceTypes, "sourceTypes is null");
             this.serde = requireNonNull(serdeFactory, "serdeFactory is null").createPagesSerde();

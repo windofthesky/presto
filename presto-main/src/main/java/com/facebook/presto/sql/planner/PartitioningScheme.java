@@ -33,6 +33,7 @@ public class PartitioningScheme
     private final List<Symbol> outputLayout;
     private final Optional<Symbol> hashColumn;
     private final boolean replicateNulls;
+    private final boolean replicateFirstRow;
     private final Optional<int[]> bucketToPartition;
 
     public PartitioningScheme(Partitioning partitioning, List<Symbol> outputLayout)
@@ -41,6 +42,7 @@ public class PartitioningScheme
                 partitioning,
                 outputLayout,
                 Optional.empty(),
+                false,
                 false,
                 Optional.empty());
     }
@@ -52,6 +54,7 @@ public class PartitioningScheme
                 outputLayout,
                 hashColumn,
                 false,
+                false,
                 Optional.empty());
     }
 
@@ -61,6 +64,7 @@ public class PartitioningScheme
             @JsonProperty("outputLayout") List<Symbol> outputLayout,
             @JsonProperty("hashColumn") Optional<Symbol> hashColumn,
             @JsonProperty("replicateNulls") boolean replicateNulls,
+            @JsonProperty("replicateFirstRow") boolean replicateFirstRow,
             @JsonProperty("bucketToPartition") Optional<int[]> bucketToPartition)
     {
         this.partitioning = requireNonNull(partitioning, "partitioning is null");
@@ -76,6 +80,7 @@ public class PartitioningScheme
 
         checkArgument(!replicateNulls || columns.size() <= 1, "Must have at most one partitioning column when nullPartition is REPLICATE.");
         this.replicateNulls = replicateNulls;
+        this.replicateFirstRow = replicateFirstRow;
         this.bucketToPartition = requireNonNull(bucketToPartition, "bucketToPartition is null");
     }
 
@@ -104,6 +109,12 @@ public class PartitioningScheme
     }
 
     @JsonProperty
+    public boolean isReplicateFirstRow()
+    {
+        return replicateFirstRow;
+    }
+
+    @JsonProperty
     public Optional<int[]> getBucketToPartition()
     {
         return bucketToPartition;
@@ -111,7 +122,7 @@ public class PartitioningScheme
 
     public PartitioningScheme withBucketToPartition(Optional<int[]> bucketToPartition)
     {
-        return new PartitioningScheme(partitioning, outputLayout, hashColumn, replicateNulls, bucketToPartition);
+        return new PartitioningScheme(partitioning, outputLayout, hashColumn, replicateNulls, replicateFirstRow, bucketToPartition);
     }
 
     public PartitioningScheme translateOutputLayout(List<Symbol> newOutputLayout)
@@ -126,7 +137,7 @@ public class PartitioningScheme
                 .map(outputLayout::indexOf)
                 .map(newOutputLayout::get);
 
-        return new PartitioningScheme(newPartitioning, newOutputLayout, newHashSymbol, replicateNulls, bucketToPartition);
+        return new PartitioningScheme(newPartitioning, newOutputLayout, newHashSymbol, replicateNulls, replicateFirstRow, bucketToPartition);
     }
 
     @Override

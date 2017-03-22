@@ -482,6 +482,7 @@ public class HashGenerationOptimizer
                             .build(),
                     partitionSymbols.map(newHashSymbols::get),
                     partitioningScheme.isReplicateNulls(),
+                    partitioningScheme.isReplicateFirstRow(),
                     partitioningScheme.getBucketToPartition());
 
             // add hash symbols to sources

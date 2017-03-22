@@ -353,12 +353,14 @@ public class LocalExecutionPlanner
             nullChannel = OptionalInt.of(outputLayout.indexOf(getOnlyElement(partitioningColumns)));
         }
 
+        boolean replicateFirstRow = false;
+
         return plan(
                 session,
                 plan,
                 outputLayout,
                 types,
-                new PartitionedOutputFactory(partitionFunction, partitionChannels, partitionConstants, nullChannel, outputBuffer, maxPagePartitioningBufferSize));
+                new PartitionedOutputFactory(partitionFunction, partitionChannels, partitionConstants, nullChannel, replicateFirstRow, outputBuffer, maxPagePartitioningBufferSize));
     }
 
     public LocalExecutionPlan plan(Session session,

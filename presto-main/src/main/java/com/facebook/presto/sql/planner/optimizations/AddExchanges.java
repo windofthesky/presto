@@ -862,6 +862,7 @@ public class AddExchanges
                                         filteringSource.getNode().getOutputSymbols(),
                                         Optional.empty(),
                                         true,
+                                        false,
                                         Optional.empty())),
                                 filteringSource.getProperties());
                     }
@@ -880,7 +881,7 @@ public class AddExchanges
                                 partitionedExchange(idAllocator.getNextId(), REMOTE, source.getNode(), sourceSymbols, Optional.empty()),
                                 source.getProperties());
                         filteringSource = withDerivedProperties(
-                                partitionedExchange(idAllocator.getNextId(), REMOTE, filteringSource.getNode(), filteringSourceSymbols, Optional.empty(), true),
+                                partitionedExchange(idAllocator.getNextId(), REMOTE, filteringSource.getNode(), filteringSourceSymbols, Optional.empty(), true, false),
                                 filteringSource.getProperties());
                     }
                 }
@@ -896,6 +897,7 @@ public class AddExchanges
                                     filteringSource.getNode().getOutputSymbols(),
                                     Optional.empty(),
                                     true,
+                                    false,
                                     Optional.empty())),
                             filteringSource.getProperties());
                 }
@@ -1060,6 +1062,7 @@ public class AddExchanges
                                                 source.getNode().getOutputSymbols(),
                                                 Optional.empty(),
                                                 nullsReplicated,
+                                                false,
                                                 Optional.empty())),
                                 source.getProperties());
                     }

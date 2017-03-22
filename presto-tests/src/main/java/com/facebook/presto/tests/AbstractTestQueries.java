@@ -8011,6 +8011,11 @@ public abstract class AbstractTestQueries
         assertQuery("SELECT cast(1 as decimal(3,2)) <> ANY(SELECT cast(1 as decimal(3,1)))");
     }
 
+    @Test //FIXME remove
+    public void testNullSemijoin() {
+        assertQuery("SELECT NULL = ANY (SELECT * FROM (SELECT 1 WHERE false))");
+    }
+
     @Test(dataProvider = "quantified_comparisons_corner_cases")
     public void testQuantifiedComparisonCornerCases(String query)
     {
@@ -8033,12 +8038,12 @@ public abstract class AbstractTestQueries
                         parameter("operator").of("=", "!=", "<", ">", "<=", ">="));
         //the following are disabled till #6622 is fixed
         List<String> excludedInPredicateQueries = ImmutableList.of(
-                "SELECT NULL != ALL (SELECT * FROM (SELECT 1 WHERE false))",
-                "SELECT NULL = ANY (SELECT * FROM (SELECT 1 WHERE false))",
-                "SELECT NULL != ALL (SELECT * FROM (SELECT CAST(NULL AS INTEGER)))",
-                "SELECT NULL = ANY (SELECT * FROM (SELECT CAST(NULL AS INTEGER)))",
-                "SELECT NULL = ANY (SELECT * FROM (VALUES (1), (NULL)))",
-                "SELECT NULL != ALL (SELECT * FROM (VALUES (1), (NULL)))"
+//                "SELECT NULL != ALL (SELECT * FROM (SELECT 1 WHERE false))",
+//                "SELECT NULL = ANY (SELECT * FROM (SELECT 1 WHERE false))",
+//                "SELECT NULL != ALL (SELECT * FROM (SELECT CAST(NULL AS INTEGER)))",
+//                "SELECT NULL = ANY (SELECT * FROM (SELECT CAST(NULL AS INTEGER)))",
+//                "SELECT NULL = ANY (SELECT * FROM (VALUES (1), (NULL)))",
+//                "SELECT NULL != ALL (SELECT * FROM (VALUES (1), (NULL)))"
         );
         Predicate<String> isExcluded = excludedInPredicateQueries::contains;
         return toArgumentsArrays(queries.filter(isExcluded.negate()).map(Arguments::of));

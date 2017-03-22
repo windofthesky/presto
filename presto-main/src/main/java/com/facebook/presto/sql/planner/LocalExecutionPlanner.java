@@ -353,7 +353,7 @@ public class LocalExecutionPlanner
             nullChannel = OptionalInt.of(outputLayout.indexOf(getOnlyElement(partitioningColumns)));
         }
 
-        boolean replicateFirstRow = false;
+        boolean replicateFirstRow = partitioningScheme.isReplicateFirstRow();
 
         return plan(
                 session,

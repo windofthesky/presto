@@ -121,6 +121,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -902,7 +903,7 @@ public class AddExchanges
                             filteringSource.getProperties());
                 }
             }
-            else {
+            else if (distributionType == SemiJoinNode.DistributionType.REPLICATED) {
                 source = node.getSource().accept(this, context.withPreferredProperties(PreferredProperties.any()));
                 // Delete operator works fine even if TableScans on the filtering (right) side is not co-located with itself. It only cares about the corresponding TableScan,
                 // which is always on the source (left) side. Therefore, hash-partitioned semi-join is always allowed on the filtering side.
@@ -922,6 +923,9 @@ public class AddExchanges
                             replicatedExchange(idAllocator.getNextId(), REMOTE, filteringSource.getNode()),
                             filteringSource.getProperties());
                 }
+            }
+            else {
+                throw new UnsupportedOperationException(format("Unsupported distribution type [%s]", distributionType));
             }
 
             return rebaseAndDeriveProperties(node, ImmutableList.of(source, filteringSource));

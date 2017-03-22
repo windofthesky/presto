@@ -351,27 +351,7 @@ public class PartitionedOutputOperator
 
             Page partitionFunctionArgs = getPartitionFunctionArguments(page);
             for (int position = 0; position < page.getPositionCount(); position++) {
-                if (nullChannel.isPresent() && page.getBlock(nullChannel.getAsInt()).isNull(position)) {
-                    for (PageBuilder pageBuilder : pageBuilders) {
-                        pageBuilder.declarePosition();
-
-                        for (int channel = 0; channel < sourceTypes.size(); channel++) {
-                            Type type = sourceTypes.get(channel);
-                            type.appendTo(page.getBlock(channel), position, pageBuilder.getBlockBuilder(channel));
-                        }
-                    }
-                }
-                else {
-                    int partition = partitionFunction.getPartition(partitionFunctionArgs, position);
-
-                    PageBuilder pageBuilder = pageBuilders.get(partition);
-                    pageBuilder.declarePosition();
-
-                    for (int channel = 0; channel < sourceTypes.size(); channel++) {
-                        Type type = sourceTypes.get(channel);
-                        type.appendTo(page.getBlock(channel), position, pageBuilder.getBlockBuilder(channel));
-                    }
-                }
+                partitionPosition(page, partitionFunctionArgs, position);
             }
             return flush(false);
         }
@@ -389,6 +369,44 @@ public class PartitionedOutputOperator
                 }
             }
             return new Page(page.getPositionCount(), blocks);
+        }
+
+        private void partitionPosition(Page page, Page partitionFunctionArgs, int position)
+        {
+            if (shouldReplicatePosition(page, position)) {
+                addToAllBuilders(page, position);
+            }
+            else {
+                int partition = partitionFunction.getPartition(partitionFunctionArgs, position);
+                PageBuilder pageBuilder = pageBuilders.get(partition);
+                addToBuilder(pageBuilder, page, position);
+            }
+        }
+
+        private boolean shouldReplicatePosition(Page page, int position)
+        {
+            return nullChannel.isPresent() && page.getBlock(nullChannel.getAsInt()).isNull(position);
+        }
+
+        private void addToAllBuilders(Page page, int position)
+        {
+            for (PageBuilder pageBuilder : pageBuilders) {
+                addToBuilder(pageBuilder, page, position);
+            }
+        }
+
+        private void addToBuilder(PageBuilder pageBuilder, Page page, int position)
+        {
+            pageBuilder.declarePosition();
+            appendChannels(page, position, pageBuilder);
+        }
+
+        private void appendChannels(Page page, int position, PageBuilder pageBuilder)
+        {
+            for (int channel = 0; channel < sourceTypes.size(); channel++) {
+                Type type = sourceTypes.get(channel);
+                type.appendTo(page.getBlock(channel), position, pageBuilder.getBlockBuilder(channel));
+            }
         }
 
         public ListenableFuture<?> flush(boolean force)

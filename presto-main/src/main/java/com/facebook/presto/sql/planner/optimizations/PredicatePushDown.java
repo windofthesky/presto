@@ -93,8 +93,6 @@ import static java.util.Objects.requireNonNull;
 public class PredicatePushDown
         implements PlanOptimizer
 {
-    private static final Logger log = Logger.get(PredicatePushDown.class);
-
     private final Metadata metadata;
     private final SqlParser sqlParser;
 

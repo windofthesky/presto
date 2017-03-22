@@ -1582,31 +1582,31 @@ class StatementAnalyzer
         {
             // This scope is only used for planning. When aggregation is present then
             // only output fields, groups and aggregation expressions should be visible from ORDER BY expression
-            ImmutableList.Builder<Expression> aggregatedSourceExpressionsBuilder = ImmutableList.builder();
+            ImmutableList.Builder<Expression> orderByAggregationExpressionsBuilder = ImmutableList.builder();
             if (groupByExpressions.size() == 1) {
-                aggregatedSourceExpressionsBuilder.addAll(getOnlyElement(groupByExpressions));
+                orderByAggregationExpressionsBuilder.addAll(getOnlyElement(groupByExpressions));
             }
-            aggregatedSourceExpressionsBuilder.addAll(aggregations);
+            orderByAggregationExpressionsBuilder.addAll(aggregations);
 
             // Don't add aggregate expression that contains references to output column because the names would clash in TranslationMap during planning.
-            List<Expression> aggregatedSourceExpressions = aggregatedSourceExpressionsBuilder.build().stream()
+            List<Expression> orderByAggregationExpressions = orderByAggregationExpressionsBuilder.build().stream()
                     .filter(expression -> !hasEqualOrderByExpressionWithOutputColumnReference(expression, node, outputScope))
                     .collect(toImmutableList());
 
             // generate placeholder fields
-            ImmutableList.Builder<Field> aggregatedSourceFields = ImmutableList.builder();
-            aggregatedSourceExpressions.forEach(expression -> aggregatedSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(expression))));
+            ImmutableList.Builder<Field> orderByAggregationSourceFields = ImmutableList.builder();
+            orderByAggregationExpressions.forEach(expression -> orderByAggregationSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(expression))));
 
-            Scope aggregationScope = Scope.builder()
-                    .withRelationType(new RelationType(aggregatedSourceFields.build()))
+            Scope orderByAggregationScope = Scope.builder()
+                    .withRelationType(new RelationType(orderByAggregationSourceFields.build()))
                     .build();
 
             Scope orderByScope = Scope.builder()
-                    .withParent(aggregationScope)
+                    .withParent(orderByAggregationScope)
                     .withRelationType(outputScope.getRelationType())
                     .build();
             analysis.setScope(node, orderByScope);
-            analysis.setOrderByAggregates(node, aggregatedSourceExpressions);
+            analysis.setOrderByAggregates(node, orderByAggregationExpressions);
             return orderByScope;
         }
 

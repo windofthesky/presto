@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.sql.planner.optimizations;
 
-import com.facebook.presto.sql.planner.iterative.GroupReference;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.google.common.collect.ImmutableList;
@@ -50,10 +49,7 @@ public class PlanNodeSearcher
     @Deprecated
     public PlanNodeSearcher(PlanNode planNode)
     {
-        this(planNode, (node) -> {
-            checkArgument(!(node instanceof GroupReference), "GroupReference cannot occur in non-iterative plan");
-            return node;
-        });
+        this(planNode, Lookup.noLookup());
     }
 
     public PlanNodeSearcher(PlanNode node, Lookup lookup)

@@ -194,6 +194,7 @@ public class WindowOperator
     private final PageBuilder pageBuilder;
 
     private final SingleDriverWindowInfoBuilder windowInfo;
+    private SingleDriverWindowInfo singleDriverWindowInfo;
 
     private State state = State.NEEDS_INPUT;
 
@@ -267,12 +268,13 @@ public class WindowOperator
         }
 
         windowInfo = new SingleDriverWindowInfoBuilder();
+        singleDriverWindowInfo = new SingleDriverWindowInfo(ImmutableList.of());
         operatorContext.setInfoSupplier(this::getWindowInfo);
     }
 
     private OperatorInfo getWindowInfo()
     {
-        return new WindowInfo(ImmutableList.of(windowInfo.build()));
+        return new WindowInfo(ImmutableList.of(singleDriverWindowInfo));
     }
 
     @Override
@@ -541,6 +543,13 @@ public class WindowOperator
 
         // the input is sorted, but the algorithm has still failed
         throw new IllegalArgumentException("failed to find a group ending");
+    }
+
+    @Override
+    public void close()
+            throws Exception
+    {
+        singleDriverWindowInfo = windowInfo.build();
     }
 
     public static class WindowInfo

@@ -356,7 +356,6 @@ public class PlanPrinter
                 .append(format("Output layout: [%s]\n",
                         Joiner.on(", ").join(partitioningScheme.getOutputLayout())));
 
-        boolean replicateNulls = partitioningScheme.isReplicateNulls();
         List<String> arguments = partitioningScheme.getPartitioning().getArguments().stream()
                 .map(argument -> {
                     if (argument.isConstant()) {
@@ -368,18 +367,11 @@ public class PlanPrinter
                 })
                 .collect(toImmutableList());
         builder.append(indentString(1));
-        if (replicateNulls) {
-            builder.append(format("Output partitioning: %s (replicate nulls) [%s]%s\n",
-                    partitioningScheme.getPartitioning().getHandle(),
-                    Joiner.on(", ").join(arguments),
-                    formatHash(partitioningScheme.getHashColumn())));
-        }
-        else {
-            builder.append(format("Output partitioning: %s [%s]%s\n",
-                    partitioningScheme.getPartitioning().getHandle(),
-                    Joiner.on(", ").join(arguments),
-                    formatHash(partitioningScheme.getHashColumn())));
-        }
+        builder.append(format("Output partitioning: %s %s [%s]%s\n",
+                partitioningScheme.getPartitioning().getHandle(),
+                describeReplication(partitioningScheme),
+                Joiner.on(", ").join(arguments),
+                formatHash(partitioningScheme.getHashColumn())));
 
         if (stageStats.isPresent()) {
             builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, session, planNodeStats.get(), 1))
@@ -391,6 +383,24 @@ public class PlanPrinter
         }
 
         return builder.toString();
+    }
+
+    private static String describeReplication(PartitioningScheme partitioningScheme)
+    {
+        Map<String, Boolean> replicationProperties = ImmutableMap.of(
+                "nulls", partitioningScheme.isReplicateNulls(),
+                "first row", partitioningScheme.isReplicateFirstRow()
+        );
+        List<String> replications = replicationProperties.entrySet().stream()
+                .filter(Map.Entry::getValue)
+                .map(Map.Entry::getKey)
+                .collect(toList());
+        if (replications.isEmpty()) {
+            return "";
+        }
+        else {
+            return "(replicate: " + Joiner.on(", ").join(replications) + ")";
+        }
     }
 
     public static String graphvizLogicalPlan(PlanNode plan, Map<Symbol, Type> types)

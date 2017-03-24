@@ -65,7 +65,7 @@ public class TestFeaturesConfig
                 .setIterativeOptimizerEnabled(false)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setExchangeCompressionEnabled(false)
-                .setLegacyTimestamp(true))
+                .setLegacyTimestamp(true)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setMemoryRevokingThreshold(0.9)
                 .setMemoryRevokingTarget(0.5));

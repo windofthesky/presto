@@ -65,7 +65,7 @@ public class TestFeaturesConfig
                 .setIterativeOptimizerEnabled(false)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setExchangeCompressionEnabled(false)
-                .setLegacyTimestamp(true)
+                .setLegacyTimestamp(false)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setMemoryRevokingThreshold(0.9)
                 .setMemoryRevokingTarget(0.5));
@@ -105,7 +105,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
@@ -139,7 +139,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .build();
 
@@ -172,7 +172,7 @@ public class TestFeaturesConfig
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
-                .setLegacyTimestamp(false)
+                .setLegacyTimestamp(true)
                 .setParseDecimalLiteralsAsDouble(true)
                 .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8);

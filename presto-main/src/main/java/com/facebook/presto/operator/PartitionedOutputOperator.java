@@ -399,9 +399,7 @@ public class PartitionedOutputOperator
 
         private boolean shouldReplicatePosition(Page page, int position)
         {
-            boolean shouldReplicateNulls = nullChannel.isPresent();
-            boolean isNullPosition = page.getBlock(nullChannel.getAsInt()).isNull(position);
-            return shouldReplicateNulls && isNullPosition || replicateFirstRow && position == 0;
+            return nullChannel.isPresent() && page.getBlock(nullChannel.getAsInt()).isNull(position) || replicateFirstRow && position == 0;
         }
 
         private void addToAllBuilders(Page page, int position)

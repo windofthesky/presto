@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator;
 
+import com.facebook.presto.execution.TaskId;
 import com.facebook.presto.execution.buffer.PagesSerde;
 import com.facebook.presto.execution.buffer.PagesSerdeFactory;
 import com.facebook.presto.execution.buffer.TestingPagesSerdeFactory;
@@ -161,7 +162,9 @@ public class TestExchangeOperator
 
     private static Split newRemoteSplit(String taskId)
     {
-        return new Split(REMOTE_CONNECTOR_ID, new RemoteTransactionHandle(), new RemoteSplit(URI.create("http://localhost/" + taskId)));
+        return new Split(REMOTE_CONNECTOR_ID,
+                new RemoteTransactionHandle(),
+                new RemoteSplit(URI.create("http://localhost/" + taskId), new TaskId(taskId))); // this is not correct TaskId but it does not matter for these tests
     }
 
     @Test

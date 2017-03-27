@@ -874,12 +874,24 @@ public class AddExchanges
                     if (filteringSource.getProperties().isNodePartitionedOn(filteringSourceSymbols, true) && !filteringSource.getProperties().isSingleNode()) {
                         Partitioning sourcePartitioning = filteringSource.getProperties().translate(createTranslator(filteringToSource)).getNodePartitioning().get();
                         source = withDerivedProperties(
-                                partitionedExchange(idAllocator.getNextId(), REMOTE, source.getNode(), new PartitioningScheme(sourcePartitioning, source.getNode().getOutputSymbols())),
+                                partitionedExchange(
+                                        idAllocator.getNextId(),
+                                        REMOTE,
+                                        source.getNode(),
+                                        new PartitioningScheme(
+                                                sourcePartitioning,
+                                                source.getNode().getOutputSymbols(),
+                                                Optional.empty(),
+                                                true,
+                                                true,
+                                                Optional.empty()
+                                        )
+                                ),
                                 source.getProperties());
                     }
                     else {
                         source = withDerivedProperties(
-                                partitionedExchange(idAllocator.getNextId(), REMOTE, source.getNode(), sourceSymbols, Optional.empty()),
+                                partitionedExchange(idAllocator.getNextId(), REMOTE, source.getNode(), sourceSymbols, Optional.empty(), true, true),
                                 source.getProperties());
                         filteringSource = withDerivedProperties(
                                 partitionedExchange(idAllocator.getNextId(), REMOTE, filteringSource.getNode(), filteringSourceSymbols, Optional.empty(), true, false),

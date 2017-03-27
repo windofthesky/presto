@@ -22,11 +22,15 @@ public class ExchangeInfo
         implements Mergeable<ExchangeInfo>, OperatorInfo
 {
     private final ExchangeClientStatus clientStatus;
+    private final ExchangeOperator.ExchangeStats exchangeStats;
 
     @JsonCreator
-    public ExchangeInfo(@JsonProperty("clientStatus") ExchangeClientStatus clientStatus)
+    public ExchangeInfo(
+            @JsonProperty("clientStatus") ExchangeClientStatus clientStatus,
+            @JsonProperty("exchangeStats") ExchangeOperator.ExchangeStats exchangeStats)
     {
         this.clientStatus = requireNonNull(clientStatus, "clientStatus is null");
+        this.exchangeStats = requireNonNull(exchangeStats, "exchangeStats is null");
     }
 
     @JsonProperty
@@ -35,9 +39,15 @@ public class ExchangeInfo
         return clientStatus;
     }
 
+    @JsonProperty
+    public ExchangeOperator.ExchangeStats getExchangeStats()
+    {
+        return exchangeStats;
+    }
+
     @Override
     public ExchangeInfo mergeWith(ExchangeInfo other)
     {
-        return new ExchangeInfo(clientStatus.mergeWith(other.clientStatus));
+        return new ExchangeInfo(clientStatus.mergeWith(other.clientStatus), exchangeStats.mergeWith(other.exchangeStats));
     }
 }

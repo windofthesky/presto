@@ -32,6 +32,18 @@ public class TestQuantifiedComparison
         extends BasePlanTest
 {
     @Test
+    public void testFoo()
+    {
+        String query = "SELECT NULL IN (SELECT 42 WHERE FALSE)";
+        assertPlan(query, anyTree(
+                filter("S",
+                        project(
+                                semiJoin("X", "Y", "S",
+                                        anyTree(tableScan("orders", ImmutableMap.of("X", "orderkey"))),
+                                        anyTree(values(ImmutableMap.of("Y", 0))))))));
+    }
+
+    @Test
     public void testQuantifiedComparisonEqualsAny()
     {
         String query = "SELECT orderkey, custkey FROM orders WHERE orderkey = ANY (VALUES ROW(CAST(5 as BIGINT)), ROW(CAST(3 as BIGINT)))";

@@ -8016,6 +8016,13 @@ public abstract class AbstractTestQueries
         assertQuery("SELECT NULL = ANY (SELECT * FROM (SELECT 1 WHERE false))");
     }
 
+
+    @Test //FIXME remove
+    public void print() {
+        String explainPlan = getExplainPlan("SELECT NULL = ANY (SELECT * FROM (SELECT 1 WHERE false))", LOGICAL);
+        assertEquals(explainPlan, "");
+    }
+
     @Test(dataProvider = "quantified_comparisons_corner_cases")
     public void testQuantifiedComparisonCornerCases(String query)
     {

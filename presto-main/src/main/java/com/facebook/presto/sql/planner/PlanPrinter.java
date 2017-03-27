@@ -1131,7 +1131,7 @@ public class PlanPrinter
             if (node.getScope() == Scope.LOCAL) {
                 print(indent, "- LocalExchange[%s%s]%s (%s) => %s",
                         node.getPartitioningScheme().getPartitioning().getHandle(),
-                        node.getPartitioningScheme().isReplicateNulls() ? " - REPLICATE NULLS" : "",
+                        describeReplication(node.getPartitioningScheme()),
                         formatHash(node.getPartitioningScheme().getHashColumn()),
                         Joiner.on(", ").join(node.getPartitioningScheme().getPartitioning().getArguments()),
                         formatOutputs(node.getOutputSymbols()));
@@ -1140,7 +1140,7 @@ public class PlanPrinter
                 print(indent, "- %sExchange[%s%s]%s => %s",
                         UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, node.getScope().toString()),
                         node.getType(),
-                        node.getPartitioningScheme().isReplicateNulls() ? " - REPLICATE NULLS" : "",
+                        describeReplication(node.getPartitioningScheme()),
                         formatHash(node.getPartitioningScheme().getHashColumn()),
                         formatOutputs(node.getOutputSymbols()));
             }

@@ -15,6 +15,7 @@ package com.facebook.presto.hive.authentication;
 
 import com.facebook.presto.hive.ForHiveMetastore;
 import com.facebook.presto.hive.HiveClientConfig;
+import com.facebook.presto.hive.HiveClientConfig.HdfsAuthenticationType;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.hive.thrift.client.TUGIAssumingTransport;
@@ -44,6 +45,28 @@ public class KerberosHiveMetastoreAuthentication
     public KerberosHiveMetastoreAuthentication(HiveClientConfig hiveClientConfig, @ForHiveMetastore HadoopAuthentication authentication)
     {
         this(hiveClientConfig.getHiveMetastoreServicePrincipal(), authentication);
+        verifyKerberosProperties(hiveClientConfig);
+    }
+
+    private static void verifyKerberosProperties(HiveClientConfig hiveClientConfig)
+    {
+        requireNonNull(hiveClientConfig.getHiveMetastoreServicePrincipal(),
+                "Kerberos principal is not set for metastore service");
+
+        requireNonNull(hiveClientConfig.getHiveMetastoreClientPrincipal(),
+                "Kerberos principal is not set for metastore client");
+
+        requireNonNull(hiveClientConfig.getHiveMetastoreClientKeytab(),
+                "Kerberos keytab is not set for metastore client");
+
+        requireNonNull(hiveClientConfig.getHdfsPrestoPrincipal(),
+                "Kerberos principal is not set for HDFS");
+
+        requireNonNull(hiveClientConfig.getHdfsPrestoKeytab(),
+                "Kerberos keytab is not set for HDFS");
+
+        checkState(HdfsAuthenticationType.KERBEROS == hiveClientConfig.getHdfsAuthenticationType(),
+                "Incorrect authentication type for HDFS");
     }
 
     public KerberosHiveMetastoreAuthentication(String hiveMetastoreServicePrincipal, HadoopAuthentication authentication)

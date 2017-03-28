@@ -54,7 +54,7 @@ public class FeaturesConfig
     private boolean legacyOrderBy;
     private boolean legacyMapSubscript;
     private boolean optimizeMixedDistinctAggregations;
-    private boolean distributedSort = false;
+    private boolean distributedSort = true;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;

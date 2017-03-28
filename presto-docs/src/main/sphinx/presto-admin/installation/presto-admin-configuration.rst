@@ -28,10 +28,10 @@ file should be owned by root with R/W permissions (i.e. 622).
 .. NOTE::
    The sudo setup for a non-root user must have the ability to run /bin/bash as root. This can be a security issue. The IT organization should take the necessary steps to address this security hole and select an appropriate presto-admin user.
 
-Configuration for Amazon EMR 
+Configuration for Amazon EMR
 ----------------------------
 
-Use the following configuration as a template for Amazon EMR: 
+Use the following configuration as a template for Amazon EMR:
 ::
 
  {
@@ -93,6 +93,18 @@ username and port, a sample ``config.json`` would be:
  "coordinator": "master",
  "workers": ["slave1","slave2","slave3","slave4","slave5"]
  }
+
+You can specify a range of workers by including the number range in brackets in the worker name.  For example:
+
+::
+
+    "workers": ["worker[01-03]"]
+
+is the same as
+
+::
+
+    "workers": ["worker01", "worker02", "worker03"]
 
 
 .. _sudo-password-spec:

@@ -14,11 +14,9 @@
 package com.facebook.presto.plugin.base.security;
 
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorAccessControl;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.security.ConnectorIdentity;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Privilege;
 
 import java.util.Set;
@@ -154,18 +152,6 @@ public class ReadOnlyAccessControl
     public void checkCanRevokeTablePrivilege(ConnectorTransactionHandle transaction, ConnectorIdentity identity, Privilege privilege, SchemaTableName tableName)
     {
         denyRevokeTablePrivilege(privilege.name(), tableName.toString());
-    }
-
-    @Override
-    public void checkCanShowGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-        // allow
-    }
-
-    @Override
-    public Set<GrantInfo> filterGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        return grantInfos;
     }
 
     @Override

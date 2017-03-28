@@ -16,11 +16,7 @@ package com.facebook.presto.security;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.CatalogSchemaTableName;
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Identity;
-import com.facebook.presto.spi.security.PrestoPrincipal;
-import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.SystemAccessControl;
 import com.facebook.presto.spi.security.SystemAccessControlFactory;
 import com.google.common.collect.ImmutableList;
@@ -40,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static com.facebook.presto.spi.security.AccessDeniedException.denyCatalogAccess;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySetUser;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -153,282 +148,6 @@ public class FileBasedSystemAccessControl
         return filteredCatalogs.build();
     }
 
-    @Override
-    public void checkCanCreateSchema(Identity identity, CatalogSchemaName schema)
-    {
-        if (!canAccessCatalog(identity, schema.getCatalogName())) {
-            denyCatalogAccess(schema.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanDropSchema(Identity identity, CatalogSchemaName schema)
-    {
-        if (!canAccessCatalog(identity, schema.getCatalogName())) {
-            denyCatalogAccess(schema.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanRenameSchema(Identity identity, CatalogSchemaName schema, String newSchemaName)
-    {
-        if (!canAccessCatalog(identity, schema.getCatalogName())) {
-            denyCatalogAccess(schema.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanShowSchemas(Identity identity, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public Set<String> filterSchemas(Identity identity, String catalogName, Set<String> schemaNames)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            return ImmutableSet.of();
-        }
-        return schemaNames;
-    }
-
-    @Override
-    public void checkCanCreateTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanDropTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanRenameTable(Identity identity, CatalogSchemaTableName table, CatalogSchemaTableName newTable)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanShowTables(Identity identity, CatalogSchemaName schema)
-    {
-        if (!canAccessCatalog(identity, schema.getCatalogName())) {
-            denyCatalogAccess(schema.getCatalogName());
-        }
-    }
-
-    @Override
-    public Set<SchemaTableName> filterTables(Identity identity, String catalogName, Set<SchemaTableName> tableNames)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            return ImmutableSet.of();
-        }
-        return tableNames;
-    }
-
-    @Override
-    public void checkCanAddColumn(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanRenameColumn(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanSelectFromTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanInsertIntoTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanDeleteFromTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanCreateView(Identity identity, CatalogSchemaTableName view)
-    {
-        if (!canAccessCatalog(identity, view.getCatalogName())) {
-            denyCatalogAccess(view.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanDropView(Identity identity, CatalogSchemaTableName view)
-    {
-        if (!canAccessCatalog(identity, view.getCatalogName())) {
-            denyCatalogAccess(view.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanSelectFromView(Identity identity, CatalogSchemaTableName view)
-    {
-        if (!canAccessCatalog(identity, view.getCatalogName())) {
-            denyCatalogAccess(view.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanCreateViewWithSelectFromTable(Identity identity, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanCreateViewWithSelectFromView(Identity identity, CatalogSchemaTableName view)
-    {
-        if (!canAccessCatalog(identity, view.getCatalogName())) {
-            denyCatalogAccess(view.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanSetCatalogSessionProperty(Identity identity, String catalogName, String propertyName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanGrantTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanRevokeTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-        if (!canAccessCatalog(identity, table.getCatalogName())) {
-            denyCatalogAccess(table.getCatalogName());
-        }
-    }
-
-    @Override
-    public void checkCanShowGrants(Identity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public Set<GrantInfo> filterGrants(Identity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            return ImmutableSet.of();
-        }
-        return grantInfos;
-    }
-
-    @Override
-    public void checkCanShowRoles(Identity identity, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanShowCurrentRoles(Identity identity, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanShowRoleGrants(Identity identity, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public Set<String> filterRoles(Identity identity, String catalogName, Set<String> roles)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            return ImmutableSet.of();
-        }
-        return roles;
-    }
-
-    @Override
-    public void checkCanCreateRole(Identity identity, String role, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanDropRole(Identity identity, String role, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanGrantRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean withAdminOption, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanRevokeRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOptionFor, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
-    @Override
-    public void checkCanSetRole(Identity identity, String role, String catalogName)
-    {
-        if (!canAccessCatalog(identity, catalogName)) {
-            denyCatalogAccess(catalogName);
-        }
-    }
-
     private boolean canAccessCatalog(Identity identity, String catalogName)
     {
         for (CatalogAccessControlRule rule : catalogRules) {
@@ -438,5 +157,112 @@ public class FileBasedSystemAccessControl
             }
         }
         return false;
+    }
+
+    @Override
+    public void checkCanCreateSchema(Identity identity, CatalogSchemaName schema)
+    {
+    }
+
+    @Override
+    public void checkCanDropSchema(Identity identity, CatalogSchemaName schema)
+    {
+    }
+
+    @Override
+    public void checkCanRenameSchema(Identity identity, CatalogSchemaName schema, String newSchemaName)
+    {
+    }
+
+    @Override
+    public void checkCanShowSchemas(Identity identity, String catalogName)
+    {
+    }
+
+    @Override
+    public Set<String> filterSchemas(Identity identity, String catalogName, Set<String> schemaNames)
+    {
+        return schemaNames;
+    }
+
+    @Override
+    public void checkCanCreateTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanDropTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanRenameTable(Identity identity, CatalogSchemaTableName table, CatalogSchemaTableName newTable)
+    {
+    }
+
+    @Override
+    public void checkCanShowTables(Identity identity, CatalogSchemaName schema)
+    {
+    }
+
+    @Override
+    public Set<SchemaTableName> filterTables(Identity identity, String catalogName, Set<SchemaTableName> tableNames)
+    {
+        return tableNames;
+    }
+
+    @Override
+    public void checkCanAddColumn(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanRenameColumn(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanSelectFromTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanInsertIntoTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanDeleteFromTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanCreateView(Identity identity, CatalogSchemaTableName view)
+    {
+    }
+
+    @Override
+    public void checkCanDropView(Identity identity, CatalogSchemaTableName view)
+    {
+    }
+
+    @Override
+    public void checkCanSelectFromView(Identity identity, CatalogSchemaTableName view)
+    {
+    }
+
+    @Override
+    public void checkCanCreateViewWithSelectFromTable(Identity identity, CatalogSchemaTableName table)
+    {
+    }
+
+    @Override
+    public void checkCanCreateViewWithSelectFromView(Identity identity, CatalogSchemaTableName view)
+    {
+    }
+
+    @Override
+    public void checkCanSetCatalogSessionProperty(Identity identity, String catalogName, String propertyName)
+    {
     }
 }

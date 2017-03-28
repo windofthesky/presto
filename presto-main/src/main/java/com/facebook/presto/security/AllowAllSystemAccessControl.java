@@ -16,17 +16,12 @@ package com.facebook.presto.security;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.CatalogSchemaTableName;
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Identity;
-import com.facebook.presto.spi.security.PrestoPrincipal;
-import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.SystemAccessControl;
 import com.facebook.presto.spi.security.SystemAccessControlFactory;
 
 import java.security.Principal;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -177,73 +172,6 @@ public class AllowAllSystemAccessControl
 
     @Override
     public void checkCanSetCatalogSessionProperty(Identity identity, String catalogName, String propertyName)
-    {
-    }
-
-    @Override
-    public void checkCanGrantTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-    }
-
-    @Override
-    public void checkCanRevokeTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-    }
-
-    @Override
-    public void checkCanShowGrants(Identity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-    }
-
-    @Override
-    public Set<GrantInfo> filterGrants(Identity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        return grantInfos;
-    }
-
-    @Override
-    public void checkCanShowRoles(Identity identity, String catalogName)
-    {
-    }
-
-    @Override
-    public Set<String> filterRoles(Identity identity, String catalogName, Set<String> roles)
-    {
-        return roles;
-    }
-
-    @Override
-    public void checkCanShowCurrentRoles(Identity identity, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanShowRoleGrants(Identity identity, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanCreateRole(Identity identity, String role, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanDropRole(Identity identity, String role, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanGrantRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean withAdminOption, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanRevokeRoles(Identity identity, Set<String> roles, Set<PrestoPrincipal> grantees, boolean adminOptionFor, Optional<PrestoPrincipal> grantor, String catalogName)
-    {
-    }
-
-    @Override
-    public void checkCanSetRole(Identity identity, String role, String catalogName)
     {
     }
 }

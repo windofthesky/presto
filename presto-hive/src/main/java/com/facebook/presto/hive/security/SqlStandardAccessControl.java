@@ -19,12 +19,10 @@ import com.facebook.presto.hive.metastore.Database;
 import com.facebook.presto.hive.metastore.ExtendedHiveMetastore;
 import com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore;
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorAccessControl;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.security.AccessDeniedException;
 import com.facebook.presto.spi.security.ConnectorIdentity;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.RoleGrant;
@@ -289,17 +287,6 @@ public class SqlStandardAccessControl
         if (!hasGrantOptionForPrivilege(transaction, identity, privilege, tableName)) {
             denyRevokeTablePrivilege(privilege.name(), tableName.toString());
         }
-    }
-
-    @Override
-    public void checkCanShowGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-    }
-
-    @Override
-    public Set<GrantInfo> filterGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        return grantInfos;
     }
 
     @Override

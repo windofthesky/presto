@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.spi.security.AccessDeniedException.denyAddColumn;
+import static com.facebook.presto.spi.security.AccessDeniedException.denyCatalogAccess;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyCreateTable;
@@ -72,6 +73,12 @@ public class DenyAllAccessControl
     public Set<String> filterCatalogs(Identity identity, Set<String> catalogs)
     {
         return ImmutableSet.of();
+    }
+
+    @Override
+    public void checkCanAccessCatalog(Identity identity, String catalogName)
+    {
+        denyCatalogAccess(catalogName);
     }
 
     @Override

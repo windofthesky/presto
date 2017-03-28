@@ -14,9 +14,7 @@
 package com.facebook.presto.spi.connector;
 
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.security.ConnectorIdentity;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.Privilege;
 
@@ -48,7 +46,6 @@ import static com.facebook.presto.spi.security.AccessDeniedException.denySelectV
 import static com.facebook.presto.spi.security.AccessDeniedException.denySetCatalogSessionProperty;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySetRole;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowCurrentRoles;
-import static com.facebook.presto.spi.security.AccessDeniedException.denyShowGrants;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowRoleGrants;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowRoles;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyShowSchemas;
@@ -288,24 +285,6 @@ public interface ConnectorAccessControl
     default void checkCanRevokeTablePrivilege(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, Privilege privilege, SchemaTableName tableName)
     {
         denyRevokeTablePrivilege(privilege.toString(), tableName.toString());
-    }
-
-    /**
-     * Check if identity is allowed to show grants on the specified catalog or schema or table.
-     *
-     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
-     */
-    default void checkCanShowGrants(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-        denyShowGrants(catalogName + "." + schemaTablePrefix.toString());
-    }
-
-    /**
-     * Filter the list of grants to those visible to the identity.
-     */
-    default Set<GrantInfo> filterGrants(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        return Collections.emptySet();
     }
 
     default void checkCanCreateRole(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity, String role, Optional<PrestoPrincipal> grantor)

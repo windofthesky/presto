@@ -17,11 +17,9 @@ import com.facebook.presto.hive.HiveTransactionHandle;
 import com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore;
 import com.facebook.presto.hive.metastore.Table;
 import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorAccessControl;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.security.ConnectorIdentity;
-import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Privilege;
 
 import javax.inject.Inject;
@@ -196,17 +194,6 @@ public class LegacyAccessControl
     @Override
     public void checkCanRevokeTablePrivilege(ConnectorTransactionHandle transaction, ConnectorIdentity identity, Privilege privilege, SchemaTableName tableName)
     {
-    }
-
-    @Override
-    public void checkCanShowGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix)
-    {
-    }
-
-    @Override
-    public Set<GrantInfo> filterGrants(ConnectorTransactionHandle transaction, ConnectorIdentity identity, String catalogName, SchemaTablePrefix schemaTablePrefix, Set<GrantInfo> grantInfos)
-    {
-        return grantInfos;
     }
 
     @Override

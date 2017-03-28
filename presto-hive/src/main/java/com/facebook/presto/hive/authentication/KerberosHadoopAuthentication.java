@@ -31,6 +31,14 @@ public class KerberosHadoopAuthentication
         // It is further used in many places in DfsClient
         Configuration configuration = new Configuration(false);
         configuration.set("hadoop.security.authentication", "kerberos");
+
+        //Ideally these should be picked up and set using mapr.login.conf which
+        // is provided with the JVM argument java.security.auth.login.config
+        configuration.set("hadoop.security.custom.auth.principal.class",
+                "com.mapr.security.MapRPrincipal");
+        configuration.set("hadoop.security.custom.rpc.auth.method.class",
+                "org.apache.hadoop.security.rpcauth.MaprAuthMethod");
+
         UserGroupInformation.setConfiguration(configuration);
 
         // KerberosName#rules static field must be initialized

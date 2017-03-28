@@ -15,6 +15,7 @@ package com.facebook.presto.operator.scalar;
 
 import org.testng.annotations.Test;
 
+import static com.facebook.presto.spi.type.VarcharType.createVarcharType;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 
 public class TestDateTimeFunctions extends TestDateTimeFunctionsBase
@@ -28,6 +29,12 @@ public class TestDateTimeFunctions extends TestDateTimeFunctionsBase
                         .setSystemProperty("legacy_timestamp", "false")
                         .build()
         );
+    }
+
+    @Test
+    public void toIso8601ReturnsNoTimezoneForTimestampWithoutTimeZone()
+    {
+        assertFunction("to_iso8601(" + TIMESTAMP_LITERAL + ")", createVarcharType(35), TIMESTAMP_ISO8601_STRING_NO_TIME_ZONE);
     }
 
     @Test

@@ -63,7 +63,7 @@ public class KerberosHiveMetastoreAuthentication
                     "Kerberos principal name does NOT have the expected hostname part: %s", serverPrincipal);
 
             Map<String, String> saslProps = ImmutableMap.of(
-                    Sasl.QOP, "auth",
+                    Sasl.QOP, "auth-conf",
                     Sasl.SERVER_AUTH, "true"
             );
 

@@ -54,8 +54,11 @@ script:
     fi
   - |
     if [[ -v TEST_SPECIFIC_MODULES ]]; then
-      ./mvnw test $MAVEN_SKIP_CHECKS_AND_DOCS -B -pl $TEST_SPECIFIC_MODULES -Dtest=TestLocalBinarySpilledQueries -DfailIfNoTests=false
       ./mvnw test $MAVEN_SKIP_CHECKS_AND_DOCS -B -pl $TEST_SPECIFIC_MODULES
+    fi
+  - |
+    if [[ -v TEST_SPECIFIC_MODULES && "$TEST_SPECIFIC_MODULES" = "presto-tests" ]]; then
+      ./mvnw test $MAVEN_SKIP_CHECKS_AND_DOCS -B -pl $TEST_SPECIFIC_MODULES -Dtest=TestLocalBinarySpilledQueries -DfailIfNoTests=false
     fi
   - |
     if [[ -v TEST_OTHER_MODULES ]]; then
@@ -76,6 +79,7 @@ script:
       presto-product-tests/bin/run_on_docker.sh \
           multinode-tls-ldap -g smoke,cli,group-by,join,tls
     fi
+  - |
     if [[ -v PRODUCT_TESTS_SPECIFIC_ENVIRONMENT ]]; then
       presto-product-tests/bin/run_on_docker.sh \
            multinode-tls-kerberos -g cli

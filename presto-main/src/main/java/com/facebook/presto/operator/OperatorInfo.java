@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         include = JsonTypeInfo.As.PROPERTY,
         property = "@type")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = ExchangeClientStatus.class, name = "exchangeClientStatus"),
+        @JsonSubTypes.Type(value = ExchangeInfo.class, name = "exchangeInfo"),
         @JsonSubTypes.Type(value = LocalExchangeBufferInfo.class, name = "localExchangeBuffer"),
         @JsonSubTypes.Type(value = TableFinishInfo.class, name = "tableFinish"),
         @JsonSubTypes.Type(value = SplitOperatorInfo.class, name = "splitOperator"),

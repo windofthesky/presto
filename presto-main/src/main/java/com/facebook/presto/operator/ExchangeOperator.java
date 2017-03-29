@@ -146,7 +146,12 @@ public class ExchangeOperator
         this.serde = requireNonNull(serde, "serde is null");
         this.types = requireNonNull(types, "types is null");
 
-        operatorContext.setInfoSupplier(exchangeClient::getStatus);
+        operatorContext.setInfoSupplier(this::getInfo);
+    }
+
+    public ExchangeInfo getInfo()
+    {
+        return new ExchangeInfo(exchangeClient.getStatus());
     }
 
     @Override

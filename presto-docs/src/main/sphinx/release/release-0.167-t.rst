@@ -127,7 +127,7 @@ Bugs Fixed
 Unsupported Functionality
 -------------------------
 
-Some functionality from Presto 0.167.1 may work but is not officially supported by Teradata.
+Some functionality from Presto 0.167 may work but is not officially supported by Teradata.
 
 * The installation method as documented on `prestodb.io <https://prestodb.io/docs/0.167/installation/deployment.html>`_.
 * Web Connector for Tableau
@@ -163,6 +163,12 @@ Additional Limitations
 
 ----
 
+QueryGrid
+---------
+QueryGrid connectors Presto-to-Teradata and Teradata-to-Presto version 1.5 will be the terminal release for the 1.x generation. For future releases of Presto, you must upgrade to the QueryGrid 2.x current generation.
+
+----
+
 Hive Connector Limitations
 --------------------------
 
@@ -185,6 +191,11 @@ supports microseconds.
 INSERT INTO creates unreadable data (unreadable both by Hive and Presto) if a Hive table has a schema for which Presto
 only interprets some of the columns (e.g. due to unsupported data types).  This is because the generated file on HDFS
 will not match the Hive table schema.
+
+**Hive Transactions**
+
+The Hive connector does not support Hive ACID tables.
+`<https://cwiki.apache.org/confluence/display/Hive/Hive+Transactions>`_
 
 ----
 

@@ -455,6 +455,11 @@ public final class HttpPageBufferClient
         clientCallback.requestComplete(HttpPageBufferClient.this);
     }
 
+    public URI getLocation()
+    {
+        return location;
+    }
+
     @Override
     public boolean equals(Object o)
     {

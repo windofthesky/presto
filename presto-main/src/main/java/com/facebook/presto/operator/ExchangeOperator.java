@@ -222,10 +222,11 @@ public class ExchangeOperator
     @Override
     public Page getOutput()
     {
-        SerializedPage page = exchangeClient.pollPage();
-        if (page == null) {
+        SerializedPageWithLocation pageWithLocation = exchangeClient.pollPageWithLocation();
+        if (pageWithLocation == null || pageWithLocation.getPage() == null) {
             return null;
         }
+        SerializedPage page = pageWithLocation.getPage();
 
         operatorContext.recordGeneratedInput(page.getSizeInBytes(), page.getPositionCount());
         return serde.deserialize(page);

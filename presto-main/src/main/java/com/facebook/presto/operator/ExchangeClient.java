@@ -43,6 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.execution.buffer.PageCompression.UNCOMPRESSED;
 import static com.google.common.base.Preconditions.checkState;
@@ -73,7 +74,7 @@ public class ExchangeClient
     private final Deque<HttpPageBufferClient> queuedClients = new LinkedList<>();
 
     private final Set<HttpPageBufferClient> completedClients = newConcurrentHashSet();
-    private final LinkedBlockingDeque<SerializedPage> pageBuffer = new LinkedBlockingDeque<>();
+    private final LinkedBlockingDeque<SerializedPageWithLocation> pageBuffer = new LinkedBlockingDeque<>();
 
     @GuardedBy("this")
     private final List<SettableFuture<?>> blockedCallers = new ArrayList<>();
@@ -118,7 +119,7 @@ public class ExchangeClient
     public synchronized ExchangeClientStatus getStatus()
     {
         int bufferedPages = pageBuffer.size();
-        if (bufferedPages > 0 && pageBuffer.peekLast() == NO_MORE_PAGES) {
+        if (bufferedPages > 0 && getPageOrNull(pageBuffer.peekLast()) == NO_MORE_PAGES) {
             bufferedPages--;
         }
 
@@ -167,7 +168,7 @@ public class ExchangeClient
     }
 
     @Nullable
-    public SerializedPage pollPage()
+    public SerializedPageWithLocation pollPageWithLocation()
     {
         checkState(!Thread.holdsLock(this), "Can not get next page while holding a lock on this");
 
@@ -177,8 +178,12 @@ public class ExchangeClient
             return null;
         }
 
-        SerializedPage page = pageBuffer.poll();
-        return postProcessPage(page);
+        SerializedPageWithLocation pageWithLocation = pageBuffer.poll();
+        if (pageWithLocation == null) {
+            return null;
+        }
+        SerializedPage page = postProcessPage(pageWithLocation.getPage());
+        return new SerializedPageWithLocation(page, pageWithLocation.getLocation());
     }
 
     @Nullable
@@ -195,10 +200,10 @@ public class ExchangeClient
 
         scheduleRequestIfNecessary();
 
-        SerializedPage page = pageBuffer.poll();
+        SerializedPage page = getPageOrNull(pageBuffer.poll());
         // only wait for a page if we have remote clients
         if (page == null && maxWaitTime.toMillis() >= 1 && !allClients.isEmpty()) {
-            page = pageBuffer.poll(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS);
+            page = getPageOrNull(pageBuffer.poll(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS));
         }
 
         return postProcessPage(page);
@@ -226,7 +231,7 @@ public class ExchangeClient
             if (!closed.get()) {
                 bufferBytes -= page.getRetainedSizeInBytes();
                 systemMemoryUsageListener.updateSystemMemoryUsage(-page.getRetainedSizeInBytes());
-                if (pageBuffer.peek() == NO_MORE_PAGES) {
+                if (getPageOrNull(pageBuffer.peek()) == NO_MORE_PAGES) {
                     close();
                 }
             }
@@ -260,8 +265,8 @@ public class ExchangeClient
         pageBuffer.clear();
         systemMemoryUsageListener.updateSystemMemoryUsage(-bufferBytes);
         bufferBytes = 0;
-        if (pageBuffer.peekLast() != NO_MORE_PAGES) {
-            checkState(pageBuffer.add(NO_MORE_PAGES), "Could not add no more pages marker");
+        if (getPageOrNull(pageBuffer.peekLast()) != NO_MORE_PAGES) {
+            checkState(pageBuffer.add(new SerializedPageWithLocation(NO_MORE_PAGES, "no-more-pages")), "Could not add no more pages marker");
         }
         notifyBlockedCallers();
     }
@@ -274,10 +279,10 @@ public class ExchangeClient
 
         // if finished, add the end marker
         if (noMoreLocations && completedClients.size() == allClients.size()) {
-            if (pageBuffer.peekLast() != NO_MORE_PAGES) {
-                checkState(pageBuffer.add(NO_MORE_PAGES), "Could not add no more pages marker");
+            if (getPageOrNull(pageBuffer.peekLast()) != NO_MORE_PAGES) {
+                checkState(pageBuffer.add(new SerializedPageWithLocation(NO_MORE_PAGES, "no-more-pages")), "Could not add no more pages marker");
             }
-            if (pageBuffer.peek() == NO_MORE_PAGES) {
+            if (getPageOrNull(pageBuffer.peek()) == NO_MORE_PAGES) {
                 close();
             }
             notifyBlockedCallers();
@@ -315,13 +320,13 @@ public class ExchangeClient
         return future;
     }
 
-    private synchronized boolean addPages(List<SerializedPage> pages)
+    private synchronized boolean addPages(List<SerializedPage> pages, URI location)
     {
         if (isClosed() || isFailed()) {
             return false;
         }
 
-        pageBuffer.addAll(pages);
+        pageBuffer.addAll(pages.stream().map(page -> new SerializedPageWithLocation(page, location.toString())).collect(Collectors.toList()));
 
         if (!pages.isEmpty()) {
             // notify all blocked callers
@@ -393,6 +398,14 @@ public class ExchangeClient
         }
     }
 
+    private static SerializedPage getPageOrNull(SerializedPageWithLocation page)
+    {
+        if (page == null) {
+            return null;
+        }
+        return page.getPage();
+    }
+
     private class ExchangeClientCallback
             implements ClientCallback
     {
@@ -401,7 +414,7 @@ public class ExchangeClient
         {
             requireNonNull(client, "client is null");
             requireNonNull(pages, "pages is null");
-            return ExchangeClient.this.addPages(pages);
+            return ExchangeClient.this.addPages(pages, client.getLocation());
         }
 
         @Override

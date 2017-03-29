@@ -18,7 +18,7 @@ General Changes
 * Validate resource groups configuration file on startup to ensure that all
   selectors reference a configured resource group.
 * Add experimental on-disk merge sort for aggregations. This can be enabled with
-  the ``experimental.spill-enabled`` configuration flag.
+  the ``beta.spill-enabled`` configuration flag.
 * Push down predicates for ``DECIMAL``, ``TINYINT``, ``SMALLINT`` and ``REAL`` data types.
 
 Hive Changes

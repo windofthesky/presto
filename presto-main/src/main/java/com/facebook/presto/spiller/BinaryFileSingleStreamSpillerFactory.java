@@ -81,7 +81,7 @@ public class BinaryFileSingleStreamSpillerFactory
             path.toFile().mkdirs();
             if (!path.toFile().canWrite()) {
                 throw new IllegalArgumentException(
-                        String.format("spill path %s is not writable; adjust experimental.spiller-spill-path config property or filesystem permissions", path));
+                        String.format("spill path %s is not writable; adjust beta.spiller-spill-path config property or filesystem permissions", path));
             }
         });
         this.minimumFreeSpaceThreshold = requireNonNull(maxUsedSpaceThreshold, "maxUsedSpaceThreshold can not be null");

@@ -84,8 +84,8 @@ General properties
 Properties controlling spilling
 -------------------------------
 
-``experimental.spill-enabled``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.spill-enabled``
+^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``Boolean``
  * **Default value:** ``false``
@@ -105,8 +105,8 @@ Properties controlling spilling
    This config property can be overridden by the ``spill_enabled`` session property.
 
 
-``experimental.spiller-spill-path``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.spiller-spill-path``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``String``
  * **Default value:** ``java.io.tmpdir/presto/spills``
@@ -114,32 +114,32 @@ Properties controlling spilling
    spill simultaneously to multiple directories, which helps to utilize multiple drives installed in the system.
 
 
-``experimental.spiller-minimum-free-space-threshold``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.spiller-minimum-free-space-threshold``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``Double``
  * **Default value:** ``0.9``
  * **Description:** If disk space usage of a given spill path is above this threshold, this spill path will not be eligible for spilling.
 
 
-``experimental.spiller-threads``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.spiller-threads``
+^^^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``Integer``
  * **Default value:** ``4``
  * **Description:** Number of spiller threads. Increase this value if the default is not able to saturate the underlying spilling device (for example, when using a RAID matrix with multiple disks)
 
 
-``experimental.max-spill-per-node``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.max-spill-per-node``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``String`` (data size)
  * **Default value:** ``100 GB``
  * **Description:** Max spill space to be used by all queries on a single node.
 
 
-``experimental.query-max-spill-per-node``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``beta.query-max-spill-per-node``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
  * **Type:** ``String`` (data size)
  * **Default value:** ``100 GB``

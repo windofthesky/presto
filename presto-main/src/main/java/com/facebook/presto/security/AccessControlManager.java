@@ -15,11 +15,13 @@ package com.facebook.presto.security;
 
 import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.QualifiedTablePrefix;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.ConnectorAccessControl;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.SystemAccessControl;
@@ -469,6 +471,23 @@ public class AccessControlManager
         if (entry != null) {
             authorizationCheck(() -> entry.getAccessControl().checkCanRevokeTablePrivilege(entry.getTransactionHandle(transactionId), identity, privilege, tableName.asSchemaTableName()));
         }
+    }
+
+    @Override
+    public void checkCanShowGrants(TransactionId transactionId, Identity identity, QualifiedTablePrefix prefix)
+    {
+        requireNonNull(identity, "identity is null");
+        requireNonNull(prefix, "prefix is null");
+    }
+
+    @Override
+    public Set<GrantInfo> filterGrants(TransactionId transactionId, Identity identity, QualifiedTablePrefix prefix, Set<GrantInfo> grantInfos)
+    {
+        requireNonNull(identity, "identity is null");
+        requireNonNull(prefix, "prefix is null");
+        requireNonNull(grantInfos, "grantInfos is null");
+
+        return grantInfos;
     }
 
     @Override

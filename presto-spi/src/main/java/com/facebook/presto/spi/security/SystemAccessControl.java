@@ -30,12 +30,10 @@ import static com.facebook.presto.spi.security.AccessDeniedException.denyDeleteT
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyDropView;
-import static com.facebook.presto.spi.security.AccessDeniedException.denyGrantTablePrivilege;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyInsertTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameColumn;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameSchema;
 import static com.facebook.presto.spi.security.AccessDeniedException.denyRenameTable;
-import static com.facebook.presto.spi.security.AccessDeniedException.denyRevokeTablePrivilege;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySelectTable;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySelectView;
 import static com.facebook.presto.spi.security.AccessDeniedException.denySetCatalogSessionProperty;
@@ -278,25 +276,5 @@ public interface SystemAccessControl
     default void checkCanSetCatalogSessionProperty(Identity identity, String catalogName, String propertyName)
     {
         denySetCatalogSessionProperty(propertyName);
-    }
-
-    /**
-     * Check if identity is allowed to grant to any other user the specified privilege on the specified table.
-     *
-     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
-     */
-    default void checkCanGrantTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-        denyGrantTablePrivilege(privilege.toString(), table.toString());
-    }
-
-    /**
-     * Check if identity is allowed to revoke the specified privilege on the specified table from any user.
-     *
-     * @throws com.facebook.presto.spi.security.AccessDeniedException if not allowed
-     */
-    default void checkCanRevokeTablePrivilege(Identity identity, Privilege privilege, CatalogSchemaTableName table)
-    {
-        denyRevokeTablePrivilege(privilege.toString(), table.toString());
     }
 }

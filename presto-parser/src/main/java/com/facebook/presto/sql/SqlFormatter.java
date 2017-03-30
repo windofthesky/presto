@@ -1061,11 +1061,9 @@ public final class SqlFormatter
         {
             builder.append("SHOW GRANTS ");
 
-            builder.append("ON ");
-            if (node.getAll()) {
-                builder.append("ALL");
-            }
-            else {
+            if (node.getTableName().isPresent()) {
+                builder.append("ON ");
+
                 if (node.getTable()) {
                     builder.append("TABLE ");
                 }

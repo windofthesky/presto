@@ -765,15 +765,14 @@ class AstBuilder
     {
         Optional<QualifiedName> tableName = Optional.empty();
 
-        if (context.ALL() == null) {
+        if (context.qualifiedName() != null) {
             tableName = Optional.of(getQualifiedName(context.qualifiedName()));
         }
 
         return new ShowGrants(
                 getLocation(context),
                 context.TABLE() != null,
-                tableName,
-                context.ALL() != null);
+                tableName);
     }
 
     // ***************** boolean expressions ******************

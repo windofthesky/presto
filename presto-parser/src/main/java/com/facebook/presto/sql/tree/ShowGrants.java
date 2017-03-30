@@ -27,31 +27,24 @@ public class ShowGrants
 {
     private final boolean table;
     private final Optional<QualifiedName> tableName;
-    private final boolean all;
 
-    public ShowGrants(boolean table, Optional<QualifiedName> tableName, boolean all)
+    public ShowGrants(boolean table, Optional<QualifiedName> tableName)
     {
-        this(Optional.empty(), table, tableName, all);
+        this(Optional.empty(), table, tableName);
     }
 
-    public ShowGrants(NodeLocation location, boolean table, Optional<QualifiedName> tableName, boolean all)
+    public ShowGrants(NodeLocation location, boolean table, Optional<QualifiedName> tableName)
     {
-        this(Optional.of(location), table, tableName, all);
+        this(Optional.of(location), table, tableName);
     }
 
-    public ShowGrants(Optional<NodeLocation> location, boolean table, Optional<QualifiedName> tableName, boolean all)
+    public ShowGrants(Optional<NodeLocation> location, boolean table, Optional<QualifiedName> tableName)
     {
         super(location);
         requireNonNull(tableName, "tableName is null");
 
         this.table = table;
         this.tableName = tableName;
-        this.all = all;
-    }
-
-    public boolean getAll()
-    {
-        return all;
     }
 
     public boolean getTable()
@@ -79,7 +72,7 @@ public class ShowGrants
     @Override
     public int hashCode()
     {
-        return Objects.hash(table, tableName, all);
+        return Objects.hash(table, tableName);
     }
 
     @Override
@@ -93,8 +86,7 @@ public class ShowGrants
         }
         ShowGrants o = (ShowGrants) obj;
         return Objects.equals(table, o.table) &&
-                Objects.equals(tableName, o.tableName) &&
-                Objects.equals(all, o.all);
+                Objects.equals(tableName, o.tableName);
     }
 
     @Override
@@ -103,7 +95,6 @@ public class ShowGrants
         return toStringHelper(this)
                 .add("table", table)
                 .add("tableName", tableName)
-                .add("all", all)
                 .toString();
     }
 }

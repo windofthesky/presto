@@ -1358,11 +1358,11 @@ public class TestSqlParser
         throws Exception
     {
         assertStatement("SHOW GRANTS ON TABLE t",
-                new ShowGrants(true, Optional.of(QualifiedName.of("t")), false));
+                new ShowGrants(true, Optional.of(QualifiedName.of("t"))));
         assertStatement("SHOW GRANTS ON t",
-                new ShowGrants(false, Optional.of(QualifiedName.of("t")), false));
-        assertStatement("SHOW GRANTS ON ALL",
-                new ShowGrants(false, Optional.empty(), true));
+                new ShowGrants(false, Optional.of(QualifiedName.of("t"))));
+        assertStatement("SHOW GRANTS",
+                new ShowGrants(false, Optional.empty()));
     }
 
     @Test

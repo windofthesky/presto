@@ -222,16 +222,10 @@ if [[ "$ENVIRONMENT" == "singlenode-sqlserver" ]]; then
 else
   EXTERNAL_SERVICES="hadoop-master mysql postgres cassandra"
 fi
-
-echo "Displaying free memory:"
-free -m
 environment_compose up -d ${EXTERNAL_SERVICES}
 
 # start docker logs for the external services
 environment_compose logs --no-color -f ${EXTERNAL_SERVICES} &
-
-echo "Displaying free memory:"
-free -m
 
 # start ldap container
 if [[ "$ENVIRONMENT" == "singlenode-ldap" ]]; then
@@ -244,9 +238,6 @@ HADOOP_LOGS_PID=$!
 retry check_hadoop
 stop_unnecessary_hadoop_services
 
-echo "Displaying free memory:"
-free -m
-
 # start presto containers
 environment_compose up -d ${PRESTO_SERVICES}
 
@@ -257,17 +248,11 @@ PRESTO_LOGS_PID=$!
 # wait until presto is started
 retry check_presto
 
-echo "Displaying free memory:"
-free -m
-
 # run product tests
 set +e
 run_product_tests "$@"
 EXIT_CODE=$?
 set -e
-
-echo "Displaying free memory:"
-free -m
 
 # execution finished successfully
 # disable trap, run cleanup manually

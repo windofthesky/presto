@@ -32,7 +32,7 @@ public class TestRemoveEmptyDelete
         tester.assertThat(new RemoveEmptyDelete())
                 .on(p -> p.tableDelete(
                         SchemaTableName.valueOf("sch.tab"),
-                        p.tableScan(ImmutableList.of(), ImmutableMap.of()),
+                        p.tableScan(ImmutableList.of()),
                         p.symbol("a", BigintType.BIGINT))
                 )
                 .doesNotFire();

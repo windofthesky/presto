@@ -201,16 +201,21 @@ final class ShowQueriesRewrite
         }
 
         @Override
-        protected Node visitShowGrants(ShowGrants showGrant, Void context)
+        protected Node visitShowGrants(ShowGrants showGrants, Void context)
         {
             String catalogName = session.getCatalog().orElse(null);
             Optional<String> optionalSchemaName = session.getSchema();
             Optional<String> optionalTableName = Optional.empty();
             Optional<Expression> predicate = Optional.empty();
 
-            Optional<QualifiedName> tableName = showGrant.getTableName();
+            Optional<QualifiedName> tableName = showGrants.getTableName();
             if (tableName.isPresent()) {
-                QualifiedObjectName qualifiedTableName = createQualifiedObjectName(session, showGrant, tableName.get());
+                QualifiedObjectName qualifiedTableName = createQualifiedObjectName(session, showGrants, tableName.get());
+
+                if (!metadata.getView(session, qualifiedTableName).isPresent() &&
+                        !metadata.getTableHandle(session, qualifiedTableName).isPresent()) {
+                    throw new SemanticException(MISSING_TABLE, showGrants, "Table '%s' does not exist", tableName);
+                }
 
                 catalogName = qualifiedTableName.getCatalogName();
                 optionalSchemaName = Optional.of(qualifiedTableName.getSchemaName());
@@ -220,7 +225,7 @@ final class ShowQueriesRewrite
             }
 
             if (catalogName == null) {
-                throw new SemanticException(CATALOG_NOT_SPECIFIED, showGrant, "Catalog must be specified when session catalog is not set");
+                throw new SemanticException(CATALOG_NOT_SPECIFIED, showGrants, "Catalog must be specified when session catalog is not set");
             }
 
             accessControl.checkCanShowGrants(

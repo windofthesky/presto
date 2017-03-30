@@ -103,13 +103,21 @@ public class TestGrantRevoke
     @Test(groups = {HIVE_CONNECTOR, AUTHORIZATION, PROFILE_SPECIFIC_TESTS})
     public void testShowGrants()
     {
+        assertThat(aliceExecutor.executeQuery(format("SHOW GRANTS ON %s", tableName)))
+                .containsOnly(ImmutableList.of(
+                        row("alice", "hive", "default", tableName, "SELECT", Boolean.TRUE),
+                        row("alice", "hive", "default", tableName, "INSERT", Boolean.TRUE),
+                        row("alice", "hive", "default", tableName, "UPDATE", Boolean.TRUE),
+                        row("alice", "hive", "default", tableName, "DELETE", Boolean.TRUE)
+                ));
+
         aliceExecutor.executeQuery(format("GRANT SELECT ON %s TO bob WITH GRANT OPTION", tableName));
         aliceExecutor.executeQuery(format("GRANT INSERT ON %s TO bob", tableName));
 
         assertThat(bobExecutor.executeQuery(format("SHOW GRANTS ON %s", tableName)))
                 .containsOnly(ImmutableList.of(
-                        row("bob", "hive", "default", "alice_owned_table", "SELECT", Boolean.TRUE),
-                        row("bob", "hive", "default", "alice_owned_table", "INSERT", Boolean.FALSE)
+                        row("bob", "hive", "default", tableName, "SELECT", Boolean.TRUE),
+                        row("bob", "hive", "default", tableName, "INSERT", Boolean.FALSE)
                 ));
     }
 

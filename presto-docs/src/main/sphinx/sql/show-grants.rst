@@ -14,7 +14,7 @@ Description
 
 List the grants for the current user on the specified table in the current catalog.
 
-Specifying ``ALL`` lists the grants for the current user on all the tables in all the schemas in the current catalog.
+Specifying ``ALL`` lists the grants for the current user on all the tables in all schemas of the current catalog.
 
 The command requires the current catalog to be set.
 
@@ -29,7 +29,7 @@ List the grants for the current user on table ``orders``::
 
     SHOW GRANTS ON TABLE ``orders``
 
-List the grants for the current user on all the tables in all the schemas in the current catalog::
+List the grants for the current user on all the tables in all schemas of the current catalog::
 
     SHOW GRANTS ON ALL;
 

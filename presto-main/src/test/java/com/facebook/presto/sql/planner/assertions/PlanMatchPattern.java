@@ -500,7 +500,7 @@ public final class PlanMatchPattern
     {
         checkState(matchers.stream().filter(PlanNodeMatcher.class::isInstance).count() <= 1);
 
-        builder.append(indentString(indent));
+        builder.append(indentString(indent, true));
         if (anyTree) {
             builder.append("anyTree");
         }
@@ -524,7 +524,7 @@ public final class PlanMatchPattern
                 .collect(toImmutableList());
 
         for (Matcher matcher : matchersToPrint) {
-            builder.append(indentString(indent + 1)).append(matcher.toString()).append("\n");
+            builder.append(indentString(indent + 1, false)).append(matcher.toString()).append("\n");
         }
 
         for (PlanMatchPattern pattern : sourcePatterns) {
@@ -532,8 +532,9 @@ public final class PlanMatchPattern
         }
     }
 
-    private static String indentString(int indent)
+    private static String indentString(int indent, boolean source)
     {
-        return Strings.repeat("    ", indent) + "- ";
+        return Strings.repeat("    ", indent)
+                + (source ? "- " : "");
     }
 }

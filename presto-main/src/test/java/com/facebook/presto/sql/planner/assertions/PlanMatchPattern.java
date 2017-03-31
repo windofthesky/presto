@@ -538,6 +538,6 @@ public final class PlanMatchPattern
 
     private static String indentString(int indent)
     {
-        return Strings.repeat("    ", indent);
+        return Strings.repeat("    ", indent) + "- ";
     }
 }

@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.planPrinter;
 
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.TaskInfo;
+import com.facebook.presto.operator.ExchangeInfo;
 import com.facebook.presto.operator.HashCollisionsInfo;
 import com.facebook.presto.operator.OperatorStats;
 import com.facebook.presto.operator.PipelineStats;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.facebook.presto.util.MoreMaps.mergeMaps;
@@ -71,6 +73,7 @@ public class PlanNodeStatsSummarizer
 
         Map<PlanNodeId, Map<String, OperatorInputStats>> operatorInputStats = new HashMap<>();
         Map<PlanNodeId, Map<String, OperatorHashCollisionsStats>> operatorHashCollisionsStats = new HashMap<>();
+        Map<PlanNodeId, ExchangeOperatorStats> operatorExchangeStats = new HashMap<>();
 
         for (PipelineStats pipelineStats : taskStats.getPipelines()) {
             // Due to eventual consistently collected stats, these could be empty
@@ -118,6 +121,11 @@ public class PlanNodeStatsSummarizer
                             (map1, map2) -> mergeMaps(map1, map2, OperatorHashCollisionsStats::merge));
                 }
 
+                if (operatorStats.getInfo() instanceof ExchangeInfo) {
+                    ExchangeInfo exchangeInfo = (ExchangeInfo) operatorStats.getInfo();
+                    operatorExchangeStats.merge(planNodeId, ExchangeOperatorStats.create(exchangeInfo), ExchangeOperatorStats::merge);
+                }
+
                 planNodeInputPositions.merge(planNodeId, operatorStats.getInputPositions(), Long::sum);
                 planNodeInputBytes.merge(planNodeId, operatorStats.getInputDataSize().toBytes(), Long::sum);
                 processedNodes.add(planNodeId);
@@ -158,7 +166,8 @@ public class PlanNodeStatsSummarizer
                     succinctDataSize(planNodeOutputBytes.getOrDefault(planNodeId, 0L), BYTE),
                     operatorInputStats.get(planNodeId),
                     // Only some operators emit hash collisions statistics
-                    operatorHashCollisionsStats.getOrDefault(planNodeId, emptyMap())));
+                    operatorHashCollisionsStats.getOrDefault(planNodeId, emptyMap()),
+                    Optional.ofNullable(operatorExchangeStats.get(planNodeId))));
         }
         return stats;
     }

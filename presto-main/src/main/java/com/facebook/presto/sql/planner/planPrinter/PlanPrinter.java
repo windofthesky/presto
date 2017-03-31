@@ -95,6 +95,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.airlift.slice.Slice;
+import io.airlift.stats.Distribution;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -347,6 +348,10 @@ public class PlanPrinter
         output.append('\n');
 
         printDistributions(indent, nodeStats);
+
+        if (nodeStats.getOperatorExchangeStats().isPresent()) {
+            printExchangeStats(indent, nodeStats.getOperatorExchangeStats().get());
+        }
     }
 
     private void printDistributions(int indent, PlanNodeStats nodeStats)
@@ -414,6 +419,17 @@ public class PlanPrinter
         return ImmutableMap.of();
     }
 
+    private void printExchangeStats(int indent, ExchangeOperatorStats stats)
+    {
+        output.append(indentString(indent));
+        output.append(formatDistribution("Splits distribution: ", stats.getSplitsCountDistribution()));
+        output.append('\n');
+
+        output.append(indentString(indent));
+        output.append(formatDistribution("Positions distribution: ", stats.getPositionsCountDistribution()));
+        output.append('\n');
+    }
+
     private static String formatDouble(double value)
     {
         if (isFinite(value)) {
@@ -430,6 +446,13 @@ public class PlanPrinter
         }
 
         return positions + " rows";
+    }
+
+    private static String formatDistribution(String name, Distribution.DistributionSnapshot d)
+    {
+        return format(Locale.US,
+                "%s: { count: %.0f, total: %.0f, min: %d, p05: %d, p25: %d, p50: %d, p75: %d, p95: %d, max: %d }",
+                name, d.getCount(), d.getTotal(), d.getMin(), d.getP05(), d.getP25(), d.getP50(), d.getP75(), d.getP95(), d.getMax());
     }
 
     private static String indentString(int indent)

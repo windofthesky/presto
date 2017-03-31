@@ -151,6 +151,7 @@ SQL/DML/DDL Limitations
  * ``LIMIT ALL`` and ``OFFSET`` are not supported
  * For ``INSERT INTO ... VALUES``, the data types must be exact, i.e. must use ``2.0`` for ``double``,
    ``cast('2015-1-1' as date)`` for ``date``, and you must supply a value for every column.
+ * The expression on the left hand side of ``IN`` must not be ``NULL`` for any of the queried rows. Otherwise, the query will fail. This limitation is needed to ensure correct results and may be dropped in the future. This also affect quantified subqueries. See :doc:`/sql/select` and :doc:`/functions/comparison`. In previously versions of Presto this query was allowed to execute potentially resulting in incorrect results.
 
 ----
 

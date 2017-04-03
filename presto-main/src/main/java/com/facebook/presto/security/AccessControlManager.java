@@ -581,6 +581,8 @@ public class AccessControlManager
         requireNonNull(grantor, "grantor is null");
         requireNonNull(catalogName, "catalogName is null");
 
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authorizationCheck(() -> entry.getAccessControl().checkCanCreateRole(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), role, grantor));
@@ -593,6 +595,8 @@ public class AccessControlManager
         requireNonNull(identity, "identity is null");
         requireNonNull(role, "role is null");
         requireNonNull(catalogName, "catalogName is null");
+
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
 
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
@@ -609,6 +613,8 @@ public class AccessControlManager
         requireNonNull(grantor, "grantor is null");
         requireNonNull(catalogName, "catalogName is null");
 
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authorizationCheck(() -> entry.getAccessControl().checkCanGrantRoles(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), roles, grantees, withAdminOption, grantor, catalogName));
@@ -624,6 +630,8 @@ public class AccessControlManager
         requireNonNull(grantor, "grantor is null");
         requireNonNull(catalogName, "catalogName is null");
 
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authorizationCheck(() -> entry.getAccessControl().checkCanRevokeRoles(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), roles, grantees, adminOptionFor, grantor, catalogName));
@@ -636,6 +644,9 @@ public class AccessControlManager
         requireNonNull(identity, "identity is null");
         requireNonNull(role, "role is null");
         requireNonNull(catalogName, "catalog is null");
+
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authorizationCheck(() -> entry.getAccessControl().checkCanSetRole(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), role, catalogName));
@@ -648,6 +659,8 @@ public class AccessControlManager
         requireNonNull(identity, "identity is null");
         requireNonNull(catalogName, "catalogName is null");
 
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authenticationCheck(() -> entry.getAccessControl().checkCanShowRoles(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), catalogName));
@@ -659,6 +672,10 @@ public class AccessControlManager
     {
         requireNonNull(identity, "identity is null");
         requireNonNull(roles, "roles is null");
+
+        if (filterCatalogs(identity, ImmutableSet.of(catalogName)).isEmpty()) {
+            return ImmutableSet.of();
+        }
 
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
@@ -673,6 +690,8 @@ public class AccessControlManager
         requireNonNull(identity, "identity is null");
         requireNonNull(catalogName, "catalogName is null");
 
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
+
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {
             authenticationCheck(() -> entry.getAccessControl().checkCanShowCurrentRoles(entry.getTransactionHandle(transactionId), identity.toConnectorIdentity(catalogName), catalogName));
@@ -684,6 +703,8 @@ public class AccessControlManager
     {
         requireNonNull(identity, "identity is null");
         requireNonNull(catalogName, "catalogName is null");
+
+        authenticationCheck(() -> checkCanAccessCatalog(identity, catalogName));
 
         CatalogAccessControlEntry entry = getConnectorAccessControl(transactionId, catalogName);
         if (entry != null) {

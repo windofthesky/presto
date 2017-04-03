@@ -240,7 +240,9 @@ public class AccessControlManager
         requireNonNull(catalogName, "catalogName is null");
         requireNonNull(schemaNames, "schemaNames is null");
 
-        checkCanAccessCatalog(identity, catalogName);
+        if (filterCatalogs(identity, ImmutableSet.of(catalogName)).isEmpty()) {
+            return ImmutableSet.of();
+        }
 
         schemaNames = systemAccessControl.get().filterSchemas(identity, catalogName, schemaNames);
 

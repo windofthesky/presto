@@ -29,5 +29,9 @@ import java.util.Map;
  */
 public interface CostCalculator
 {
-    PlanNodeCost calculateCost(PlanNode planNode, List<PlanNodeCost> sourceCosts, Session session, Map<Symbol, Type> types);
+    PlanNodeCost calculateCost(
+            PlanNode planNode,
+            List<PlanNodeCost> sourceCosts,
+            Session session,
+            Map<Symbol, Type> types);
 }

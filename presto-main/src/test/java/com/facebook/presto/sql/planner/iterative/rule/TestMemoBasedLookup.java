@@ -143,7 +143,11 @@ public class TestMemoBasedLookup
             implements CostCalculator
     {
         @Override
-        public PlanNodeCost calculateCost(PlanNode planNode, List<PlanNodeCost> sourceCosts, Session session, Map<Symbol, Type> types)
+        public PlanNodeCost calculateCost(
+                PlanNode planNode,
+                List<PlanNodeCost> sourceCosts,
+                Session session,
+                Map<Symbol, Type> types)
         {
             double outputRows = 1;
             for (PlanNodeCost sourceCost : sourceCosts) {

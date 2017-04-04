@@ -15,8 +15,8 @@
 package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -31,13 +31,13 @@ public class MemoBasedLookup
         implements Lookup
 {
     private final Memo memo;
-    private final Map<PlanNode, PlanNodeCost> costs = new HashMap<>();
-    private final CostCalculator costCalculator;
+    private final Map<PlanNode, PlanNodeStatsEstimate> stats = new HashMap<>();
+    private final StatsCalculator statsCalculator;
 
-    public MemoBasedLookup(Memo memo, CostCalculator costCalculator)
+    public MemoBasedLookup(Memo memo, StatsCalculator statsCalculator)
     {
         this.memo = memo;
-        this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
+        this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
     }
 
     @Override
@@ -50,12 +50,12 @@ public class MemoBasedLookup
     }
 
     @Override
-    public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode planNode)
+    public PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode planNode)
     {
-        return costs.computeIfAbsent(resolve(planNode), node -> costCalculator.calculateCost(
+        return stats.computeIfAbsent(resolve(planNode), node -> statsCalculator.calculateStats(
                 node,
                 node.getSources().stream()
-                        .map(sourceNode -> getCost(session, types, sourceNode))
+                        .map(sourceNode -> getStats(session, types, sourceNode))
                         .collect(toImmutableList()),
                 session,
                 types));

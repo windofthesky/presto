@@ -15,8 +15,8 @@
 package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -59,7 +59,7 @@ public class TestMemoBasedLookup
         PlanNode plan = node(source);
         Memo memo = new Memo(idAllocator, plan);
 
-        MemoBasedLookup lookup = new MemoBasedLookup(memo, new NodeCountingCostCalculator());
+        MemoBasedLookup lookup = new MemoBasedLookup(memo, new NodeCountingStatsCalculator());
         PlanNode memoSource = Iterables.getOnlyElement(memo.getNode(memo.getRootGroup()).getSources());
         checkState(memoSource instanceof GroupReference, "expected GroupReference");
         assertEquals(lookup.resolve(memoSource), source);
@@ -70,10 +70,10 @@ public class TestMemoBasedLookup
     {
         PlanNode plan = node(node(node()));
         Memo memo = new Memo(idAllocator, plan);
-        MemoBasedLookup lookup = new MemoBasedLookup(memo, new NodeCountingCostCalculator());
+        MemoBasedLookup lookup = new MemoBasedLookup(memo, new NodeCountingStatsCalculator());
 
-        PlanNodeCost actualCost = lookup.getCost(queryRunner.getDefaultSession(), ImmutableMap.of(), memo.getNode(memo.getRootGroup()));
-        PlanNodeCost expectedCost = PlanNodeCost.builder().setOutputRowCount(new Estimate(3)).build();
+        PlanNodeStatsEstimate actualCost = lookup.getStats(queryRunner.getDefaultSession(), ImmutableMap.of(), memo.getNode(memo.getRootGroup()));
+        PlanNodeStatsEstimate expectedCost = PlanNodeStatsEstimate.builder().setOutputRowCount(new Estimate(3)).build();
         assertEquals(actualCost, expectedCost);
     }
 
@@ -139,23 +139,23 @@ public class TestMemoBasedLookup
         }
     }
 
-    private static class NodeCountingCostCalculator
-            implements CostCalculator
+    private static class NodeCountingStatsCalculator
+            implements StatsCalculator
     {
         @Override
-        public PlanNodeCost calculateCost(
+        public PlanNodeStatsEstimate calculateStats(
                 PlanNode planNode,
-                List<PlanNodeCost> sourceCosts,
+                List<PlanNodeStatsEstimate> sourceCosts,
                 Session session,
                 Map<Symbol, Type> types)
         {
             double outputRows = 1;
-            for (PlanNodeCost sourceCost : sourceCosts) {
+            for (PlanNodeStatsEstimate sourceCost : sourceCosts) {
                 if (!sourceCost.getOutputRowCount().isValueUnknown()) {
                     outputRows += sourceCost.getOutputRowCount().getValue();
                 }
             }
-            return PlanNodeCost.builder()
+            return PlanNodeStatsEstimate.builder()
                     .setOutputRowCount(new Estimate(outputRows))
                     .build();
         }

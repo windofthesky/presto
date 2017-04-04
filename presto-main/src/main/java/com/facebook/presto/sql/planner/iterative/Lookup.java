@@ -14,7 +14,7 @@
 package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -35,7 +35,7 @@ public interface Lookup
      */
     PlanNode resolve(PlanNode node);
 
-    PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode node);
+    PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode node);
 
     /**
      * A Lookup implementation that does not perform lookup. It satisfies contract
@@ -52,9 +52,9 @@ public interface Lookup
             }
 
             @Override
-            public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode node)
+            public PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode node)
             {
-                return PlanNodeCost.UNKNOWN_COST;
+                return PlanNodeStatsEstimate.UNKNOWN_STATS;
             }
         };
     }
@@ -73,9 +73,9 @@ public interface Lookup
             }
 
             @Override
-            public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode node)
+            public PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode node)
             {
-                return PlanNodeCost.UNKNOWN_COST;
+                return PlanNodeStatsEstimate.UNKNOWN_STATS;
             }
         };
     }

@@ -14,7 +14,7 @@
 package com.facebook.presto.execution;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -28,14 +28,14 @@ import static com.facebook.presto.util.ImmutableCollectors.toImmutableMap;
 public class QueryPlan
 {
     private final Plan plan;
-    private final Map<PlanNode, PlanNodeCost> planNodeCosts;
+    private final Map<PlanNode, PlanNodeStatsEstimate> planNodeStatsEstimates;
 
     public QueryPlan(Plan plan, Lookup lookup, Session session)
     {
         this.plan = plan;
-        this.planNodeCosts = getPlanNodes(
+        this.planNodeStatsEstimates = getPlanNodes(
                 plan.getRoot()).stream()
-                .collect(toImmutableMap(node -> node, node -> lookup.getCost(session, plan.getTypes(), node)));
+                .collect(toImmutableMap(node -> node, node -> lookup.getStats(session, plan.getTypes(), node)));
     }
 
     public Plan getPlan()
@@ -53,8 +53,8 @@ public class QueryPlan
         return planNodes.build();
     }
 
-    public Map<PlanNode, PlanNodeCost> getPlanNodeCosts()
+    public Map<PlanNode, PlanNodeStatsEstimate> getPlanNodeStatsEstimates()
     {
-        return planNodeCosts;
+        return planNodeStatsEstimates;
     }
 }

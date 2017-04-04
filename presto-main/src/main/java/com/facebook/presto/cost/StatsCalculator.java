@@ -27,11 +27,11 @@ import java.util.Map;
  * It's responsibility is to provide approximation of cost of execution of plan node.
  * Example implementations may be based on table statistics or data samples.
  */
-public interface CostCalculator
+public interface StatsCalculator
 {
-    PlanNodeCost calculateCost(
+    PlanNodeStatsEstimate calculateStats(
             PlanNode planNode,
-            List<PlanNodeCost> sourceCosts,
+            List<PlanNodeStatsEstimate> sourceCosts,
             Session session,
             Map<Symbol, Type> types);
 }

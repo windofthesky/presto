@@ -15,8 +15,8 @@
 package com.facebook.presto.testing;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.StatsCalculator;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.Lookup;
@@ -31,17 +31,17 @@ import static java.util.Objects.requireNonNull;
 public class TestingLookup
         implements Lookup
 {
-    private final CostCalculator costCalculator;
-    private final Map<PlanNode, PlanNodeCost> costs = new HashMap<>();
+    private final StatsCalculator statsCalculator;
+    private final Map<PlanNode, PlanNodeStatsEstimate> stats = new HashMap<>();
 
-    public TestingLookup(CostCalculator costCalculator)
+    public TestingLookup(StatsCalculator statsCalculator)
     {
-        this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
+        this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
     }
 
-    public void setCost(PlanNode node, PlanNodeCost cost)
+    public void setStats(PlanNode node, PlanNodeStatsEstimate stats)
     {
-        costs.put(node, cost);
+        this.stats.put(node, stats);
     }
 
     @Override
@@ -51,12 +51,12 @@ public class TestingLookup
     }
 
     @Override
-    public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode planNode)
+    public PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode planNode)
     {
-        return costs.computeIfAbsent(planNode, node -> costCalculator.calculateCost(
+        return stats.computeIfAbsent(planNode, node -> statsCalculator.calculateStats(
                 node,
                 node.getSources().stream()
-                        .map(sourceNode -> getCost(session, types, sourceNode))
+                        .map(sourceNode -> getStats(session, types, sourceNode))
                         .collect(toImmutableList()),
                 session,
                 types));

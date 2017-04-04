@@ -14,7 +14,7 @@
 package com.facebook.presto.sql.planner.planPrinter;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.StageStats;
 import com.facebook.presto.metadata.Metadata;
@@ -1180,7 +1180,7 @@ public class PlanPrinter
 
         private String formatCost(PlanNode node)
         {
-            PlanNodeCost cost = lookup.getCost(session, types, node);
+            PlanNodeStatsEstimate cost = lookup.getStats(session, types, node);
             Estimate outputRowCount = cost.getOutputRowCount();
             Estimate outputSizeInBytes = cost.getOutputSizeInBytes();
             return String.format("{rows: %s, bytes: %s}",

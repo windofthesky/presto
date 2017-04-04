@@ -15,8 +15,8 @@
 package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -32,12 +32,12 @@ import static java.util.Objects.requireNonNull;
 public class StatelessLookup
         implements Lookup
 {
-    private final CostCalculator costCalculator;
+    private final StatsCalculator statsCalculator;
 
     @Inject
-    public StatelessLookup(CostCalculator costCalculator)
+    public StatelessLookup(StatsCalculator statsCalculator)
     {
-        this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
+        this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
     }
 
     @Override
@@ -47,12 +47,12 @@ public class StatelessLookup
     }
 
     @Override
-    public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode planNode)
+    public PlanNodeStatsEstimate getStats(Session session, Map<Symbol, Type> types, PlanNode planNode)
     {
-        return costCalculator.calculateCost(
+        return statsCalculator.calculateStats(
                 planNode,
                 planNode.getSources().stream()
-                        .map(sourceNode -> getCost(session, types, sourceNode))
+                        .map(sourceNode -> getStats(session, types, sourceNode))
                         .collect(toImmutableList()),
                 session,
                 types);

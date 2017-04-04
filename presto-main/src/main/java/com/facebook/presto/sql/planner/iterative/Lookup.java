@@ -14,7 +14,8 @@
 package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.cost.PlanNodeCostEstimate;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -22,7 +23,8 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 import java.util.Map;
 import java.util.function.Function;
 
-import static com.facebook.presto.cost.PlanNodeCost.UNKNOWN_COST;
+import static com.facebook.presto.cost.PlanNodeCostEstimate.UNKNOWN_COST;
+import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.google.common.base.Verify.verify;
 
 public interface Lookup
@@ -36,7 +38,9 @@ public interface Lookup
      */
     PlanNode resolve(PlanNode node);
 
-    PlanNodeCost getCost(PlanNode node, Session session, Map<Symbol, Type> types);
+    PlanNodeStatsEstimate getStats(PlanNode node, Session session, Map<Symbol, Type> types);
+
+    PlanNodeCostEstimate getCumulativeCost(PlanNode node, Session session, Map<Symbol, Type> types);
 
     /**
      * A Lookup implementation that does not perform lookup. It satisfies contract
@@ -54,7 +58,13 @@ public interface Lookup
             }
 
             @Override
-            public PlanNodeCost getCost(PlanNode node, Session session, Map<Symbol, Type> types)
+            public PlanNodeStatsEstimate getStats(PlanNode node, Session session, Map<Symbol, Type> types)
+            {
+                return UNKNOWN_STATS;
+            }
+
+            @Override
+            public PlanNodeCostEstimate getCumulativeCost(PlanNode node, Session session, Map<Symbol, Type> types)
             {
                 return UNKNOWN_COST;
             }
@@ -76,7 +86,13 @@ public interface Lookup
             }
 
             @Override
-            public PlanNodeCost getCost(PlanNode node, Session session, Map<Symbol, Type> types)
+            public PlanNodeStatsEstimate getStats(PlanNode node, Session session, Map<Symbol, Type> types)
+            {
+                return UNKNOWN_STATS;
+            }
+
+            @Override
+            public PlanNodeCostEstimate getCumulativeCost(PlanNode node, Session session, Map<Symbol, Type> types)
             {
                 return UNKNOWN_COST;
             }

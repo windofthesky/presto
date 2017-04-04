@@ -89,7 +89,8 @@ public class TestEliminateSorts
                 new UnaliasSymbolReferences(),
                 new AddExchanges(queryRunner.getMetadata(), new SqlParser()),
                 new PruneUnreferencedOutputs(),
-                new PruneIdentityProjections()
+                new PruneIdentityProjections(),
+                new MergeProjections()
         );
 
         queryRunner.inTransaction(transactionSession -> {

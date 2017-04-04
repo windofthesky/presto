@@ -75,7 +75,11 @@ public class CoefficientBasedCostCalculator
     }
 
     @Override
-    public PlanNodeCost calculateCost(PlanNode planNode, List<PlanNodeCost> sourceCosts, Session session, Map<Symbol, Type> types)
+    public PlanNodeCost calculateCost(
+            PlanNode planNode,
+            List<PlanNodeCost> sourceCosts,
+            Session session,
+            Map<Symbol, Type> types)
     {
         Visitor visitor = new Visitor(session, types);
         return planNode.accept(visitor, sourceCosts);

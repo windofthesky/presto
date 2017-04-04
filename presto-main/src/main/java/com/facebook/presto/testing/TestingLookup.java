@@ -54,9 +54,11 @@ public class TestingLookup
     public PlanNodeCost getCost(Session session, Map<Symbol, Type> types, PlanNode planNode)
     {
         return costs.computeIfAbsent(planNode, node -> costCalculator.calculateCost(
-                node, node.getSources().stream()
+                node,
+                node.getSources().stream()
                         .map(sourceNode -> getCost(session, types, sourceNode))
-                        .collect(toImmutableList()), session,
+                        .collect(toImmutableList()),
+                session,
                 types));
     }
 }

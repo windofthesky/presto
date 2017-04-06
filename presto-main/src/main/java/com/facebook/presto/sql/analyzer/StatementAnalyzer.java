@@ -611,6 +611,7 @@ class StatementAnalyzer
 
             Scope queryScope = Scope.builder()
                     .withParent(withScope)
+                    .withRelationId(RelationId.of(node))
                     .withRelationType(queryBodyScope.getRelationType())
                     .build();
             analysis.setScope(node, queryScope);
@@ -1572,6 +1573,7 @@ class StatementAnalyzer
             // ORDER BY should "see" both output and FROM fields during initial analysis and non-aggregation query planning
             Scope orderByScope = Scope.builder()
                     .withParent(sourceScope)
+                    .withRelationId(outputScope.getRelationId())
                     .withRelationType(outputScope.getRelationType())
                     .build();
             analysis.setScope(node, orderByScope);
@@ -1610,6 +1612,7 @@ class StatementAnalyzer
 
             Scope orderByScope = Scope.builder()
                     .withParent(orderByAggregationScope)
+                    .withRelationId(outputScope.getRelationId())
                     .withRelationType(outputScope.getRelationType())
                     .build();
             analysis.setScope(node, orderByScope);
@@ -1985,6 +1988,7 @@ class StatementAnalyzer
         private Scope createAndAssignScope(Node node, Optional<Scope> parentScope, RelationType relationType)
         {
             Scope scope = scopeBuilder(parentScope)
+                    .withRelationId(RelationId.of(node))
                     .withRelationType(relationType)
                     .build();
 

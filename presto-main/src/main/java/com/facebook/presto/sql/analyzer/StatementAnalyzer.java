@@ -878,7 +878,7 @@ class StatementAnalyzer
             sourceExpressions.addAll(outputExpressions);
             node.getHaving().ifPresent(sourceExpressions::add);
 
-            List<FunctionCall> aggregations = analyzeAggregations(node, sourceScope, orderByScope, groupByExpressions, analysis.getColumnReferences(), sourceExpressions, orderByExpressions);
+            List<FunctionCall> aggregations = analyzeAggregations(node, sourceScope, orderByScope, groupByExpressions, sourceExpressions, orderByExpressions);
             analyzeWindowFunctions(node, outputExpressions, orderByExpressions);
 
             if (!groupByExpressions.isEmpty() && node.getOrderBy().isPresent()) {
@@ -922,7 +922,7 @@ class StatementAnalyzer
             expressions.addAll(orderByExpressions);
             node.getHaving().ifPresent(expressions::add);
 
-            analyzeAggregations(node, sourceScope, Optional.empty(), groupByExpressions, analysis.getColumnReferences(), expressions, emptyList());
+            analyzeAggregations(node, sourceScope, Optional.empty(), groupByExpressions, expressions, emptyList());
             analysis.setWindowFunctions(node, analyzeWindowFunctions(node, expressions));
 
             return outputScope;
@@ -1705,7 +1705,6 @@ class StatementAnalyzer
                 Scope sourceScope,
                 Optional<Scope> orderByScope,
                 List<List<Expression>> groupingSets,
-                Set<Expression> columnReferences,
                 List<Expression> outputExpressions,
                 List<Expression> orderByExpressions)
         {

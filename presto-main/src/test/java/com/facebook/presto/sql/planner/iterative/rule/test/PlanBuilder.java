@@ -286,7 +286,7 @@ public class PlanBuilder
             return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs);
         }
     }
-    
+
     public AssignUniqueId assignUniqueId(Symbol uniqueId, PlanNode source)
     {
         return new AssignUniqueId(idAllocator.getNextId(), source, uniqueId);

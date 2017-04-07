@@ -22,6 +22,7 @@ import com.facebook.presto.tpch.TpchConnectorFactory;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.Closeable;
+import java.util.Map;
 
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 
@@ -34,11 +35,19 @@ public class RuleTester
 
     public RuleTester()
     {
-        session = testSessionBuilder()
+        this(ImmutableMap.of());
+    }
+
+    public RuleTester(Map<String, String> sessionProperties)
+    {
+        Session.SessionBuilder sessionBuilder = testSessionBuilder()
                 .setCatalog("local")
                 .setSchema("tiny")
-                .setSystemProperty("task_concurrency", "1") // these tests don't handle exchanges from local parallel
-                .build();
+                .setSystemProperty("task_concurrency", "1"); // these tests don't handle exchanges from local parallel
+
+        sessionProperties.forEach(sessionBuilder::setSystemProperty);
+
+        session = sessionBuilder.build();
 
         queryRunner = new LocalQueryRunner(session);
         queryRunner.createCatalog(session.getCatalog().get(),

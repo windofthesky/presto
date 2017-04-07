@@ -25,6 +25,7 @@ import com.facebook.presto.sql.planner.Partitioning;
 import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.TestingTableHandle;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
@@ -58,6 +59,7 @@ import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HAS
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.String.format;
+import static java.util.stream.Collectors.toMap;
 
 public class PlanBuilder
 {
@@ -107,8 +109,13 @@ public class PlanBuilder
         return new ApplyNode(idAllocator.getNextId(), input, subquery, subqueryAssignments, correlation);
     }
 
-    public TableScanNode tableScan(List<Symbol> symbols, Map<Symbol, ColumnHandle> assignments)
+    public TableScanNode tableScan(List<Symbol> symbols)
     {
+        Map<Symbol, ColumnHandle> assignments = symbols.stream()
+                .collect(toMap(
+                        symbol -> symbol,
+                        symbol -> new TestingColumnHandle(symbol.getName())));
+
         Expression originalConstraint = null;
         return new TableScanNode(
                 idAllocator.getNextId(),

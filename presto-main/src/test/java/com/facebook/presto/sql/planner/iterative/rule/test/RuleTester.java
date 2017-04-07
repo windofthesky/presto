@@ -15,11 +15,14 @@ package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.connector.ConnectorId;
+import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.facebook.presto.testing.TestingLookup;
 import com.facebook.presto.tpch.TpchConnectorFactory;
+import com.facebook.presto.transaction.TransactionManager;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.Closeable;
@@ -32,33 +35,43 @@ public class RuleTester
     public static final String CATALOG_ID = "local";
     public static final ConnectorId CONNECTOR_ID = new ConnectorId(CATALOG_ID);
 
+    private final Metadata metadata;
+    private final Session session;
     private final Lookup lookup;
     private final LocalQueryRunner queryRunner;
+    private final TransactionManager transactionManager;
+    private final AccessControl accessControl;
 
     public RuleTester()
     {
-        Session session = testSessionBuilder()
+        this.session = testSessionBuilder()
                 .setCatalog(CATALOG_ID)
                 .setSchema("tiny")
                 .setSystemProperty("task_concurrency", "1") // these tests don't handle exchanges from local parallel
                 .build();
-
-        queryRunner = new LocalQueryRunner(session);
+        this.queryRunner = new LocalQueryRunner(session);
         queryRunner.createCatalog(session.getCatalog().get(),
                 new TpchConnectorFactory(1),
                 ImmutableMap.of());
         this.lookup = new TestingLookup(queryRunner.getStatsCalculator(), queryRunner.getEstimatedExchangesCostCalculator());
+        this.metadata = queryRunner.getMetadata();
+        this.transactionManager = queryRunner.getTransactionManager();
+        this.accessControl = queryRunner.getAccessControl();
     }
 
     public RuleTester(LocalQueryRunner queryRunner)
     {
         this.queryRunner = queryRunner;
+        this.session = queryRunner.getDefaultSession();
         this.lookup = new TestingLookup(queryRunner.getStatsCalculator(), queryRunner.getEstimatedExchangesCostCalculator());
+        this.metadata = queryRunner.getMetadata();
+        this.transactionManager = queryRunner.getTransactionManager();
+        this.accessControl = queryRunner.getAccessControl();
     }
 
     public RuleAssert assertThat(Rule rule)
     {
-        return new RuleAssert(queryRunner, lookup, rule);
+        return new RuleAssert(metadata, session, lookup, rule, transactionManager, accessControl);
     }
 
     @Override

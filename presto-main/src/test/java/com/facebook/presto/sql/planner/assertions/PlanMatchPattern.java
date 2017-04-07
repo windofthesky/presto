@@ -505,7 +505,7 @@ public final class PlanMatchPattern
     {
         checkState(matchers.stream().filter(PlanNodeMatcher.class::isInstance).count() <= 1);
 
-        builder.append(indentString(indent));
+        builder.append(indentString(indent)).append("- ");
         if (anyTree) {
             builder.append("anyTree");
         }

@@ -310,6 +310,36 @@ public class TestAnalyzer
     }
 
     @Test
+    public void testGroupByWithSubquerySelectExpressionWithLambda()
+    {
+        // GROUP BY column captured in lambda
+        analyze(
+                "SELECT (SELECT apply(0, x -> x + b) from (values 1) x(a)) " +
+                        "FROM t1 u GROUP BY b");
+
+        // non-GROUP BY column captured in lambda
+        assertFails(
+                MUST_BE_AGGREGATE_OR_GROUP_BY,
+                "line 1:34: Subquery uses '\"a\"' which must appear in GROUP BY clause",
+                "SELECT (SELECT apply(0, x -> x + a) from (values 1) x(c)) " +
+                        "FROM t1 u GROUP BY b");
+        // TODO #7784
+//        assertFails(
+//                MUST_BE_AGGREGATE_OR_GROUP_BY,
+//                "line 1:34: Subquery uses '\"u.a\"' which must appear in GROUP BY clause",
+//                "SELECT (SELECT apply(0, x -> x + u.a) from (values 1) x(a)) " +
+//                        "FROM t1 u GROUP BY b");
+
+        // name shadowing
+        analyze(
+                "SELECT (SELECT apply(0, x -> x + a) from (values 1) x(a)) " +
+                        "FROM t1 u GROUP BY b");
+        analyze(
+                "SELECT (SELECT apply(0, a -> a + a)) " +
+                        "FROM t1 u GROUP BY b");
+    }
+
+    @Test
     public void testOrderByInvalidOrdinal()
             throws Exception
     {

@@ -3,7 +3,7 @@ Teradata QueryGrid
 ******************
 
 Teradata provides low latency high performing connectors that
-supports high concurrency and parallel processing between Teradata
+support high concurrency and parallel processing between Teradata
 and Presto. 
 
 The Teradata-To-Presto QueryGrid connector can initiate a query from
@@ -20,30 +20,30 @@ Contact **presto@teradata.com** for more information or to obtain an evaluation 
 ============================ ========================== =====================================================================================
 Teradata to Presto Connector Compatible Presto Version  Documentation
 ============================ ========================== =====================================================================================
-1.5                          0.167-t.x                  `Teradata-To-Presto 1.5 Documention <http://teradata.github.io/presto/docs/t2p/1.5/>`_
+1.5                          0.167-t.x                  `Teradata-To-Presto 1.5 Documentation <http://teradata.github.io/presto/docs/t2p/1.5/>`_
 
-1.4                          0.157.1-t.x                `Teradata-To-Presto 1.4 Documention <http://teradata.github.io/presto/docs/t2p/1.4/>`_
+1.4                          0.157.1-t.x                `Teradata-To-Presto 1.4 Documentation <http://teradata.github.io/presto/docs/t2p/1.4/>`_
 
-1.3                          0.152.1-t.x                `Teradata-To-Presto 1.3 Documention <http://teradata.github.io/presto/docs/t2p/1.3/>`_
+1.3                          0.152.1-t.x                `Teradata-To-Presto 1.3 Documentation <http://teradata.github.io/presto/docs/t2p/1.3/>`_
 
-1.2                          0.148-t.x                  `Teradata-To-Presto 1.2 Documention <http://teradata.github.io/presto/docs/t2p/1.2/>`_
+1.2                          0.148-t.x                  `Teradata-To-Presto 1.2 Documentation <http://teradata.github.io/presto/docs/t2p/1.2/>`_
 
-0.3                          0.141-t                    `Teradata-To-Presto 0.3 Documention <http://teradata.github.io/presto/docs/t2p/0.3/>`_
+0.3                          0.141-t                    `Teradata-To-Presto 0.3 Documentation <http://teradata.github.io/presto/docs/t2p/0.3/>`_
 
-0.1                          0.127-t                    `Teradata-To-Presto 0.1 Documention <http://teradata.github.io/presto/docs/t2p/0.1/>`_
+0.1                          0.127-t                    `Teradata-To-Presto 0.1 Documentation <http://teradata.github.io/presto/docs/t2p/0.1/>`_
 ============================ ========================== =====================================================================================
 
 ============================ ========================== =====================================================================================
 Presto to Teradata Connector Compatible Presto Version  Documentation
 ============================ ========================== =====================================================================================
-1.5                          0.167-t.x                  `Presto-To-Teradata 1.5 Documention <http://teradata.github.io/presto/docs/p2t/1.5/>`_
+1.5                          0.167-t.x                  `Presto-To-Teradata 1.5 Documentation <http://teradata.github.io/presto/docs/p2t/1.5/>`_
 
-1.4                          0.157.1-t.x                `Presto-To-Teradata 1.4 Documention <http://teradata.github.io/presto/docs/p2t/1.4/>`_
+1.4                          0.157.1-t.x                `Presto-To-Teradata 1.4 Documentation <http://teradata.github.io/presto/docs/p2t/1.4/>`_
 
-1.3                          0.152.1-t.x                `Presto-To-Teradata 1.3 Documention <http://teradata.github.io/presto/docs/p2t/1.3/>`_
+1.3                          0.152.1-t.x                `Presto-To-Teradata 1.3 Documentation <http://teradata.github.io/presto/docs/p2t/1.3/>`_
 
-1.2                          0.148-t.x                  `Presto-To-Teradata 1.2 Documention <http://teradata.github.io/presto/docs/p2t/1.2/>`_
+1.2                          0.148-t.x                  `Presto-To-Teradata 1.2 Documentation <http://teradata.github.io/presto/docs/p2t/1.2/>`_
 
-0.3                          0.141-t                    `Presto-To-Teradata 0.3 Documention <http://teradata.github.io/presto/docs/p2t/0.3/>`_
+0.3                          0.141-t                    `Presto-To-Teradata 0.3 Documentation <http://teradata.github.io/presto/docs/p2t/0.3/>`_
 ============================ ========================== =====================================================================================
 

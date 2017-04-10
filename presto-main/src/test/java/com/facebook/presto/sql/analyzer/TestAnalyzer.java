@@ -515,7 +515,7 @@ public class TestAnalyzer
 
         assertFails(
                 REFERENCE_TO_OUTPUT_ATTRIBUTE_WITHIN_ORDER_BY_AGGREGATION,
-                "line 2:22: Invalid reference to output projection attribute from ORDER BY aggregation",
+                "line 2:14: Invalid reference to output projection attribute from ORDER BY aggregation",
                 "SELECT a AS b FROM t1 GROUP BY t1.a \n" +
                         "ORDER BY MAX((SELECT b))");
 
@@ -528,7 +528,7 @@ public class TestAnalyzer
 
         assertFails(
                 REFERENCE_TO_OUTPUT_ATTRIBUTE_WITHIN_ORDER_BY_AGGREGATION,
-                "line 4:22: Invalid reference to output projection attribute from ORDER BY aggregation",
+                "line 4:14: Invalid reference to output projection attribute from ORDER BY aggregation",
                 "SELECT CAST(ROW(1) AS ROW(someField BIGINT)) AS x\n" +
                         "FROM (VALUES (1, 2)) t(a, b)\n" +
                         "GROUP BY b\n" +

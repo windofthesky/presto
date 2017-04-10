@@ -107,6 +107,7 @@ import com.facebook.presto.sql.tree.Window;
 import com.facebook.presto.sql.tree.WindowFrame;
 import com.facebook.presto.sql.tree.With;
 import com.facebook.presto.sql.tree.WithQuery;
+import com.facebook.presto.sql.util.AstUtils;
 import com.facebook.presto.type.ArrayType;
 import com.facebook.presto.type.MapType;
 import com.facebook.presto.type.RowType;
@@ -187,7 +188,6 @@ import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getLast;
-import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.transform;
 import static java.lang.Math.toIntExact;
 import static java.util.Collections.emptyList;
@@ -1582,31 +1582,38 @@ class StatementAnalyzer
         {
             // This scope is only used for planning. When aggregation is present then
             // only output fields, groups and aggregation expressions should be visible from ORDER BY expression
-            ImmutableList.Builder<Expression> aggregatedSourceExpressionsBuilder = ImmutableList.builder();
-            if (groupByExpressions.size() == 1) {
-                aggregatedSourceExpressionsBuilder.addAll(getOnlyElement(groupByExpressions));
-            }
-            aggregatedSourceExpressionsBuilder.addAll(aggregations);
+            ImmutableList.Builder<Expression> orderByAggregationExpressionsBuilder = ImmutableList.builder();
+            groupByExpressions.stream()
+                    .flatMap(List::stream)
+                    .forEach(orderByAggregationExpressionsBuilder::add);
+            orderByAggregationExpressionsBuilder.addAll(aggregations);
 
             // Don't add aggregate expression that contains references to output column because the names would clash in TranslationMap during planning.
-            List<Expression> aggregatedSourceExpressions = aggregatedSourceExpressionsBuilder.build().stream()
-                    .filter(expression -> !hasReferencesToScope(expression, analysis, outputScope))
+            List<Expression> orderByExpressionsReferencingOutputScope = AstUtils.preOrder(node)
+                    .filter(Expression.class::isInstance)
+                    .map(Expression.class::cast)
+                    .filter(expression -> hasReferencesToScope(expression, analysis, outputScope))
+                    .collect(toImmutableList());
+            List<Expression> orderByAggregationExpressions = orderByAggregationExpressionsBuilder.build().stream()
+                    .filter(expression -> !orderByExpressionsReferencingOutputScope.contains(expression))
                     .collect(toImmutableList());
 
             // generate placeholder fields
-            ImmutableList.Builder<Field> aggregatedSourceFields = ImmutableList.builder();
-            aggregatedSourceExpressions.forEach(expression -> aggregatedSourceFields.add(Field.newUnqualified(Optional.empty(), analysis.getType(expression))));
+            List<Field> orderByAggregationSourceFields = orderByAggregationExpressions.stream()
+                    .map(analysis::getType)
+                    .map(type -> Field.newUnqualified(Optional.empty(), type))
+                    .collect(toImmutableList());
 
-            Scope aggregationScope = Scope.builder()
-                    .withRelationType(new RelationType(aggregatedSourceFields.build()))
+            Scope orderByAggregationScope = Scope.builder()
+                    .withRelationType(new RelationType(orderByAggregationSourceFields))
                     .build();
 
             Scope orderByScope = Scope.builder()
-                    .withParent(aggregationScope)
+                    .withParent(orderByAggregationScope)
                     .withRelationType(outputScope.getRelationType())
                     .build();
             analysis.setScope(node, orderByScope);
-            analysis.setOrderByAggregates(node, aggregatedSourceExpressions);
+            analysis.setOrderByAggregates(node, orderByAggregationExpressions);
             return orderByScope;
         }
 

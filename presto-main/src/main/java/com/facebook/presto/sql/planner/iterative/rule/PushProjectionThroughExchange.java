@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.Session;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.ExpressionSymbolInliner;
 import com.facebook.presto.sql.planner.PartitioningScheme;
@@ -26,7 +27,6 @@ import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableList;
 
@@ -70,7 +70,7 @@ public class PushProjectionThroughExchange
         implements Rule
 {
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Lookup lookup, PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator)
+    public Optional<PlanNode> apply(PlanNode node, Lookup lookup, PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, Session session)
     {
         if (!(node instanceof ProjectNode)) {
             return Optional.empty();
@@ -173,6 +173,6 @@ public class PushProjectionThroughExchange
 
     private static Expression translateExpression(Expression inputExpression, Map<Symbol, SymbolReference> symbolMapping)
     {
-        return ExpressionTreeRewriter.rewriteWith(new ExpressionSymbolInliner(symbolMapping), inputExpression);
+        return ExpressionSymbolInliner.inlineSymbols(symbolMapping, inputExpression);
     }
 }

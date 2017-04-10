@@ -60,7 +60,7 @@ public class TestDisplayTpchDistributedStats
      * manually because at this point no sensible assertions can be formulated
      * for the entirety of TPCH queries.
      */
-    @Test
+    @Test(enabled = false)
     void testCostEstimatesVsRealityDifferences()
     {
         rangeClosed(1, NUMBER_OF_TPCH_QUERIES)

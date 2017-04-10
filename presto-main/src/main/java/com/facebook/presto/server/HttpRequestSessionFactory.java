@@ -158,6 +158,9 @@ final class HttpRequestSessionFactory
             SessionPropertyManager sessionPropertyManager)
     {
         accessControl.checkCanSetUser(identity.getPrincipal().orElse(null), identity.getUser());
+        if (catalog != null) {
+            accessControl.checkCanAccessCatalog(identity, catalog);
+        }
 
         SessionBuilder sessionBuilder = Session.builder(sessionPropertyManager)
                 .setQueryId(queryId)

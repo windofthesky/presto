@@ -370,7 +370,14 @@ public class LocalExecutionPlanner
                 plan,
                 outputLayout,
                 types,
-                new PartitionedOutputFactory(partitionFunction, partitionChannels, partitionConstants, nullChannel, outputBuffer, maxPagePartitioningBufferSize));
+                new PartitionedOutputFactory(
+                        partitionFunction,
+                        partitionChannels,
+                        partitionConstants,
+                        partitioningScheme.getReplication(),
+                        nullChannel,
+                        outputBuffer,
+                        maxPagePartitioningBufferSize));
     }
 
     public LocalExecutionPlan plan(Session session,

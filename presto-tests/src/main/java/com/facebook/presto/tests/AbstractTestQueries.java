@@ -5111,11 +5111,12 @@ public abstract class AbstractTestQueries
     }
 
     @Test
-    public void testNullOnLhsOfInPredicateDisallowed()
+    public void testNullOnLhsOfInPredicateAllowed()
     {
-        String errorMessage = "\\QNULL values are not allowed on the probe side of SemiJoin operator\\E.*";
-        assertQueryFails("SELECT NULL IN (SELECT 1)", errorMessage);
-        assertQueryFails("SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", errorMessage);
+        assertQuery("SELECT NULL IN (1, 2, 3)", "SELECT NULL");
+        assertQuery("SELECT NULL IN (SELECT 1)", "SELECT NULL");
+        assertQuery("SELECT NULL IN (SELECT 1 WHERE FALSE)", "SELECT FALSE");
+        assertQuery("SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", "SELECT 33 WHERE FALSE");
     }
 
     @Test

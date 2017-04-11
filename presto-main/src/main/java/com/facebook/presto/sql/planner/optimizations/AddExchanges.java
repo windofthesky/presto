@@ -105,7 +105,7 @@ import static com.facebook.presto.sql.ExpressionUtils.stripDeterministicConjunct
 import static com.facebook.presto.sql.ExpressionUtils.stripNonDeterministicConjuncts;
 import static com.facebook.presto.sql.analyzer.ExpressionAnalyzer.getExpressionTypes;
 import static com.facebook.presto.sql.planner.FragmentTableScanCounter.hasMultipleSources;
-import static com.facebook.presto.sql.planner.PartitioningScheme.Replication.REPLICATE_NULLS;
+import static com.facebook.presto.sql.planner.PartitioningScheme.Replication.REPLICATE_NULLS_AND_ANY;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -845,7 +845,7 @@ public class AddExchanges
         @Override
         public PlanWithProperties visitSemiJoin(SemiJoinNode node, Context context)
         {
-            Replication partitionedSemiJoinReplication = REPLICATE_NULLS;
+            Replication partitionedSemiJoinReplication = REPLICATE_NULLS_AND_ANY;
             PlanWithProperties source;
             PlanWithProperties filteringSource;
 

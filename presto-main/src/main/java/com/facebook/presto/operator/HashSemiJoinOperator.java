@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator;
 
+import com.facebook.presto.SystemSessionProperties;
 import com.facebook.presto.operator.SetBuilderOperator.SetSupplier;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PrestoException;
@@ -91,6 +92,7 @@ public class HashSemiJoinOperator
     }
 
     private final int probeJoinChannel;
+    private final boolean supportNullOnLhsOfSemiJoin;
     private final List<Type> types;
     private final ListenableFuture<ChannelSet> channelSetFuture;
 
@@ -109,6 +111,7 @@ public class HashSemiJoinOperator
 
         this.channelSetFuture = channelSetFuture.getChannelSet();
         this.probeJoinChannel = probeJoinChannel;
+        this.supportNullOnLhsOfSemiJoin = SystemSessionProperties.supportNullOnLhsOfSemiJoin(operatorContext.getSession());
 
         this.types = ImmutableList.<Type>builder()
                 .addAll(probeTypes)
@@ -191,9 +194,19 @@ public class HashSemiJoinOperator
     private void addJoinResult(BlockBuilder blockBuilder, Page probeJoinPage, int position)
     {
         if (probeJoinPage.getBlock(0).isNull(position)) {
-            throw new PrestoException(
-                    NOT_SUPPORTED,
-                    "NULL values are not allowed on the probe side of SemiJoin operator. See the query plan for details.");
+            if (supportNullOnLhsOfSemiJoin) {
+                if (channelSet.isEmpty()) {
+                    BOOLEAN.writeBoolean(blockBuilder, false);
+                }
+                else {
+                    blockBuilder.appendNull();
+                }
+            }
+            else {
+                throw new PrestoException(
+                        NOT_SUPPORTED,
+                        "NULL values are not allowed on the probe side of SemiJoin operator. See the query plan for details.");
+            }
         }
         else {
             boolean contains = channelSet.contains(position, probeJoinPage);

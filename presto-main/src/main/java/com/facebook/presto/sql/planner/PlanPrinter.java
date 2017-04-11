@@ -41,6 +41,7 @@ import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.FunctionInvoker;
+import com.facebook.presto.sql.planner.PartitioningScheme.Replication;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
@@ -386,7 +387,7 @@ public class PlanPrinter
                 .append(format("Output layout: [%s]\n",
                         Joiner.on(", ").join(partitioningScheme.getOutputLayout())));
 
-        boolean replicateNulls = partitioningScheme.isReplicateNulls();
+        Replication replication = partitioningScheme.getReplication();
         List<String> arguments = partitioningScheme.getPartitioning().getArguments().stream()
                 .map(argument -> {
                     if (argument.isConstant()) {
@@ -398,18 +399,11 @@ public class PlanPrinter
                 })
                 .collect(toImmutableList());
         builder.append(indentString(1));
-        if (replicateNulls) {
-            builder.append(format("Output partitioning: %s (replicate nulls) [%s]%s\n",
-                    partitioningScheme.getPartitioning().getHandle(),
-                    Joiner.on(", ").join(arguments),
-                    formatHash(partitioningScheme.getHashColumn())));
-        }
-        else {
-            builder.append(format("Output partitioning: %s [%s]%s\n",
-                    partitioningScheme.getPartitioning().getHandle(),
-                    Joiner.on(", ").join(arguments),
-                    formatHash(partitioningScheme.getHashColumn())));
-        }
+        builder.append(format("Output partitioning: %s%s [%s]%s\n",
+                partitioningScheme.getPartitioning().getHandle(),
+                formatReplication(replication),
+                Joiner.on(", ").join(arguments),
+                formatHash(partitioningScheme.getHashColumn())));
 
         if (stageStats.isPresent()) {
             builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, costCalculator, session, planNodeStats.get(), 1))
@@ -426,6 +420,16 @@ public class PlanPrinter
     private static boolean isNonZero(DataSize dataSize)
     {
         return dataSize != null && dataSize.getValue() != 0;
+    }
+
+    private static String formatReplication(Replication replication)
+    {
+        if (replication.replicatesNothing()) {
+            return "";
+        }
+        else {
+            return format(" (%s)", replication);
+        }
     }
 
     public static String graphvizLogicalPlan(PlanNode plan, Map<Symbol, Type> types)
@@ -1209,7 +1213,7 @@ public class PlanPrinter
             if (node.getScope() == Scope.LOCAL) {
                 print(indent, "- LocalExchange[%s%s]%s (%s) => %s %s",
                         node.getPartitioningScheme().getPartitioning().getHandle(),
-                        node.getPartitioningScheme().isReplicateNulls() ? " - REPLICATE NULLS" : "",
+                        formatReplication(node.getPartitioningScheme().getReplication()),
                         formatHash(node.getPartitioningScheme().getHashColumn()),
                         Joiner.on(", ").join(node.getPartitioningScheme().getPartitioning().getArguments()),
                         formatOutputs(node.getOutputSymbols()),
@@ -1219,7 +1223,7 @@ public class PlanPrinter
                 print(indent, "- %sExchange[%s%s]%s => %s %s",
                         UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, node.getScope().toString()),
                         node.getType(),
-                        node.getPartitioningScheme().isReplicateNulls() ? " - REPLICATE NULLS" : "",
+                        formatReplication(node.getPartitioningScheme().getReplication()),
                         formatHash(node.getPartitioningScheme().getHashColumn()),
                         formatOutputs(node.getOutputSymbols()),
                         formatCost(node));
@@ -1227,6 +1231,16 @@ public class PlanPrinter
             printStats(indent + 2, node.getId());
 
             return processChildren(node, indent + 1);
+        }
+
+        private String formatReplication(Replication replication)
+        {
+            if (replication.replicatesNothing()) {
+                return "";
+            }
+            else {
+                return " - " + replication;
+            }
         }
 
         @Override

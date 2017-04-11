@@ -481,7 +481,7 @@ public class HashGenerationOptimizer
                                     .collect(toImmutableList()))
                             .build(),
                     partitionSymbols.map(newHashSymbols::get),
-                    partitioningScheme.isReplicateNulls(),
+                    partitioningScheme.getReplication(),
                     partitioningScheme.getBucketToPartition());
 
             // add hash symbols to sources

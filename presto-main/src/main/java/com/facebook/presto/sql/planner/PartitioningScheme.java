@@ -35,18 +35,27 @@ public class PartitioningScheme
     {
         REPLICATE_NOTHING(
                 false,
+                false,
                 columnsCount -> true),
+
+        REPLICATE_NULLS_AND_ANY(
+                true,
+                true,
+                columnsCount -> columnsCount <= 1),
 
         REPLICATE_NULLS(
                 true,
+                false,
                 columnsCount -> columnsCount <= 1);
 
         private final boolean replicatesNulls;
+        private final boolean replicatesAnyRow;
         private final IntPredicate columnsCountCompatibility;
 
-        Replication(boolean replicatesNulls, IntPredicate columnsCountCompatibility)
+        Replication(boolean replicatesNulls, boolean replicatesAnyRow, IntPredicate columnsCountCompatibility)
         {
             this.replicatesNulls = replicatesNulls;
+            this.replicatesAnyRow = replicatesAnyRow;
             this.columnsCountCompatibility = requireNonNull(columnsCountCompatibility, "columnsCountCompatibility is null");
         }
 
@@ -55,9 +64,14 @@ public class PartitioningScheme
             return replicatesNulls;
         }
 
+        public boolean replicatesAnyRow()
+        {
+            return replicatesAnyRow;
+        }
+
         public boolean replicatesNothing()
         {
-            return !replicatesNulls();
+            return !(replicatesNulls() || replicatesAnyRow());
         }
 
         public boolean isCompatibleWithPartitioningColumns(int columnsCount)

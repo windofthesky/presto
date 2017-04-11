@@ -59,6 +59,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.SystemSessionProperties.LEGACY_ORDER_BY;
+import static com.facebook.presto.SystemSessionProperties.SUPPORT_NULL_ON_LHS_OF_SEMI_JOIN;
 import static com.facebook.presto.connector.informationSchema.InformationSchemaMetadata.INFORMATION_SCHEMA;
 import static com.facebook.presto.operator.scalar.ApplyFunction.APPLY_FUNCTION;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
@@ -5218,11 +5219,24 @@ public abstract class AbstractTestQueries
     }
 
     @Test
-    public void testNullOnLhsOfInPredicateDisallowed()
+    public void testNullOnLhsOfInPredicateRejectedWhenDisallowed()
     {
+        Session session = Session.builder(getSession())
+                .setSystemProperty(SUPPORT_NULL_ON_LHS_OF_SEMI_JOIN, "false")
+                .build();
+
         String errorMessage = "\\QNULL values are not allowed on the probe side of SemiJoin operator\\E.*";
-        assertQueryFails("SELECT NULL IN (SELECT 1)", errorMessage);
-        assertQueryFails("SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", errorMessage);
+        assertQueryFails(session, "SELECT NULL IN (SELECT 1)", errorMessage);
+        assertQueryFails(session, "SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", errorMessage);
+    }
+
+    @Test
+    public void testNullOnLhsOfInPredicateAllowed()
+    {
+        assertQuery("SELECT NULL IN (1, 2, 3)", "SELECT NULL");
+        assertQuery("SELECT NULL IN (SELECT 1)", "SELECT NULL");
+        assertQuery("SELECT NULL IN (SELECT 1 WHERE FALSE)", "SELECT FALSE");
+        assertQuery("SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", "SELECT 33 WHERE FALSE");
     }
 
     @Test

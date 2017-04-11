@@ -43,6 +43,10 @@ broken.
 `hadoop-master`, `mysql`, `postgres`, `cassandra`, `presto-master`.
 They should point to your external IP address (shown by `ifconfig` on your Mac (not inside docker)).
 
+* The default memory setting of 2GB might not be sufficient for some profiles like singlenode-ldap.
+To increase docker memory go to docker preferences > advanced > memory, and increase it appropriately.
+We recommend above 6GB.
+
 ### OS X using Docker Toolbox (macOS 10.8 "Mountain Lion" or newer) [NOT RECOMMENDED]
 
 * [`VirtualBox >= 5.0`](https://www.virtualbox.org/wiki/Downloads)

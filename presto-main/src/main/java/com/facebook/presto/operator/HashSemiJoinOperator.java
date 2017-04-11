@@ -174,21 +174,8 @@ public class HashSemiJoinOperator
         Page probeJoinPage = new Page(page.getBlock(probeJoinChannel));
 
         // update hashing strategy to use probe cursor
-        for (int position = 0; position < page.getPositionCount(); position++) {
-            if (probeJoinPage.getBlock(0).isNull(position)) {
-                throw new PrestoException(
-                        NOT_SUPPORTED,
-                        "NULL values are not allowed on the probe side of SemiJoin operator. See the query plan for details.");
-            }
-            else {
-                boolean contains = channelSet.contains(position, probeJoinPage);
-                if (!contains && channelSet.containsNull()) {
-                    blockBuilder.appendNull();
-                }
-                else {
-                    BOOLEAN.writeBoolean(blockBuilder, contains);
-                }
-            }
+        for (int position = 0; position < probeJoinPage.getPositionCount(); position++) {
+            addJoinResult(blockBuilder, probeJoinPage, position);
         }
 
         // add the new boolean column to the page
@@ -199,6 +186,24 @@ public class HashSemiJoinOperator
         outputBlocks[sourceBlocks.length] = blockBuilder.build();
 
         outputPage = new Page(outputBlocks);
+    }
+
+    private void addJoinResult(BlockBuilder blockBuilder, Page probeJoinPage, int position)
+    {
+        if (probeJoinPage.getBlock(0).isNull(position)) {
+            throw new PrestoException(
+                    NOT_SUPPORTED,
+                    "NULL values are not allowed on the probe side of SemiJoin operator. See the query plan for details.");
+        }
+        else {
+            boolean contains = channelSet.contains(position, probeJoinPage);
+            if (!contains && channelSet.containsNull()) {
+                blockBuilder.appendNull();
+            }
+            else {
+                BOOLEAN.writeBoolean(blockBuilder, contains);
+            }
+        }
     }
 
     @Override

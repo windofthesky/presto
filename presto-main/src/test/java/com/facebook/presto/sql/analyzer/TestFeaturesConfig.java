@@ -65,7 +65,7 @@ public class TestFeaturesConfig
                 .setIterativeOptimizerEnabled(true)
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setExchangeCompressionEnabled(false)
-                .setLegacyTimestamp(true)
+                .setLegacyTimestamp(false)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setPushAggregationThroughJoin(true)
                 .setMemoryRevokingThreshold(0.9)
@@ -109,7 +109,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .put("small-table-coefficient", "0.2")
                 .build();
@@ -145,7 +145,7 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-threshold", "0.2")
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
-                .put("deprecated.legacy-timestamp", "false")
+                .put("deprecated.legacy-timestamp", "true")
                 .put("parse-decimal-literals-as-double", "true")
                 .put("small-table-coefficient", "0.2")
                 .build();
@@ -180,9 +180,10 @@ public class TestFeaturesConfig
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
-                .setLegacyTimestamp(false)
+                .setLegacyTimestamp(true)
                 .setParseDecimalLiteralsAsDouble(true)
                 .setMemoryRevokingTarget(0.8)
+                .setMemoryRevokingThreshold(0.2)
                 .setParseDecimalLiteralsAsDouble(true)
                 .setSmallTableCoefficient(0.2);
 

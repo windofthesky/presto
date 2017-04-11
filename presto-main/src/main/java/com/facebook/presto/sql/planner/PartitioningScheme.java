@@ -41,11 +41,6 @@ public class PartitioningScheme
         REPLICATE_NULLS_AND_ANY(
                 true,
                 true,
-                columnsCount -> columnsCount <= 1),
-
-        REPLICATE_NULLS(
-                true,
-                false,
                 columnsCount -> columnsCount <= 1);
 
         private final boolean replicatesNulls;

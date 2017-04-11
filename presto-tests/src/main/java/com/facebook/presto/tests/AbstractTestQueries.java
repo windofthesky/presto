@@ -5165,6 +5165,12 @@ public abstract class AbstractTestQueries
         assertQuery("SELECT NULL IN (SELECT 1)", "SELECT NULL");
         assertQuery("SELECT NULL IN (SELECT 1 WHERE FALSE)", "SELECT FALSE");
         assertQuery("SELECT x FROM (VALUES NULL) t(x) WHERE x IN (SELECT 1)", "SELECT 33 WHERE FALSE");
+        assertQuery("SELECT NULL IN (SELECT CAST(NULL AS BIGINT))", "SELECT NULL");
+        assertQuery("SELECT NULL IN (SELECT NULL WHERE FALSE)", "SELECT FALSE");
+        assertQuery("SELECT NULL IN ((SELECT 1) UNION ALL (SELECT NULL))", "SELECT NULL");
+        assertQuery("SELECT x IN (SELECT TRUE) FROM (SELECT * FROM (VALUES CAST(NULL AS BOOLEAN)) t(x) WHERE (x OR NULL) IS NULL)", "SELECT NULL");
+        assertQuery("SELECT x IN (SELECT 1) FROM (SELECT * FROM (VALUES CAST(NULL AS INTEGER)) t(x) WHERE (x + 10 IS NULL) OR X = 2)", "SELECT NULL");
+        assertQuery("SELECT x IN (SELECT 1 WHERE FALSE) FROM (SELECT * FROM (VALUES CAST(NULL AS INTEGER)) t(x) WHERE (x + 10 IS NULL) OR X = 2)", "SELECT FALSE");
     }
 
     @Test
@@ -6230,7 +6236,7 @@ public abstract class AbstractTestQueries
         // test multi level IN subqueries
         assertQuery("SELECT 1 IN (SELECT 1), 2 IN (SELECT 1) WHERE 1 IN (SELECT 1)");
 
-         // test with subqueries on left
+        // test with subqueries on left
         assertQuery("SELECT (select 1) IN (SELECT 1)");
         assertQuery("SELECT (select 2) IN (1, (SELECT 2))");
         assertQuery("SELECT (2 + (select 1)) IN (SELECT 1)");
@@ -6317,6 +6323,18 @@ public abstract class AbstractTestQueries
     }
 
     @Test
+    public void testAntiJoinNullHandling()
+    {
+        assertQuery("WITH empty AS (SELECT 1 WHERE FALSE) " +
+                        "SELECT 3 FROM (VALUES 1) WHERE NULL NOT IN (SELECT * FROM empty)",
+                "VALUES 3");
+
+        assertQuery("WITH empty AS (SELECT 1 WHERE FALSE) " +
+                        "SELECT x FROM (VALUES NULL) t(x) WHERE x NOT IN (SELECT * FROM empty)",
+                "VALUES NULL");
+    }
+
+    @Test
     public void testSemiJoinLimitPushDown()
     {
         assertQuery("" +
@@ -6334,6 +6352,10 @@ public abstract class AbstractTestQueries
     @Test
     public void testSemiJoinNullHandling()
     {
+        assertQuery("WITH empty AS (SELECT 1 WHERE FALSE) " +
+                        "SELECT 3 FROM (VALUES 1) WHERE NULL IN (SELECT * FROM empty)",
+                "SELECT 0 WHERE FALSE");
+
         assertQuery("" +
                 "SELECT orderkey\n" +
                 "  IN (\n" +

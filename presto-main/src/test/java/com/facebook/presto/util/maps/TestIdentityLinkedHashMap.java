@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static java.util.stream.IntStream.range;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;

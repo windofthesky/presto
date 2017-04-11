@@ -57,6 +57,7 @@ public final class SystemSessionProperties
     public static final String PROCESSING_OPTIMIZATION = "processing_optimization";
     public static final String DICTIONARY_AGGREGATION = "dictionary_aggregation";
     public static final String PLAN_WITH_TABLE_NODE_PARTITIONING = "plan_with_table_node_partitioning";
+    public static final String SUPPORT_NULL_ON_LHS_OF_SEMI_JOIN = "support_null_on_lhs_of_semi_join";
     public static final String COLOCATED_JOIN = "colocated_join";
     public static final String REORDER_JOINS = "reorder_joins";
     public static final String INITIAL_SPLITS_PER_NODE = "initial_splits_per_node";
@@ -289,6 +290,11 @@ public final class SystemSessionProperties
                         featuresConfig.isReorderWindows(),
                         false),
                 booleanSessionProperty(
+                        SUPPORT_NULL_ON_LHS_OF_SEMI_JOIN,
+                        "Support NULL on left-hand side of Semi Join (IN), at the cost if disabling certain optimizations",
+                        featuresConfig.isSupportNullOnLhsOfSemiJoin(),
+                        false),
+                booleanSessionProperty(
                         ITERATIVE_OPTIMIZER,
                         "Experimental: enable iterative optimizer",
                         featuresConfig.isIterativeOptimizerEnabled(),
@@ -407,6 +413,11 @@ public final class SystemSessionProperties
     public static boolean isJoinReorderingEnabled(Session session)
     {
         return session.getSystemProperty(REORDER_JOINS, Boolean.class);
+    }
+
+    public static boolean supportNullOnLhsOfSemiJoin(Session session)
+    {
+        return session.getSystemProperty(SUPPORT_NULL_ON_LHS_OF_SEMI_JOIN, Boolean.class);
     }
 
     public static boolean isColocatedJoinEnabled(Session session)

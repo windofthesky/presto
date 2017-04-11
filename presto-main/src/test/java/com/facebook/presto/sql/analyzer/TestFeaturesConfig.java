@@ -38,6 +38,7 @@ public class TestFeaturesConfig
     {
         assertRecordedDefaults(ConfigAssertions.recordDefaults(FeaturesConfig.class)
                 .setResourceGroupsEnabled(false)
+                .setSupportNullOnLhsOfSemiJoin(true)
                 .setDistributedIndexJoinsEnabled(false)
                 .setDistributedJoinsEnabled(true)
                 .setColocatedJoinsEnabled(false)
@@ -74,6 +75,7 @@ public class TestFeaturesConfig
     {
         Map<String, String> propertiesLegacy = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
+                .put("support-null-on-lhs-of-semi-join", "false")
                 .put("experimental.iterative-optimizer-enabled", "false")
                 .put("experimental.iterative-optimizer-timeout", "10s")
                 .put("deprecated.legacy-array-agg", "true")
@@ -106,6 +108,7 @@ public class TestFeaturesConfig
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
+                .put("support-null-on-lhs-of-semi-join", "false")
                 .put("experimental.iterative-optimizer-enabled", "false")
                 .put("experimental.iterative-optimizer-timeout", "10s")
                 .put("deprecated.legacy-array-agg", "true")
@@ -139,6 +142,7 @@ public class TestFeaturesConfig
 
         FeaturesConfig expected = new FeaturesConfig()
                 .setResourceGroupsEnabled(true)
+                .setSupportNullOnLhsOfSemiJoin(false)
                 .setIterativeOptimizerEnabled(false)
                 .setIterativeOptimizerTimeout(new Duration(10, SECONDS))
                 .setDistributedIndexJoinsEnabled(true)

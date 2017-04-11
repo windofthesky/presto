@@ -22,17 +22,54 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.IntPredicate;
 
+import static com.facebook.presto.sql.planner.PartitioningScheme.Replication.REPLICATE_NOTHING;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public class PartitioningScheme
 {
+    public enum Replication
+    {
+        REPLICATE_NOTHING(
+                false,
+                columnsCount -> true),
+
+        REPLICATE_NULLS(
+                true,
+                columnsCount -> columnsCount <= 1);
+
+        private final boolean replicatesNulls;
+        private final IntPredicate columnsCountCompatibility;
+
+        Replication(boolean replicatesNulls, IntPredicate columnsCountCompatibility)
+        {
+            this.replicatesNulls = replicatesNulls;
+            this.columnsCountCompatibility = requireNonNull(columnsCountCompatibility, "columnsCountCompatibility is null");
+        }
+
+        public boolean replicatesNulls()
+        {
+            return replicatesNulls;
+        }
+
+        public boolean replicatesNothing()
+        {
+            return !replicatesNulls();
+        }
+
+        public boolean isCompatibleWithPartitioningColumns(int columnsCount)
+        {
+            return columnsCountCompatibility.test(columnsCount);
+        }
+    }
+
     private final Partitioning partitioning;
     private final List<Symbol> outputLayout;
     private final Optional<Symbol> hashColumn;
-    private final boolean replicateNulls;
+    private final Replication replication;
     private final Optional<int[]> bucketToPartition;
 
     public PartitioningScheme(Partitioning partitioning, List<Symbol> outputLayout)
@@ -41,7 +78,7 @@ public class PartitioningScheme
                 partitioning,
                 outputLayout,
                 Optional.empty(),
-                false,
+                REPLICATE_NOTHING,
                 Optional.empty());
     }
 
@@ -51,7 +88,7 @@ public class PartitioningScheme
                 partitioning,
                 outputLayout,
                 hashColumn,
-                false,
+                REPLICATE_NOTHING,
                 Optional.empty());
     }
 
@@ -60,7 +97,7 @@ public class PartitioningScheme
             @JsonProperty("partitioning") Partitioning partitioning,
             @JsonProperty("outputLayout") List<Symbol> outputLayout,
             @JsonProperty("hashColumn") Optional<Symbol> hashColumn,
-            @JsonProperty("replicateNulls") boolean replicateNulls,
+            @JsonProperty("replication") Replication replication,
             @JsonProperty("bucketToPartition") Optional<int[]> bucketToPartition)
     {
         this.partitioning = requireNonNull(partitioning, "partitioning is null");
@@ -74,8 +111,10 @@ public class PartitioningScheme
         hashColumn.ifPresent(column -> checkArgument(outputLayout.contains(column),
                 "Output layout (%s) don't include hash column (%s)", outputLayout, column));
 
-        checkArgument(!replicateNulls || columns.size() <= 1, "Must have at most one partitioning column when nullPartition is REPLICATE.");
-        this.replicateNulls = replicateNulls;
+        requireNonNull(replication, "replication is null");
+        checkArgument(replication.isCompatibleWithPartitioningColumns(columns.size()), "Replication %s cannot be used with %s partitioning columns", replication, columns.size());
+        this.replication = replication;
+
         this.bucketToPartition = requireNonNull(bucketToPartition, "bucketToPartition is null");
     }
 
@@ -98,9 +137,9 @@ public class PartitioningScheme
     }
 
     @JsonProperty
-    public boolean isReplicateNulls()
+    public Replication getReplication()
     {
-        return replicateNulls;
+        return replication;
     }
 
     @JsonProperty
@@ -111,7 +150,7 @@ public class PartitioningScheme
 
     public PartitioningScheme withBucketToPartition(Optional<int[]> bucketToPartition)
     {
-        return new PartitioningScheme(partitioning, outputLayout, hashColumn, replicateNulls, bucketToPartition);
+        return new PartitioningScheme(partitioning, outputLayout, hashColumn, replication, bucketToPartition);
     }
 
     public PartitioningScheme translateOutputLayout(List<Symbol> newOutputLayout)
@@ -126,7 +165,7 @@ public class PartitioningScheme
                 .map(outputLayout::indexOf)
                 .map(newOutputLayout::get);
 
-        return new PartitioningScheme(newPartitioning, newOutputLayout, newHashSymbol, replicateNulls, bucketToPartition);
+        return new PartitioningScheme(newPartitioning, newOutputLayout, newHashSymbol, replication, bucketToPartition);
     }
 
     @Override
@@ -141,14 +180,14 @@ public class PartitioningScheme
         PartitioningScheme that = (PartitioningScheme) o;
         return Objects.equals(partitioning, that.partitioning) &&
                 Objects.equals(outputLayout, that.outputLayout) &&
-                replicateNulls == that.replicateNulls &&
+                replication == that.replication &&
                 Objects.equals(bucketToPartition, that.bucketToPartition);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(partitioning, outputLayout, replicateNulls, bucketToPartition);
+        return Objects.hash(partitioning, outputLayout, replication, bucketToPartition);
     }
 
     @Override
@@ -158,7 +197,7 @@ public class PartitioningScheme
                 .add("partitioning", partitioning)
                 .add("outputLayout", outputLayout)
                 .add("hashChannel", hashColumn)
-                .add("replicateNulls", replicateNulls)
+                .add("replication", replication)
                 .add("bucketToPartition", bucketToPartition)
                 .toString();
     }

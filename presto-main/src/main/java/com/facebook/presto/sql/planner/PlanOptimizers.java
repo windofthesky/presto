@@ -62,7 +62,6 @@ import com.facebook.presto.sql.planner.optimizations.ImplementIntersectAndExcept
 import com.facebook.presto.sql.planner.optimizations.IndexJoinOptimizer;
 import com.facebook.presto.sql.planner.optimizations.LimitPushDown;
 import com.facebook.presto.sql.planner.optimizations.MergeProjections;
-import com.facebook.presto.sql.planner.optimizations.MergeWindows;
 import com.facebook.presto.sql.planner.optimizations.MetadataDeleteOptimizer;
 import com.facebook.presto.sql.planner.optimizations.MetadataQueryOptimizer;
 import com.facebook.presto.sql.planner.optimizations.OptimizeMixedDistinctAggregations;
@@ -246,24 +245,14 @@ public class PlanOptimizers
                         ImmutableSet.of(new SimplifyCountOverConstant())),
                 new WindowFilterPushDown(metadata), // This must run after PredicatePushDown and LimitPushDown so that it squashes any successive filter nodes and limits
                 new IterativeOptimizer(
-                                stats,
-                                ImmutableList.of(
-                                        new UnaliasSymbolReferences(),
-                                        new MergeWindows()),
-                                ImmutableSet.of(
-                                        // add UnaliasSymbolReferences when it's ported
-                                        new RemoveRedundantIdentityProjections(),
-                                        new SwapAdjacentWindowsBySpecifications(),
-                                        new MergeAdjacentWindows())
-                ),
-                new IterativeOptimizer(
                         stats,
                         statsCalculator,
                         estimatedExchangesCostCalculator,
                         ImmutableSet.of(
                                 // add UnaliasSymbolReferences when it's ported
                                 new RemoveRedundantIdentityProjections(),
-                                new SwapAdjacentWindowsBySpecifications())),
+                                new SwapAdjacentWindowsBySpecifications(),
+                                new MergeAdjacentWindows())),
                 inlineProjections,
                 new PruneUnreferencedOutputs(), // Make sure to run this at the end to help clean the plan for logging/execution and not remove info that other optimizers might need at an earlier point
                 new IterativeOptimizer(

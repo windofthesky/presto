@@ -162,7 +162,7 @@ public class LookupJoinOperatorFactory
                 lookupSourceFactory,
                 joinProbeFactory,
                 referenceCount::release,
-                lookupJoinsCount,
+                new AtomicInteger(2),
                 sharedMemoryContext,
                 probeHashGenerator);
     }

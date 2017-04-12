@@ -180,7 +180,25 @@ class AggregationAnalyzer
         @Override
         protected Boolean visitSubqueryExpression(SubqueryExpression node, Void context)
         {
-            return true;
+            /*
+             * Column reference can resolve to (a) some subquery's scope, (b) a projection (ORDER BY scope),
+             * (c) source scope or (d) outer query scope (effectively a constant).
+             * From AggregationAnalyzer's perspective, only case (c) needs verification.
+             */
+            return getReferencesToScope(node, analysis, sourceScope)
+                    .allMatch(this::verifySubqueryReferenceToSourceScope);
+        }
+
+        private boolean verifySubqueryReferenceToSourceScope(Expression referenceExpression)
+        {
+            FieldId fieldId = requireNonNull(columnReferences.get(referenceExpression), "No FieldId for Expression");
+
+            if (groupingFields.contains(fieldId)) {
+                return true;
+            }
+
+            throw new SemanticException(MUST_BE_AGGREGATE_OR_GROUP_BY, referenceExpression,
+                    "Subquery uses '%s' which must appear in GROUP BY clause", referenceExpression);
         }
 
         @Override

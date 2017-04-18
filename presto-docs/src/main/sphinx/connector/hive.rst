@@ -168,18 +168,13 @@ Property Name                                      Description                  
 ``security.config-file``                           Path of config file to use when ``hive.security=file``.
                                                    See :ref:`hive-file-based-authorization` for details.
 
-<<<<<<< c3a42c03b7dc3f89e1ee169705e3319d0d3a3326
 ``hive.non-managed-table-writes-enabled``          Enable writes to non-managed (external) Hive tables.         ``false``
-=======
+
 ``hive.multi-file-bucketing.enabled``              Enable support for multiple files per bucket for Hive        ``false``
                                                    clustered tables. See :ref:`clustered-tables`
-<<<<<<< e65d33ff45c1750c77f6c9a01d8e6acf42891dbc
->>>>>>> Add doc for multi-file hive buckets support
-=======
 
 ``hive.empty-bucketed-partitions.enabled``         Enable support for clustered tables with empty partitions.   ``false``
                                                    See :ref:`clustered-tables`
->>>>>>> Add doc for Hive empty buckets support
 ================================================== ============================================================ ==========
 
 Amazon S3 Configuration

@@ -18,6 +18,7 @@ import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.sql.QueryUtil;
+import com.facebook.presto.sql.tree.Cast;
 import com.facebook.presto.sql.tree.DoubleLiteral;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.NullLiteral;
@@ -29,6 +30,8 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static com.facebook.presto.spi.type.StandardTypes.VARCHAR;
 
 class ShowColumnStatsRewriteResultBuilder
 {
@@ -66,7 +69,7 @@ class ShowColumnStatsRewriteResultBuilder
     private static Row createStatsRow(Optional<String> columnName, List<String> statisticsNames, Map<String, Estimate> columnStatisticsValues)
     {
         ImmutableList.Builder<Expression> rowValues = ImmutableList.builder();
-        Expression columnNameExpression = columnName.map(name -> (Expression) new StringLiteral(name)).orElse(new NullLiteral());
+        Expression columnNameExpression = columnName.map(name -> (Expression) new StringLiteral(name)).orElse(new Cast(new NullLiteral(), VARCHAR));
 
         rowValues.add(columnNameExpression);
         for (String statName : statisticsNames) {

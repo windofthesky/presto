@@ -26,6 +26,7 @@ import com.facebook.presto.spi.UpdatablePageSource;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.split.RemoteSplit;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
+import com.facebook.presto.util.MoreMaps;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -49,7 +50,6 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterables.concat;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
@@ -368,9 +368,15 @@ public class ExchangeOperator
         @Override
         public ExchangeStats mergeWith(ExchangeStats other)
         {
-            return new ExchangeStats(
-                    ImmutableList.copyOf(concat(stageIds, other.stageIds)),
-                    ImmutableList.copyOf(concat(stats, other.stats)));
+            Map<StageId, SingleExchangeStats> mergedStats = MoreMaps.mergeMaps(getStatsMap(), other.getStatsMap(),
+                    (l, r) -> new SingleExchangeStats(l.getSplitsCount() + r.getSplitsCount(), l.getPositionCount() + r.getPositionCount()));
+
+            List<StageId> stageIds = ImmutableList.copyOf(mergedStats.keySet());
+            ImmutableList.Builder<SingleExchangeStats> builder = ImmutableList.builder();
+            for (StageId singleStage : stageIds) {
+                builder.add(mergedStats.get(singleStage));
+            }
+            return new ExchangeStats(stageIds, builder.build());
         }
     }
 

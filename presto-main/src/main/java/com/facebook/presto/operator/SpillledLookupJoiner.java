@@ -86,7 +86,7 @@ public class SpillledLookupJoiner
     public void finish(SharedMemoryContext sharedMemoryContext)
     {
         checkState(lookupPartition.load().isDone());
-        lookupPartition.release();
         sharedMemoryContext.free(lookupPartition.number(), getInMemorySizeInBytes());
+        lookupPartition.release();
     }
 }

@@ -298,12 +298,22 @@ public class PlanPrinter
         print(indent, format, args.toArray(new Object[args.size()]));
     }
 
-    private void printStats(int intent, PlanNodeId planNodeId)
+    private void printStats(int indent, PlanNodeId planNodeId)
     {
-        printStats(intent, planNodeId, false, false);
+        printStats(indent, planNodeId, null);
+    }
+
+    private void printStats(int indent, PlanNodeId planNodeId, Object extraInfo)
+    {
+        printStats(indent, planNodeId, Optional.ofNullable(extraInfo), false, false);
     }
 
     private void printStats(int indent, PlanNodeId planNodeId, boolean printInput, boolean printFiltered)
+    {
+        printStats(indent, planNodeId, Optional.empty(), printInput, printFiltered);
+    }
+
+    private void printStats(int indent, PlanNodeId planNodeId, Optional<Object> extraInfo, boolean printInput, boolean printFiltered)
     {
         if (!stats.isPresent()) {
             return;
@@ -951,7 +961,7 @@ public class PlanPrinter
         public Void visitRemoteSource(RemoteSourceNode node, Integer indent)
         {
             print(indent, "- RemoteSource[%s] => [%s]", Joiner.on(',').join(node.getSourceFragmentIds()), formatOutputs(node.getOutputSymbols()));
-            printStats(indent + 2, node.getId());
+            printStats(indent + 2, node.getId(), node.getSourceFragmentIds());
 
             return null;
         }

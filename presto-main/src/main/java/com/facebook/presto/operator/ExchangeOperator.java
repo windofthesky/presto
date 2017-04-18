@@ -26,7 +26,6 @@ import com.facebook.presto.spi.UpdatablePageSource;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.split.RemoteSplit;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
-import com.facebook.presto.util.MoreMaps;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -39,6 +38,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Closeable;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +50,7 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterables.concat;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
@@ -354,29 +355,28 @@ public class ExchangeOperator
             return stats;
         }
 
-        public Map<StageId, SingleExchangeStats> getStatsMap()
+        public Map<StageId, List<SingleExchangeStats>> getStatsMap()
         {
-            ImmutableMap.Builder<StageId, SingleExchangeStats> builder = ImmutableMap.builder();
+            Map<StageId, List<SingleExchangeStats>> builder = new HashMap<>();
 
             for (int i = 0; i < stageIds.size(); ++i) {
-                builder.put(stageIds.get(i), stats.get(i));
+                List<SingleExchangeStats> list = builder.get(stageIds.get(i));
+                if (list == null) {
+                    list = new ArrayList<>();
+                    builder.put(stageIds.get(i), list);
+                }
+                list.add(stats.get(i));
             }
 
-            return builder.build();
+            return ImmutableMap.copyOf(builder);
         }
 
         @Override
         public ExchangeStats mergeWith(ExchangeStats other)
         {
-            Map<StageId, SingleExchangeStats> mergedStats = MoreMaps.mergeMaps(getStatsMap(), other.getStatsMap(),
-                    (l, r) -> new SingleExchangeStats(l.getSplitsCount() + r.getSplitsCount(), l.getPositionCount() + r.getPositionCount()));
-
-            List<StageId> stageIds = ImmutableList.copyOf(mergedStats.keySet());
-            ImmutableList.Builder<SingleExchangeStats> builder = ImmutableList.builder();
-            for (StageId singleStage : stageIds) {
-                builder.add(mergedStats.get(singleStage));
-            }
-            return new ExchangeStats(stageIds, builder.build());
+            return new ExchangeStats(
+                    ImmutableList.copyOf(concat(stageIds, other.stageIds)),
+                    ImmutableList.copyOf(concat(stats, other.stats)));
         }
     }
 

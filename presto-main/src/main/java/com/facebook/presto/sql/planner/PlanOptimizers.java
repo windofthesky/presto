@@ -277,7 +277,13 @@ public class PlanOptimizers
                         estimatedExchangesCostCalculator,
                         ImmutableSet.of(new RemoveRedundantIdentityProjections())
                 ),
-                new MetadataQueryOptimizer(metadata),
+                new IterativeOptimizer(
+                        stats,
+                        statsCalculator,
+                        estimatedExchangesCostCalculator,
+                        ImmutableList.of(new MetadataQueryOptimizer(metadata)),
+                        ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.MetadataQueryOptimizer(metadata))
+                        ),
                 new IterativeOptimizer(
                         stats,
                         statsCalculator,

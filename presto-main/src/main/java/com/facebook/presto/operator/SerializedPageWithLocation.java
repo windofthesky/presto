@@ -15,6 +15,7 @@ package com.facebook.presto.operator;
 
 import com.facebook.presto.execution.buffer.SerializedPage;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 
 import java.util.Objects;
@@ -27,9 +28,9 @@ public class SerializedPageWithLocation
     private final SerializedPage page;
     private final String location;
 
-    public SerializedPageWithLocation(SerializedPage page, String location)
+    public SerializedPageWithLocation(@Nullable SerializedPage page, String location)
     {
-        this.page = requireNonNull(page, "page is null");
+        this.page = page;
         this.location = requireNonNull(location, "location is null");
     }
 

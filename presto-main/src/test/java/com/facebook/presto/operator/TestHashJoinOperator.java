@@ -49,6 +49,8 @@ import org.testng.annotations.Test;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -69,6 +71,7 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 public class TestHashJoinOperator
 {
     private static final int PARTITION_COUNT = 4;
+    private static final OptionalInt TOTAL_OPERATORS_COUNT = OptionalInt.of(1);
     private static final LookupJoinOperators LOOKUP_JOIN_OPERATORS = new LookupJoinOperators(new JoinProbeCompiler());
     private static final SingleStreamSpillerFactory SINGLE_STREAM_SPILLER_FACTORY = new DummySpillerFactory();
     private static final PartitioningSpillerFactory PARTITIONING_SPILLER_FACTORY = new GenericPartitioningSpillerFactory(SINGLE_STREAM_SPILLER_FACTORY);
@@ -127,8 +130,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty()
-        );
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probePages.getTypesWithoutHash(), buildPages.getTypesWithoutHash()))
@@ -178,8 +181,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty()
-        );
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))
@@ -222,8 +225,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty()
-        );
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -267,8 +270,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty()
-        );
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -305,7 +308,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         // expected
@@ -358,7 +362,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -413,7 +418,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -461,7 +467,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -506,7 +513,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -554,7 +562,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
@@ -598,7 +607,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))
@@ -647,7 +657,8 @@ public class TestHashJoinOperator
                 probePages.getTypes(),
                 Ints.asList(0),
                 probePages.getHashChannel(),
-                Optional.empty());
+                Optional.empty(),
+                TOTAL_OPERATORS_COUNT);
 
         // expected
         MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildPages.getTypesWithoutHash()))

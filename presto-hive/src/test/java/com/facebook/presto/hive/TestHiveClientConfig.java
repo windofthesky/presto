@@ -90,7 +90,8 @@ public class TestHiveClientConfig
                 .setBucketExecutionEnabled(true)
                 .setBucketWritingEnabled(true)
                 .setFileSystemMaxCacheSize(1000)
-                .setWritesToNonManagedTablesEnabled(false));
+                .setWritesToNonManagedTablesEnabled(false)
+                .setCreateNonManagedTableEnabled(true));
     }
 
     @Test
@@ -154,6 +155,7 @@ public class TestHiveClientConfig
                 .put("hive.bucket-writing", "false")
                 .put("hive.fs.cache.max-size", "1010")
                 .put("hive.non-managed-table-writes-enabled", "true")
+                .put("hive.create-non-managed-table-enabled", "false")
                 .build();
 
         HiveClientConfig expected = new HiveClientConfig()
@@ -213,7 +215,8 @@ public class TestHiveClientConfig
                 .setBucketExecutionEnabled(false)
                 .setBucketWritingEnabled(false)
                 .setFileSystemMaxCacheSize(1010)
-                .setWritesToNonManagedTablesEnabled(true);
+                .setWritesToNonManagedTablesEnabled(true)
+                .setCreateNonManagedTableEnabled(false);
 
         ConfigAssertions.assertFullMapping(properties, expected);
     }

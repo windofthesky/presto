@@ -38,6 +38,7 @@ public class HiveMetadataFactory
     private final boolean bucketWritingEnabled;
     private final boolean skipDeletionForAlter;
     private final boolean writesToNonManagedTablesEnabled;
+    private final boolean createNonManagedTableEnabled;
     private final HiveStorageFormat defaultStorageFormat;
     private final long perTransactionCacheMaximumSize;
     private final ExtendedHiveMetastore metastore;
@@ -79,6 +80,7 @@ public class HiveMetadataFactory
                 hiveClientConfig.isSkipDeletionForAlter(),
                 hiveClientConfig.isBucketWritingEnabled(),
                 hiveClientConfig.getWritesToNonManagedTablesEnabled(),
+                hiveClientConfig.isCreateNonManagedTableEnabled(),
                 hiveClientConfig.getHiveStorageFormat(),
                 hiveClientConfig.getPerTransactionMetastoreCacheMaximumSize(),
                 typeManager,
@@ -102,6 +104,7 @@ public class HiveMetadataFactory
             boolean skipDeletionForAlter,
             boolean bucketWritingEnabled,
             boolean writesToNonManagedTablesEnabled,
+            boolean createNonManagedTableEnabled,
             HiveStorageFormat defaultStorageFormat,
             long perTransactionCacheMaximumSize,
             TypeManager typeManager,
@@ -119,6 +122,7 @@ public class HiveMetadataFactory
         this.skipDeletionForAlter = skipDeletionForAlter;
         this.bucketWritingEnabled = bucketWritingEnabled;
         this.writesToNonManagedTablesEnabled = writesToNonManagedTablesEnabled;
+        this.createNonManagedTableEnabled = createNonManagedTableEnabled;
         this.defaultStorageFormat = requireNonNull(defaultStorageFormat, "defaultStorageFormat is null");
         this.perTransactionCacheMaximumSize = perTransactionCacheMaximumSize;
 
@@ -159,6 +163,7 @@ public class HiveMetadataFactory
                 respectTableFormat,
                 bucketWritingEnabled,
                 writesToNonManagedTablesEnabled,
+                createNonManagedTableEnabled,
                 defaultStorageFormat,
                 typeManager,
                 locationService,

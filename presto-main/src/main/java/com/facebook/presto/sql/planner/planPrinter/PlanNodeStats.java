@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.sql.planner.planPrinter;
 
+import com.facebook.presto.operator.ExchangeOperator;
+import com.facebook.presto.operator.Mergeable;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -42,7 +44,7 @@ class PlanNodeStats
 
     private final Map<String, OperatorInputStats> operatorInputStats;
     private final Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats;
-    private final Optional<ExchangeOperatorStats> operatorExchangeStats;
+    private final Optional<ExchangeOperator.ExchangeStats> operatorExchangeStats;
 
     PlanNodeStats(
             PlanNodeId planNodeId,
@@ -53,7 +55,7 @@ class PlanNodeStats
             DataSize planNodeOutputDataSize,
             Map<String, OperatorInputStats> operatorInputStats,
             Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats,
-            Optional<ExchangeOperatorStats> operatorExchangeStats)
+            Optional<ExchangeOperator.ExchangeStats> operatorExchangeStats)
     {
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
 
@@ -165,7 +167,7 @@ class PlanNodeStats
                         entry -> entry.getValue().getWeightedExpectedHashCollisions() / operatorInputStats.get(entry.getKey()).getInputPositions()));
     }
 
-    public Optional<ExchangeOperatorStats> getOperatorExchangeStats()
+    public Optional<ExchangeOperator.ExchangeStats> getOperatorExchangeStats()
     {
         return operatorExchangeStats;
     }
@@ -181,7 +183,7 @@ class PlanNodeStats
 
         Map<String, OperatorInputStats> operatorInputStats = mergeMaps(left.operatorInputStats, right.operatorInputStats, OperatorInputStats::merge);
         Map<String, OperatorHashCollisionsStats> operatorHashCollisionsStats = mergeMaps(left.operatorHashCollisionsStats, right.operatorHashCollisionsStats, OperatorHashCollisionsStats::merge);
-        Optional<ExchangeOperatorStats> operatorExchangeStats = ExchangeOperatorStats.merge(left.operatorExchangeStats, right.operatorExchangeStats);
+        Optional<ExchangeOperator.ExchangeStats> operatorExchangeStats = (Optional<ExchangeOperator.ExchangeStats>) merge(left.operatorExchangeStats, right.operatorExchangeStats);
 
         return new PlanNodeStats(
                 left.getPlanNodeId(),
@@ -191,5 +193,17 @@ class PlanNodeStats
                 operatorInputStats,
                 operatorHashCollisionsStats,
                 operatorExchangeStats);
+    }
+
+    private static Optional<?> merge(Optional<? extends Mergeable> left, Optional<? extends Mergeable> right)
+    {
+        if (!left.isPresent()) {
+            return right;
+        }
+        if (!right.isPresent()) {
+            return left;
+        }
+
+        return Optional.of(left.get().mergeWith(right));
     }
 }

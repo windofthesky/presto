@@ -14,6 +14,7 @@
 package com.facebook.presto.sql.planner.planPrinter;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.execution.StageId;
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.StageStats;
 import com.facebook.presto.metadata.Metadata;
@@ -21,6 +22,7 @@ import com.facebook.presto.metadata.OperatorNotFoundException;
 import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.metadata.TableLayout;
+import com.facebook.presto.operator.ExchangeOperator;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.predicate.Domain;
@@ -98,6 +100,8 @@ import io.airlift.slice.Slice;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -116,6 +120,7 @@ import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.lang.Double.isFinite;
 import static java.lang.String.format;
@@ -359,7 +364,10 @@ public class PlanPrinter
         printDistributions(indent, nodeStats);
 
         if (nodeStats.getOperatorExchangeStats().isPresent()) {
-            printExchangeStats(indent, nodeStats.getOperatorExchangeStats().get());
+            checkArgument(extraInfo.isPresent(), "Exchange operator needs information about source fragments");
+            checkArgument(extraInfo.get() instanceof List, "Extra info should contain a list of source fragments");
+
+            printExchangeStats(indent, nodeStats.getOperatorExchangeStats().get(), (List<PlanFragmentId>) extraInfo.get());
         }
     }
 
@@ -428,19 +436,43 @@ public class PlanPrinter
         return ImmutableMap.of();
     }
 
-    private void printExchangeStats(int indent, ExchangeOperatorStats stats)
+    private void printExchangeStats(int indent, ExchangeOperator.ExchangeStats stats, List<PlanFragmentId> sourceFragments)
     {
-        output.append(indentString(indent));
-        output.append(format(Locale.US, "Splits: avg. count: %s, std.dev.: %s%%",
-                formatDouble(calculateAverage(stats.getSplitsCount())),
-                formatDouble(calculateStdDev(stats.getSplitsCount()))));
-        output.append('\n');
+        Map<StageId, List<ExchangeOperator.SingleExchangeStats>> statsMap = stats.getStatsMap();
 
-        output.append(indentString(indent));
-        output.append(format(Locale.US, "Positions: avg. count: %s, std.dev.: %s%%",
-                formatDouble(calculateAverage(stats.getPositionsCount())),
-                formatDouble(calculateStdDev(stats.getPositionsCount()))));
-        output.append('\n');
+        Set<Integer> sourceIds = new HashSet<>(); // todo change to ImmutableSet
+        for (PlanFragmentId planFragmentId : sourceFragments) {
+            sourceIds.add(Integer.valueOf(planFragmentId.toString()));
+        }
+
+        Map<Integer, List<ExchangeOperator.SingleExchangeStats>> relatedStats = new HashMap<>(); // todo change to immutablemap
+        for (Map.Entry<StageId, List<ExchangeOperator.SingleExchangeStats>> entry : statsMap.entrySet()) {
+            if (sourceIds.contains(entry.getKey().getId())) {
+                relatedStats.merge(entry.getKey().getId(), entry.getValue(), (l, r) -> concat(l, r));
+            }
+        } statsMap.entrySet().stream()
+                .filter(entry -> sourceFragments.stream().map(id -> Integer.valueOf(id)).anyMatch(entry.getKey().getId()))
+                .collect();
+
+        for (Map.Entry<Integer, List<ExchangeOperator.SingleExchangeStats>> singleStageStats : relatedStats.entrySet()) {
+            output.append(indentString(indent));
+            output.append(singleStageStats.getKey());
+            output.append('\n');
+
+            List<Long> splits = singleStageStats.getValue().stream().map(singleEntry -> (long) singleEntry.getSplitsCount()).collect(toImmutableList());
+            output.append(indentString(indent));
+            output.append(format(Locale.US, "Splits: avg. count: %s, std.dev.: %s%%",
+                    formatDouble(calculateAverage(splits)),
+                    formatDouble(calculateStdDev(splits))));
+            output.append('\n');
+
+            List<Long> positions = singleStageStats.getValue().stream().map(singleEntry -> singleEntry.getPositionCount()).collect(toImmutableList());
+            output.append(indentString(indent));
+            output.append(format(Locale.US, "Positions: avg. count: %s, std.dev.: %s%%",
+                    formatDouble(calculateAverage(positions)),
+                    formatDouble(calculateStdDev(positions))));
+            output.append('\n');
+        }
     }
 
     private static double calculateAverage(List<Long> input)

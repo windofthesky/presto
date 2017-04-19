@@ -16,6 +16,7 @@ package com.facebook.presto.sql.planner.planPrinter;
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.TaskInfo;
 import com.facebook.presto.operator.ExchangeInfo;
+import com.facebook.presto.operator.ExchangeOperator;
 import com.facebook.presto.operator.HashCollisionsInfo;
 import com.facebook.presto.operator.OperatorStats;
 import com.facebook.presto.operator.PipelineStats;
@@ -73,7 +74,7 @@ public class PlanNodeStatsSummarizer
 
         Map<PlanNodeId, Map<String, OperatorInputStats>> operatorInputStats = new HashMap<>();
         Map<PlanNodeId, Map<String, OperatorHashCollisionsStats>> operatorHashCollisionsStats = new HashMap<>();
-        Map<PlanNodeId, ExchangeOperatorStats> operatorExchangeStats = new HashMap<>();
+        Map<PlanNodeId, ExchangeOperator.ExchangeStats> operatorExchangeStats = new HashMap<>();
 
         for (PipelineStats pipelineStats : taskStats.getPipelines()) {
             // Due to eventual consistently collected stats, these could be empty
@@ -123,7 +124,7 @@ public class PlanNodeStatsSummarizer
 
                 if (operatorStats.getInfo() instanceof ExchangeInfo) {
                     ExchangeInfo exchangeInfo = (ExchangeInfo) operatorStats.getInfo();
-                    operatorExchangeStats.merge(planNodeId, ExchangeOperatorStats.create(exchangeInfo), ExchangeOperatorStats::merge);
+                    operatorExchangeStats.merge(planNodeId, exchangeInfo.getExchangeStats(), ExchangeOperator.ExchangeStats::mergeWith);
                 }
 
                 planNodeInputPositions.merge(planNodeId, operatorStats.getInputPositions(), Long::sum);

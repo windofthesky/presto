@@ -120,6 +120,7 @@ public class HiveClientConfig
     private int fileSystemMaxCacheSize = 1000;
 
     private boolean writesToNonManagedTablesEnabled;
+    private boolean createNonManagedTableEnabled = true;
 
     public int getMaxInitialSplits()
     {
@@ -902,6 +903,19 @@ public class HiveClientConfig
     public boolean getWritesToNonManagedTablesEnabled()
     {
         return writesToNonManagedTablesEnabled;
+    }
+
+    @Config("hive.create-non-managed-table-enabled")
+    @ConfigDescription("Enable creating non-managed (external) tables")
+    public HiveClientConfig setCreateNonManagedTableEnabled(boolean createNonManagedTableEnabled)
+    {
+        this.createNonManagedTableEnabled = createNonManagedTableEnabled;
+        return this;
+    }
+
+    public boolean isCreateNonManagedTableEnabled()
+    {
+        return createNonManagedTableEnabled;
     }
 
     public boolean isMultiFileBucketingEnabled()

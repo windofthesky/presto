@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner.optimizations.calcite;
 
+import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
@@ -38,11 +39,19 @@ import java.util.Deque;
 
 import static com.google.common.base.Preconditions.checkState;
 
-public class PrestoConverter implements RelShuttle
+public class PrestoConverter
+        implements RelShuttle
 {
-    Deque<PlanNode> stack = new ArrayDeque<>();
+    private final Deque<PlanNode> stack = new ArrayDeque<>();
+    private final PlanNodeIdAllocator idAllocator;
 
-    public PlanNode getResult() {
+    public PrestoConverter(PlanNodeIdAllocator idAllocator)
+    {
+        this.idAllocator = idAllocator;
+    }
+
+    public PlanNode getResult()
+    {
         checkState(stack.size() == 1);
         return stack.pop();
     }
@@ -50,6 +59,12 @@ public class PrestoConverter implements RelShuttle
     @Override
     public RelNode visit(TableScan scan)
     {
+//        PrestoTableScan prestoTableScan = (PrestoTableScan) scan;
+//        TableScanNode node = new TableScanNode(
+//                idAllocator.getNextId(),
+//                prestoTableScan.
+//        );
+//        stack.push(node);
         return unsupported();
     }
 

@@ -51,7 +51,7 @@ public class CalciteOptimizer
             return planner.findBestExp();
         }, Frameworks.newConfigBuilder().build());
 
-        PrestoConverter unconverter = new PrestoConverter();
+        PrestoConverter unconverter = new PrestoConverter(idAllocator);
         rewrittenCalcitePlan.accept(unconverter);
         return unconverter.getResult();
     }

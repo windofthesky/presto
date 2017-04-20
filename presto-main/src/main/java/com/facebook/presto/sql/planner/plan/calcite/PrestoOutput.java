@@ -18,8 +18,12 @@ import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.List;
+
+import static com.google.common.collect.Iterables.getOnlyElement;
 
 public class PrestoOutput extends AbstactPrestoRelNode
 {
@@ -33,6 +37,21 @@ public class PrestoOutput extends AbstactPrestoRelNode
         this.outputs = outputs;
     }
 
+    @Override
+    public RelWriter explainTerms(RelWriter pw)
+    {
+        return super.explainTerms(pw)
+                .input("source", getOnlyElement(getInputs()))
+                .item("columnNames", columnNames)
+                .item("outputs", outputs);
+    }
+
+    @Override
+    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs)
+    {
+        return new PrestoOutput(getCluster(), traitSet, getOnlyElement(inputs), columnNames, outputs);
+    }
+
     public List<String> getColumnNames()
     {
         return columnNames;
@@ -41,5 +60,11 @@ public class PrestoOutput extends AbstactPrestoRelNode
     public List<Symbol> getOutputs()
     {
         return outputs;
+    }
+
+    @Override
+    protected RelDataType deriveRowType()
+    {
+        return getOnlyElement(getInputs()).getRowType();
     }
 }

@@ -39,6 +39,7 @@ import com.facebook.presto.sql.planner.iterative.rule.SingleMarkDistinctToGroupB
 import com.facebook.presto.sql.planner.optimizations.AddExchanges;
 import com.facebook.presto.sql.planner.optimizations.AddLocalExchanges;
 import com.facebook.presto.sql.planner.optimizations.BeginTableWrite;
+import com.facebook.presto.sql.planner.optimizations.CalciteOptimizer;
 import com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions;
 import com.facebook.presto.sql.planner.optimizations.CountConstantOptimizer;
 import com.facebook.presto.sql.planner.optimizations.DesugaringOptimizer;
@@ -118,6 +119,8 @@ public class PlanOptimizers
 
         Set<Rule> predicatePushDownRules = ImmutableSet.of(
                 new MergeFilters());
+
+        builder.add(new CalciteOptimizer());
 
         builder.add(
                 new DesugaringOptimizer(metadata, sqlParser), // Clean up all the sugar in expressions, e.g. AtTimeZone, must be run before all the other optimizers

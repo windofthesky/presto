@@ -38,6 +38,9 @@ public class SortBeforeWindowFunction
         PlanNode source = lookup.resolve(windowNode.getSource());
         if (!(source instanceof SortNode)) {
             List<Symbol> orderBy = ImmutableList.copyOf(concat(windowNode.getPartitionBy(), windowNode.getOrderBy()));
+            if (orderBy.isEmpty()) {
+                return Optional.empty();
+            }
             Map<Symbol, SortOrder> orderings = new HashMap<>();
             orderings.putAll(windowNode.getPartitionBy().stream().collect(toMap(Function.identity(), e -> ASC_NULLS_FIRST)));
             orderings.putAll(windowNode.getOrderings());

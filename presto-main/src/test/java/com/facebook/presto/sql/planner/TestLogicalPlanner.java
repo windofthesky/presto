@@ -59,6 +59,16 @@ public class TestLogicalPlanner
         extends BasePlanTest
 {
     @Test
+    public void testSimple()
+            throws Exception
+    {
+        assertPlan("SELECT * FROM nation",
+                anyTree(
+                        tableScan("nation")
+                ));
+    }
+
+    @Test
     public void testDistinctLimitOverInequalityJoin()
             throws Exception
     {
@@ -245,8 +255,8 @@ public class TestLogicalPlanner
                                 anyTree(
                                         tableScan("region", ImmutableMap.of("REGIONKEY_RIGHT", "regionkey"))))
                 )
-                .withNumberOfOutputColumns(1)
-                .withOutputs(ImmutableList.of("NATIONKEY"))
+                        .withNumberOfOutputColumns(1)
+                        .withOutputs(ImmutableList.of("NATIONKEY"))
         );
     }
 

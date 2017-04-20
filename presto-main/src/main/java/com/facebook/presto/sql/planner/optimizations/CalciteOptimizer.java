@@ -14,17 +14,14 @@
 package com.facebook.presto.sql.planner.optimizations;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
+import com.facebook.presto.sql.planner.optimizations.calcite.CalciteConverter;
+import com.facebook.presto.sql.planner.optimizations.calcite.PrestoConverter;
 import com.facebook.presto.sql.planner.plan.PlanNode;
-import com.facebook.presto.sql.planner.plan.SimplePlanRewriter;
-import com.facebook.presto.sql.planner.plan.TableScanNode;
-import com.facebook.presto.sql.planner.plan.calcite.PrestoRelNode;
-import com.facebook.presto.sql.planner.plan.calcite.PrestoTableScan;
-import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
-import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.Frameworks;
@@ -34,32 +31,28 @@ import java.util.Map;
 public class CalciteOptimizer
         implements PlanOptimizer
 {
+    private final Metadata metadata;
+
+    public CalciteOptimizer(Metadata metadata)
+    {
+        this.metadata = metadata;
+    }
+
     @Override
     public PlanNode optimize(PlanNode plan, Session session, Map<Symbol, Type> types, SymbolAllocator symbolAllocator, PlanNodeIdAllocator idAllocator)
     {
-        return SimplePlanRewriter.rewriteWith(new Rewriter(), plan);
-    }
+        CalciteConverter converter = new CalciteConverter();
 
-    private class Rewriter
-            extends SimplePlanRewriter<Void>
-    {
-        @Override
-        public PlanNode visitTableScan(TableScanNode node, RewriteContext<Void> context)
-        {
-            RelNode optimizedOptiqPlan = Frameworks.withPlanner((cluster, relOptSchema, rootSchema) -> {
-                RelOptPrestoTable prestoTable = new RelOptPrestoTable(
-                        relOptSchema,
-                        "dupa",
-                        cluster.getTypeFactory().createJavaType(int.class),
-                        node.getTable(),
-                        ImmutableList.copyOf(node.getAssignments().values()));
-                PrestoTableScan scan = new PrestoTableScan(cluster, cluster.traitSetOf(PrestoRelNode.CONVENTION), prestoTable);
+        RelNode rewrittenCalcitePlan = Frameworks.withPlanner((cluster, relOptSchema, rootSchema) -> {
+            RelOptPlanner planner = cluster.getPlanner();
+            CalciteConverter.Context context = new CalciteConverter.Context(cluster, relOptSchema, rootSchema, metadata, session);
+            RelNode converted = plan.accept(converter, context);
+            planner.setRoot(converted);
+            return planner.findBestExp();
+        }, Frameworks.newConfigBuilder().build());
 
-                RelOptPlanner planner = cluster.getPlanner();
-                planner.setRoot(scan);
-                return planner.findBestExp();
-            }, Frameworks.newConfigBuilder().build());
-            return node;
-        }
+        PrestoConverter unconverter = new PrestoConverter();
+        rewrittenCalcitePlan.accept(unconverter);
+        return unconverter.getResult();
     }
 }

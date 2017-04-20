@@ -120,7 +120,6 @@ public class PlanOptimizers
         Set<Rule> predicatePushDownRules = ImmutableSet.of(
                 new MergeFilters());
 
-        builder.add(new CalciteOptimizer());
 
         builder.add(
                 new DesugaringOptimizer(metadata, sqlParser), // Clean up all the sugar in expressions, e.g. AtTimeZone, must be run before all the other optimizers
@@ -209,6 +208,10 @@ public class PlanOptimizers
                             ImmutableSet.of(new SingleMarkDistinctToGroupBy())),
                     new PruneUnreferencedOutputs());
         }
+
+        //FIXME move waaaay up
+        builder.add(new CalciteOptimizer(metadata));
+
 
         builder.add(new OptimizeMixedDistinctAggregations(metadata));
 

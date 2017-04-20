@@ -13,24 +13,29 @@
  */
 package com.facebook.presto.sql.planner.plan.calcite;
 
-import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
 
-public interface PrestoRelNode
-        extends RelNode
+import java.util.List;
+
+public abstract class AbstactPrestoRelNode extends AbstractRelNode implements PrestoRelNode
 {
-    default void implement(Implementor implementor) {};
 
-    /**
-     * Calling convention for relational operations that occur in Hive.
-     */
-    Convention CONVENTION = new Convention.Impl("PRESTO", PrestoRelNode.class);
+    private List<RelNode> inputs;
 
-    class Implementor
+    public AbstactPrestoRelNode(RelOptCluster cluster, RelTraitSet traitSet, List<RelNode> inputs)
     {
-        public void visitChild(int ordinal, RelNode input)
-        {
-            ((PrestoRelNode) input).implement(this);
-        }
+        super(cluster, traitSet);
+        this.inputs = inputs;
     }
+
+    @Override
+    public List<RelNode> getInputs()
+    {
+        return inputs;
+    }
+
+
 }

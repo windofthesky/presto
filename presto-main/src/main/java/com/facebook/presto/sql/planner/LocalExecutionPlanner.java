@@ -51,6 +51,7 @@ import com.facebook.presto.operator.OutputFactory;
 import com.facebook.presto.operator.PagesIndex;
 import com.facebook.presto.operator.PartitionFunction;
 import com.facebook.presto.operator.PartitionedOutputOperator.PartitionedOutputFactory;
+import com.facebook.presto.operator.PrePartitionedWindowOperator;
 import com.facebook.presto.operator.RowNumberOperator;
 import com.facebook.presto.operator.ScanFilterAndProjectOperator;
 import com.facebook.presto.operator.SetBuilderOperator.SetBuilderOperatorFactory;
@@ -797,19 +798,30 @@ public class LocalExecutionPlanner
                 channel++;
             }
 
-            OperatorFactory operatorFactory = new WindowOperatorFactory(
-                    context.getNextOperatorId(),
-                    node.getId(),
-                    source.getTypes(),
-                    outputChannels.build(),
-                    windowFunctionsBuilder.build(),
-                    partitionChannels,
-                    preGroupedChannels,
-                    sortChannels,
-                    sortOrder,
-                    node.getPreSortedOrderPrefix(),
-                    10_000,
-                    pagesIndexFactory);
+            OperatorFactory operatorFactory;
+            if (node.getExperimental()) {
+                operatorFactory = new PrePartitionedWindowOperator.PrePartitionedWindowOperatorFactory(
+                        context.getNextOperatorId(),
+                        node.getId(),
+                        source.getTypes(),
+                        outputChannels.build(),
+                        windowFunctionsBuilder.build());
+            }
+            else {
+                operatorFactory = new WindowOperatorFactory(
+                        context.getNextOperatorId(),
+                        node.getId(),
+                        source.getTypes(),
+                        outputChannels.build(),
+                        windowFunctionsBuilder.build(),
+                        partitionChannels,
+                        preGroupedChannels,
+                        sortChannels,
+                        sortOrder,
+                        node.getPreSortedOrderPrefix(),
+                        10_000,
+                        pagesIndexFactory);
+            }
 
             return new PhysicalOperation(operatorFactory, outputMappings.build(), source);
         }

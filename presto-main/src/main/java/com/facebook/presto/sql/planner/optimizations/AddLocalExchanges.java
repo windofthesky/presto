@@ -303,15 +303,13 @@ public class AddLocalExchanges
 
             WindowNode result = new WindowNode(
                     node.getId(),
-                    node.getSource(),
-//                    child.getNode(),
+                    child.getNode(),
                     node.getSpecification(),
                     node.getWindowFunctions(),
                     node.getHashSymbol(),
-                    ImmutableSet.copyOf(((SortNode) node.getSource()).getOrderBy()),
-//                    prePartitionedInputs,
-                    node.getSpecification().getOrderBy().size());
-//                    preSortedOrderPrefix);
+                    prePartitionedInputs,
+                    preSortedOrderPrefix,
+                    node.getExperimental());
 
             return deriveProperties(result, child.getProperties());
         }

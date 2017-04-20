@@ -49,6 +49,19 @@ public class WindowNode
     private final int preSortedOrderPrefix;
     private final Map<Symbol, Function> windowFunctions;
     private final Optional<Symbol> hashSymbol;
+    private final boolean experimental;
+
+    public WindowNode(
+            @JsonProperty("id") PlanNodeId id,
+            @JsonProperty("source") PlanNode source,
+            @JsonProperty("specification") Specification specification,
+            @JsonProperty("windowFunctions") Map<Symbol, Function> windowFunctions,
+            @JsonProperty("hashSymbol") Optional<Symbol> hashSymbol,
+            @JsonProperty("prePartitionedInputs") Set<Symbol> prePartitionedInputs,
+            @JsonProperty("preSortedOrderPrefix") int preSortedOrderPrefix)
+    {
+        this(id, source, specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix, true);
+    }
 
     @JsonCreator
     public WindowNode(
@@ -58,7 +71,8 @@ public class WindowNode
             @JsonProperty("windowFunctions") Map<Symbol, Function> windowFunctions,
             @JsonProperty("hashSymbol") Optional<Symbol> hashSymbol,
             @JsonProperty("prePartitionedInputs") Set<Symbol> prePartitionedInputs,
-            @JsonProperty("preSortedOrderPrefix") int preSortedOrderPrefix)
+            @JsonProperty("preSortedOrderPrefix") int preSortedOrderPrefix,
+            @JsonProperty("experimental") boolean experimental)
     {
         super(id);
 
@@ -76,6 +90,7 @@ public class WindowNode
         this.windowFunctions = ImmutableMap.copyOf(windowFunctions);
         this.hashSymbol = hashSymbol;
         this.preSortedOrderPrefix = preSortedOrderPrefix;
+        this.experimental = experimental;
     }
 
     @Override
@@ -153,6 +168,12 @@ public class WindowNode
         return preSortedOrderPrefix;
     }
 
+    @JsonProperty
+    public boolean getExperimental()
+    {
+        return experimental;
+    }
+
     @Override
     public <C, R> R accept(PlanVisitor<C, R> visitor, C context)
     {
@@ -162,7 +183,7 @@ public class WindowNode
     @Override
     public PlanNode replaceChildren(List<PlanNode> newChildren)
     {
-        return new WindowNode(getId(), Iterables.getOnlyElement(newChildren), specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix);
+        return new WindowNode(getId(), Iterables.getOnlyElement(newChildren), specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix, experimental);
     }
 
     @Immutable

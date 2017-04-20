@@ -39,6 +39,7 @@
         <air.check.skip-findbugs>true</air.check.skip-findbugs>
         <air.check.skip-pmd>true</air.check.skip-pmd>
         <air.check.skip-jacoco>true</air.check.skip-jacoco>
+        <dep.slf4j.version>1.7.13</dep.slf4j.version>
 
         <air.check.skip-checkstyle>${air.check.skip-basic}</air.check.skip-checkstyle>
         <air.check.fail-checkstyle>${air.check.fail-basic}</air.check.fail-checkstyle>

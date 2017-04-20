@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.operator;
 
+import com.facebook.presto.operator.window.FrameInfo;
+import com.facebook.presto.operator.window.FramedWindowFunction;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
@@ -100,9 +102,11 @@ public class PrePartitionedWindowOperator
     private final OperatorContext operatorContext;
     private final List<Type> types;
     private final List<Integer> outputChannels;
-    private final List<WindowFunctionDefinition> windowFunctionDefinitions;
+    private final List<FramedWindowFunction> windowFunctions;
+
     private boolean input;
     private Page page;
+    private long currentPosition;
 
     public PrePartitionedWindowOperator(
             OperatorContext operatorContext,
@@ -113,7 +117,9 @@ public class PrePartitionedWindowOperator
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.types = ImmutableList.copyOf(types);
         this.outputChannels = ImmutableList.copyOf(outputChannels);
-        this.windowFunctionDefinitions = ImmutableList.copyOf(windowFunctionDefinitions);
+        this.windowFunctions = windowFunctionDefinitions.stream()
+                .map(functionDefinition -> new FramedWindowFunction(functionDefinition.createWindowFunction(), functionDefinition.getFrameInfo()))
+                .collect(toImmutableList());
 
         this.input = true;
     }
@@ -160,7 +166,7 @@ public class PrePartitionedWindowOperator
             return null;
         }
 
-        Block[] outputBlocks = new Block[page.getChannelCount() + windowFunctionDefinitions.size()];
+        Block[] outputBlocks = new Block[page.getChannelCount() + windowFunctions.size()];
         for (int i = 0; i < page.getChannelCount(); i++) {
             outputBlocks[i] = page.getBlock(i);
         }
@@ -183,5 +189,10 @@ public class PrePartitionedWindowOperator
 
         input = true;
         return new Page(page.getPositionCount(), outputBlocks);
+    }
+
+    private boolean hasAllNecessaryRows(FrameInfo frameInfo)
+    {
+//        frameInfo
     }
 }

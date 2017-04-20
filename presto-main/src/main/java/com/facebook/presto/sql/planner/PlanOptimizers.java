@@ -38,6 +38,7 @@ import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
 import com.facebook.presto.sql.planner.iterative.rule.SimplifyCountOverConstant;
 import com.facebook.presto.sql.planner.iterative.rule.SingleMarkDistinctToGroupBy;
+import com.facebook.presto.sql.planner.iterative.rule.SortBeforeWindowFunction;
 import com.facebook.presto.sql.planner.iterative.rule.SwapAdjacentWindowsByPartitionsOrder;
 import com.facebook.presto.sql.planner.iterative.rule.TransformExistsApplyToScalarApply;
 import com.facebook.presto.sql.planner.optimizations.AddExchanges;
@@ -197,7 +198,10 @@ public class PlanOptimizers
                 new MetadataQueryOptimizer(metadata),
                 new EliminateCrossJoins(), // This can pull up Filter and Project nodes from between Joins, so we need to push them down again
                 new PredicatePushDown(metadata, sqlParser),
-                new ProjectionPushDown());
+                new ProjectionPushDown(),
+                new IterativeOptimizer(
+                        stats,
+                        ImmutableSet.of(new SortBeforeWindowFunction())));
 
         if (featuresConfig.isOptimizeSingleDistinct()) {
             builder.add(

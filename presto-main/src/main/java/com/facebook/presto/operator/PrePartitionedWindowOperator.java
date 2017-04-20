@@ -194,5 +194,6 @@ public class PrePartitionedWindowOperator
     private boolean hasAllNecessaryRows(FrameInfo frameInfo)
     {
 //        frameInfo
+        return true;
     }
 }

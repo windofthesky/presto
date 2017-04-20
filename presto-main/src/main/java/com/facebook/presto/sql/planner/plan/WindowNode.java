@@ -60,7 +60,7 @@ public class WindowNode
             @JsonProperty("prePartitionedInputs") Set<Symbol> prePartitionedInputs,
             @JsonProperty("preSortedOrderPrefix") int preSortedOrderPrefix)
     {
-        this(id, source, specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix, true);
+        this(id, source, specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix, false);
     }
 
     @JsonCreator

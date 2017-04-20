@@ -67,7 +67,7 @@ public class SortBeforeWindowFunction
                     windowNode.getHashSymbol(),
                     ImmutableSet.copyOf(windowNode.getPartitionBy()),
                     windowNode.getOrderBy().size(),
-                    true);
+                    false);
             return Optional.of(newWindowNode);
         }
 

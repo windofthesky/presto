@@ -25,9 +25,4 @@ public class PrestoTableScan
     {
         super(cluster, traitSet, table);
     }
-
-    @Override
-    public void implement(Implementor implementor)
-    {
-    }
 }

@@ -107,15 +107,25 @@ public class TestLogicalPlanner
     public void testThreeWayJoinWithCondition()
             throws Exception
     {
-        assertPlan("SELECT * FROM nation n" +
-                        " JOIN region r on n.regionkey = r.regionkey" +
-                        " JOIN nation n2 on n2.regionkey = r.regionkey",
+        assertPlan("SELECT * FROM region r" +
+                        " JOIN nation n on n.regionkey = r.regionkey" +
+                        " JOIN nation n2 on n2.regionkey = r.regionkey" +
+                        " JOIN region r2 on n2.regionkey = r2.regionkey" +
+                        "",
                 anyTree(
-                        join(INNER, ImmutableList.of(equiJoinClause("NATION_RK", "REGION_RK")),
+                        node(JoinNode.class,
+                                /*anyTree*/(
+                                        node(JoinNode.class,
+                                                anyTree(
+                                                        tableScan("region")),
+                                                anyTree(
+                                                        tableScan("nation")))),
                                 anyTree(
-                                        tableScan("nation", ImmutableMap.of("NATION_RK", "regionkey"))),
-                                anyTree(
-                                        tableScan("region", ImmutableMap.of("REGION_RK", "regionkey"))))));
+                                        node(JoinNode.class,
+                                                anyTree(
+                                                        tableScan("nation")),
+                                                anyTree(
+                                                        tableScan("region")))))));
     }
 
     @Test

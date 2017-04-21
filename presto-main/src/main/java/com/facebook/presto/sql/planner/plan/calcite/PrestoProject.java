@@ -17,8 +17,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 
 import java.util.List;
 
@@ -26,6 +28,19 @@ public class PrestoProject
         extends Project
         implements PrestoRelNode
 {
+    public static final PrestoProjectFactory PRESTO_PROJECT_FACTORY = new PrestoProjectFactory();
+
+    public static class PrestoProjectFactory
+            implements RelFactories.ProjectFactory
+    {
+        @Override
+        public RelNode createProject(RelNode input, List<? extends RexNode> childExprs, List<String> fieldNames)
+        {
+            RelDataType rowType = RexUtil.createStructType(input.getCluster().getTypeFactory(), childExprs, fieldNames);
+            return new PrestoProject(input.getCluster(), input.getCluster().traitSetOf(PrestoRelNode.CONVENTION), input, childExprs, rowType);
+        }
+    }
+
     public PrestoProject(RelOptCluster cluster,
             RelTraitSet traits,
             RelNode input,

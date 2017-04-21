@@ -22,20 +22,27 @@ import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.optimizations.calcite.CalciteRelConverter;
 import com.facebook.presto.sql.planner.optimizations.calcite.PrestoPlanNodeConverter;
 import com.facebook.presto.sql.planner.optimizations.calcite.TypeConverter;
+import com.facebook.presto.sql.planner.optimizations.calcite.rules.PrestoJoinCommuteRule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
-import com.facebook.presto.sql.planner.plan.calcite.PrestoJoin;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.calcite.rel.rules.JoinAssociateRule;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.tools.Frameworks;
+import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.tools.RelBuilderFactory;
 
 import java.util.Map;
+
+import static com.facebook.presto.sql.planner.plan.calcite.PrestoJoin.PRESTO_JOIN_FACTORY;
+import static com.facebook.presto.sql.planner.plan.calcite.PrestoProject.PRESTO_PROJECT_FACTORY;
 
 public class CalciteOptimizer
         implements PlanOptimizer
 {
+    public static final RelBuilderFactory REL_BUILDER_FACTORY = RelBuilder.proto(PRESTO_JOIN_FACTORY, PRESTO_PROJECT_FACTORY);
+
     private final Metadata metadata;
 
     public CalciteOptimizer(Metadata metadata)
@@ -51,7 +58,8 @@ public class CalciteOptimizer
             CalciteRelConverter converter = new CalciteRelConverter(typeConverter, types, cluster, relOptSchema, rootSchema, metadata, session);
 
             RelOptPlanner planner = cluster.getPlanner();
-            planner.addRule(new JoinCommuteRule(PrestoJoin.class, prestoRelBuilderFactory, true));
+            planner.addRule(new PrestoJoinCommuteRule());
+            planner.addRule(JoinAssociateRule.INSTANCE);
             RelNode converted = plan.accept(converter, null);
             planner.setRoot(converted);
             RelNode bestPlan = planner.findBestExp();

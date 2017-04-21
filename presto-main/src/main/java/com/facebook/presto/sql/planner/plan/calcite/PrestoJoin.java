@@ -13,12 +13,14 @@
  */
 package com.facebook.presto.sql.planner.plan.calcite;
 
+import com.google.common.collect.ImmutableSet;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.RelFactories.JoinFactory;
 import org.apache.calcite.rex.RexNode;
 
 import java.util.Set;
@@ -27,6 +29,23 @@ public class PrestoJoin
         extends Join
         implements PrestoRelNode
 {
+    public static final PrestoJoinFactory PRESTO_JOIN_FACTORY = new PrestoJoinFactory();
+
+    public static class PrestoJoinFactory
+            implements JoinFactory
+    {
+        @Override
+        public RelNode createJoin(RelNode left, RelNode right, RexNode condition, Set<CorrelationId> variablesSet, JoinRelType joinType, boolean semiJoinDone)
+        {
+            return new PrestoJoin(left.getCluster(), left.getCluster().traitSetOf(PrestoRelNode.CONVENTION), left, right, condition, variablesSet, joinType);
+        }
+
+        @Override
+        public RelNode createJoin(RelNode left, RelNode right, RexNode condition, JoinRelType joinType, Set<String> variablesStopped, boolean semiJoinDone)
+        {
+            return new PrestoJoin(left.getCluster(), left.getCluster().traitSetOf(PrestoRelNode.CONVENTION), left, right, condition, ImmutableSet.of(), joinType);
+        }
+    }
 
     public PrestoJoin(RelOptCluster cluster, RelTraitSet traitSet, RelNode left, RelNode right, RexNode condition, Set<CorrelationId> variablesSet, JoinRelType joinType)
     {

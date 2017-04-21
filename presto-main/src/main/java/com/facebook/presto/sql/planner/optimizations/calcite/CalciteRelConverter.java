@@ -18,11 +18,13 @@ import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.plan.calcite.PrestoJoin;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoProject;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoRelNode;
@@ -32,7 +34,9 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 
@@ -41,6 +45,7 @@ import java.util.Map;
 
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static java.util.Collections.emptySet;
 
 public class CalciteRelConverter
         extends PlanVisitor<Void, RelNode>
@@ -87,7 +92,8 @@ public class CalciteRelConverter
                 .map(symbol -> node.getAssignments().get(symbol))
                 .map(expression -> converter.process(expression, null))
                 .collect(toImmutableList());
-        return new PrestoProject(cluster, getTraitSet(), child, projections, toRowType(node));
+        RelDataType rowType = toRowType(node);
+        return new PrestoProject(cluster, getTraitSet(), child, projections, rowType);
     }
 
     @Override
@@ -103,6 +109,20 @@ public class CalciteRelConverter
                 node.getTable(),
                 columnHandles);
         return new PrestoTableScan(cluster, getTraitSet(), prestoTable);
+    }
+
+    @Override
+    public RelNode visitJoin(JoinNode node, Void context)
+    {
+        RelNode left = node.getLeft().accept(this, context);
+        RelNode right = node.getRight().accept(this, context);
+        RexLiteral condition = cluster.getRexBuilder().makeLiteral(true);
+        return new PrestoJoin(cluster, getTraitSet(), left, right, condition, emptySet(), convertJoinType(node.getType()));
+    }
+
+    private JoinRelType convertJoinType(JoinNode.Type type)
+    {
+        return JoinRelType.FULL;
     }
 
     private RelTraitSet getTraitSet()

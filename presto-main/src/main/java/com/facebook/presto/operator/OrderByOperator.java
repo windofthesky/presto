@@ -184,7 +184,7 @@ public class OrderByOperator
         requireNonNull(page, "page is null");
 
         pageIndex.addPage(page);
-        operatorContext.setMemoryReservation(pageIndex.getEstimatedSize().toBytes());
+//        operatorContext.setMemoryReservation(pageIndex.getEstimatedSize().toBytes());
     }
 
     @Override

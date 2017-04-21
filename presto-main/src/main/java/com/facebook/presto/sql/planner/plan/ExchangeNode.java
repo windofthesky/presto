@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner.plan;
 
+import com.facebook.presto.sql.planner.OrderingScheme;
 import com.facebook.presto.sql.planner.Partitioning;
 import com.facebook.presto.sql.planner.Partitioning.ArgumentBinding;
 import com.facebook.presto.sql.planner.PartitioningScheme;
@@ -26,6 +27,7 @@ import javax.annotation.concurrent.Immutable;
 import java.util.List;
 import java.util.Optional;
 
+import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_BROADCAST_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -62,6 +64,7 @@ public class ExchangeNode
     private final List<List<Symbol>> inputs;
 
     private final boolean orderSensitive;
+    private final Optional<OrderingScheme> orderingScheme;
 
     @JsonCreator
     public ExchangeNode(
@@ -71,7 +74,8 @@ public class ExchangeNode
             @JsonProperty("partitioningScheme") PartitioningScheme partitioningScheme,
             @JsonProperty("sources") List<PlanNode> sources,
             @JsonProperty("inputs") List<List<Symbol>> inputs,
-            @JsonProperty("orderSensitive") boolean orderSensitive)
+            @JsonProperty("orderSensitive") boolean orderSensitive,
+            @JsonProperty("orderingScheme") Optional<OrderingScheme> orderingScheme)
     {
         super(id);
 
@@ -80,6 +84,7 @@ public class ExchangeNode
         requireNonNull(sources, "sources is null");
         requireNonNull(partitioningScheme, "partitioningScheme is null");
         requireNonNull(inputs, "inputs is null");
+        requireNonNull(orderingScheme, "orderingScheme is null");
 
         checkArgument(!inputs.isEmpty(), "inputs is empty");
         checkArgument(inputs.stream().allMatch(inputSymbols -> inputSymbols.size() == partitioningScheme.getOutputLayout().size()), "Input symbols do not match output symbols");
@@ -93,12 +98,15 @@ public class ExchangeNode
 
         checkArgument(scope != REMOTE || type == Type.REPARTITION || !partitioningScheme.isReplicateNullsAndAny(), "Only REPARTITION can replicate remotely");
 
+        checkArgument(type == Type.GATHER || !orderingScheme.isPresent(), "ordering scheme can be set only for GATHERING");
+
         this.type = type;
         this.sources = sources;
         this.scope = scope;
         this.partitioningScheme = partitioningScheme;
         this.inputs = ImmutableList.copyOf(inputs);
         this.orderSensitive = orderSensitive;
+        this.orderingScheme = orderingScheme;
     }
 
     public static ExchangeNode partitionedExchange(PlanNodeId id, Scope scope, PlanNode child, List<Symbol> partitioningColumns, Optional<Symbol> hashColumns)
@@ -131,8 +139,9 @@ public class ExchangeNode
                 scope,
                 partitioningScheme,
                 ImmutableList.of(child),
-                ImmutableList.of(partitioningScheme.getOutputLayout()),
-                false);
+                ImmutableList.of(partitioningScheme.getOutputLayout()).asList(),
+                false,
+                Optional.empty());
     }
 
     public static ExchangeNode replicatedExchange(PlanNodeId id, Scope scope, PlanNode child)
@@ -144,7 +153,8 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(FIXED_BROADCAST_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
-                false);
+                false,
+                Optional.empty());
     }
 
     public static ExchangeNode gatheringExchange(PlanNodeId id, Scope scope, PlanNode child)
@@ -156,7 +166,8 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
-                false);
+                false,
+                Optional.empty());
     }
 
     public static ExchangeNode gatheringOrderSensitiveExchange(PlanNodeId id, Scope scope, PlanNode child)
@@ -168,7 +179,30 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
-                true);
+                true,
+                Optional.empty());
+    }
+
+    public static ExchangeNode roundRobinExchange(PlanNodeId id, Scope scope, PlanNode child)
+    {
+        return partitionedExchange(
+                id,
+                scope,
+                child,
+                new PartitioningScheme(Partitioning.create(FIXED_ARBITRARY_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()));
+    }
+
+    public static ExchangeNode mergingExchange(PlanNodeId id, Scope scope, PlanNode child, OrderingScheme orderingScheme)
+    {
+        return new ExchangeNode(
+                id,
+                Type.GATHER,
+                scope,
+                new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
+                ImmutableList.of(child),
+                ImmutableList.of(child.getOutputSymbols()),
+                true,
+                Optional.of(orderingScheme));
     }
 
     @JsonProperty
@@ -203,6 +237,12 @@ public class ExchangeNode
     }
 
     @JsonProperty
+    public Optional<OrderingScheme> getOrderingScheme()
+    {
+        return orderingScheme;
+    }
+
+    @JsonProperty
     public List<List<Symbol>> getInputs()
     {
         return inputs;
@@ -223,6 +263,6 @@ public class ExchangeNode
     @Override
     public PlanNode replaceChildren(List<PlanNode> newChildren)
     {
-        return new ExchangeNode(getId(), type, scope, partitioningScheme, newChildren, inputs, orderSensitive);
+        return new ExchangeNode(getId(), type, scope, partitioningScheme, newChildren, inputs, orderSensitive, orderingScheme);
     }
 }

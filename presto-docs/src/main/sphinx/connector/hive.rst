@@ -187,6 +187,8 @@ Property Name                                      Description                  
 
 ``hive.empty-bucketed-partitions.enabled``         Enable support for clustered tables with empty partitions.   ``false``
                                                    See :ref:`clustered-tables`
+
+``hive.create-non-managed-table-enabled``          Enable creating non-managed (external) Hive tables.          ``true``
 ================================================== ============================================================ ==========
 
 Amazon S3 Configuration

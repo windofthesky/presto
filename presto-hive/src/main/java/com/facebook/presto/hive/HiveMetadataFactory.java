@@ -37,6 +37,7 @@ public class HiveMetadataFactory
     private final boolean respectTableFormat;
     private final boolean bucketWritingEnabled;
     private final boolean skipDeletionForAlter;
+    private final boolean createNonManagedTableEnabled;
     private final HiveStorageFormat defaultStorageFormat;
     private final long perTransactionCacheMaximumSize;
     private final ExtendedHiveMetastore metastore;
@@ -77,6 +78,7 @@ public class HiveMetadataFactory
                 hiveClientConfig.isRespectTableFormat(),
                 hiveClientConfig.isSkipDeletionForAlter(),
                 hiveClientConfig.isBucketWritingEnabled(),
+                hiveClientConfig.isCreateNonManagedTableEnabled(),
                 hiveClientConfig.getHiveStorageFormat(),
                 hiveClientConfig.getPerTransactionMetastoreCacheMaximumSize(),
                 typeManager,
@@ -99,6 +101,7 @@ public class HiveMetadataFactory
             boolean respectTableFormat,
             boolean skipDeletionForAlter,
             boolean bucketWritingEnabled,
+            boolean createNonManagedTableEnabled,
             HiveStorageFormat defaultStorageFormat,
             long perTransactionCacheMaximumSize,
             TypeManager typeManager,
@@ -115,6 +118,7 @@ public class HiveMetadataFactory
         this.respectTableFormat = respectTableFormat;
         this.skipDeletionForAlter = skipDeletionForAlter;
         this.bucketWritingEnabled = bucketWritingEnabled;
+        this.createNonManagedTableEnabled = createNonManagedTableEnabled;
         this.defaultStorageFormat = requireNonNull(defaultStorageFormat, "defaultStorageFormat is null");
         this.perTransactionCacheMaximumSize = perTransactionCacheMaximumSize;
 
@@ -154,6 +158,7 @@ public class HiveMetadataFactory
                 allowCorruptWritesForTesting,
                 respectTableFormat,
                 bucketWritingEnabled,
+                createNonManagedTableEnabled,
                 defaultStorageFormat,
                 typeManager,
                 locationService,

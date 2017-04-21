@@ -117,6 +117,8 @@ public class HiveClientConfig
 
     private int fileSystemMaxCacheSize = 1000;
 
+    private boolean createNonManagedTableEnabled = true;
+
     public int getMaxInitialSplits()
     {
         return maxInitialSplits;
@@ -884,5 +886,18 @@ public class HiveClientConfig
     {
         this.emptyBucketedPartitionsEnabled = emptyBucketedPartitionsEnabled;
         return this;
+    }
+
+    @Config("hive.create-non-managed-table-enabled")
+    @ConfigDescription("Enable creating non-managed (external) tables")
+    public HiveClientConfig setCreateNonManagedTableEnabled(boolean createNonManagedTableEnabled)
+    {
+        this.createNonManagedTableEnabled = createNonManagedTableEnabled;
+        return this;
+    }
+
+    public boolean isCreateNonManagedTableEnabled()
+    {
+        return createNonManagedTableEnabled;
     }
 }

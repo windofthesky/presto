@@ -48,32 +48,42 @@ public class TypeConverter
     public RelDataType toCalciteType(Type type)
     {
         if (type instanceof BigintType) {
-            return typeFactory.createSqlType(SqlTypeName.BIGINT);
+            return createNullavbleType(SqlTypeName.BIGINT);
         }
         else if (type instanceof DoubleType) {
-            return typeFactory.createSqlType(SqlTypeName.DOUBLE);
+            return createNullavbleType(SqlTypeName.DOUBLE);
         }
         else if (type instanceof IntegerType) {
-            return typeFactory.createSqlType(SqlTypeName.INTEGER);
+            return createNullavbleType(SqlTypeName.INTEGER);
         }
         else if (type instanceof SmallintType) {
-            return typeFactory.createSqlType(SqlTypeName.SMALLINT);
+            return createNullavbleType(SqlTypeName.SMALLINT);
         }
         else if (type instanceof TinyintType) {
-            return typeFactory.createSqlType(SqlTypeName.TINYINT);
+            return createNullavbleType(SqlTypeName.TINYINT);
         }
         else if (type instanceof CharType) {
             CharType charType = (CharType) type;
-            return typeFactory.createSqlType(SqlTypeName.CHAR, charType.getLength());
+            return nullable(typeFactory.createSqlType(SqlTypeName.CHAR, charType.getLength()));
         }
         else if (type instanceof VarcharType) {
             VarcharType varcharType = (VarcharType) type;
-            return typeFactory.createSqlType(SqlTypeName.VARCHAR, varcharType.getLength());
+            return nullable(typeFactory.createSqlType(SqlTypeName.VARCHAR, varcharType.getLength()));
         }
         else if (type instanceof BooleanType) {
-            return typeFactory.createSqlType(SqlTypeName.BOOLEAN);
+            return createNullavbleType(SqlTypeName.BOOLEAN);
         }
         throw new UnsupportedOperationException("Presto type -> calcite type conversion not supported");
+    }
+
+    private RelDataType nullable(RelDataType sqlType)
+    {
+        return typeFactory.createTypeWithNullability(sqlType, true);
+    }
+
+    private RelDataType createNullavbleType(SqlTypeName bigint)
+    {
+        return nullable(typeFactory.createSqlType(bigint));
     }
 
     public Type toPrestoType(RelDataType type)

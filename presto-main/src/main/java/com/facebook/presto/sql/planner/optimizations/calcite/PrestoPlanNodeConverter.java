@@ -215,7 +215,9 @@ public class PrestoPlanNodeConverter
             List<JoinNode.EquiJoinClause> criteria = Collections.emptyList();
             ArrayList<Symbol> outputSymbols = newArrayList(left.getOutputSymbols());
             outputSymbols.addAll(right.getOutputSymbols());
-            Optional<Expression> filter = Optional.empty();
+            //TODO that's a hack, as in a hackathon :)
+            PrestoExpressionConverter expressionConverter = new PrestoExpressionConverter(outputSymbols);
+            Optional<Expression> filter = Optional.of(prestoJoin.getCondition().accept(expressionConverter));
             Optional<Symbol> leftHashSymbol = Optional.empty();
             Optional<Symbol> rightHashSymbol = Optional.empty();
             Optional<JoinNode.DistributionType> empty = Optional.empty();

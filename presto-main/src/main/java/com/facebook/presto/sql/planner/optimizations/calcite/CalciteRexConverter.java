@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.optimizations.calcite;
 
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
+import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
@@ -61,6 +62,7 @@ public class CalciteRexConverter
 
     protected RexNode visitSymbolReference(SymbolReference node, Void context)
     {
+        checkState(inputSymbols.get().size() == inputRowType.get().getFieldList().size());
         int index = inputSymbols.get().stream()
                 .map(Symbol::getName)
                 .collect(toImmutableList())
@@ -95,5 +97,11 @@ public class CalciteRexConverter
             throw new UnsupportedOperationException("comparison not supported yet");
         }
         return builder.makeCall(operator, left, right);
+    }
+
+    @Override
+    protected RexNode visitBooleanLiteral(BooleanLiteral node, Void context)
+    {
+        return builder.makeLiteral(node.getValue());
     }
 }

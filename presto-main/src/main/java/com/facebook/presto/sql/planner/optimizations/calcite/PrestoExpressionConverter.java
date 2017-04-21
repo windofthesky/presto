@@ -14,6 +14,7 @@
 package com.facebook.presto.sql.planner.optimizations.calcite;
 
 import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
@@ -31,6 +32,7 @@ import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +69,11 @@ public class PrestoExpressionConverter
     @Override
     public Expression visitLiteral(RexLiteral literal)
     {
+        if (literal.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
+            Boolean value = (Boolean) literal.getValue();
+            return new BooleanLiteral(value.toString());
+        }
+
         return unsupported();
     }
 

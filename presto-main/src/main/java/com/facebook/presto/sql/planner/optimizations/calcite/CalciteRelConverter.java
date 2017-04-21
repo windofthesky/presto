@@ -17,6 +17,7 @@ import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.sql.ExpressionUtils;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
@@ -30,21 +31,25 @@ import com.facebook.presto.sql.planner.plan.calcite.PrestoProject;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoRelNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoTableScan;
 import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
+import com.facebook.presto.sql.tree.ComparisonExpression;
+import com.facebook.presto.sql.tree.ComparisonExpressionType;
+import com.facebook.presto.sql.tree.Expression;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.collect.Lists.newArrayList;
 import static java.util.Collections.emptySet;
 
 public class CalciteRelConverter
@@ -116,8 +121,28 @@ public class CalciteRelConverter
     {
         RelNode left = node.getLeft().accept(this, context);
         RelNode right = node.getRight().accept(this, context);
-        RexLiteral condition = cluster.getRexBuilder().makeLiteral(true);
-        return new PrestoJoin(cluster, getTraitSet(), left, right, condition, emptySet(), convertJoinType(node.getType()));
+        RelDataType joinType = cluster.getTypeFactory().createJoinType(left.getRowType(), right.getRowType());
+
+        List<Symbol> outputSymbols = newArrayList(getSymbols(left));
+        outputSymbols.addAll(getSymbols(right));
+
+        List<Expression> comparisonExpressions = node.getCriteria().stream().map(criteria -> new ComparisonExpression(
+                ComparisonExpressionType.EQUAL,
+                criteria.getLeft().toSymbolReference(),
+                criteria.getRight().toSymbolReference())
+        ).collect(Collectors.toList());
+        Expression prestoCondition = ExpressionUtils.combineConjuncts(comparisonExpressions);
+
+        CalciteRexConverter converter = new CalciteRexConverter(joinType, outputSymbols, cluster.getRexBuilder());
+        RexNode condition = converter.process(prestoCondition);
+
+        PrestoJoin prestoJoin = new PrestoJoin(cluster, getTraitSet(), left, right, condition, emptySet(), convertJoinType(node.getType()));
+        return prestoJoin;
+    }
+
+    private List<Symbol> getSymbols(RelNode left)
+    {
+        return left.getRowType().getFieldNames().stream().map(name -> new Symbol(name)).collect(Collectors.toList());
     }
 
     private JoinRelType convertJoinType(JoinNode.Type type)

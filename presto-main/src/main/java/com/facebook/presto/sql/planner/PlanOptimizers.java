@@ -35,6 +35,7 @@ import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughMarkDistin
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughProject;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyDelete;
+import com.facebook.presto.sql.planner.iterative.rule.RemoveEmptyOver;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveFullSample;
 import com.facebook.presto.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
 import com.facebook.presto.sql.planner.iterative.rule.SimplifyCountOverConstant;
@@ -181,6 +182,10 @@ public class PlanOptimizers
                         stats,
                         ImmutableSet.of(new SimplifyCountOverConstant())),
                 new WindowFilterPushDown(metadata), // This must run after PredicatePushDown and LimitPushDown so that it squashes any successive filter nodes and limits
+                new IterativeOptimizer(
+                        stats,
+                        ImmutableSet.of(new RemoveEmptyOver())
+                ),
                 new IterativeOptimizer(
                         stats,
                         ImmutableSet.of(

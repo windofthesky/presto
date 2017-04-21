@@ -206,6 +206,11 @@ public class WindowNode
             return orderings;
         }
 
+        public boolean isEmpty()
+        {
+            return (getPartitionBy().isEmpty() && getOrderBy().isEmpty() && getOrderings().isEmpty());
+        }
+
         @Override
         public int hashCode()
         {

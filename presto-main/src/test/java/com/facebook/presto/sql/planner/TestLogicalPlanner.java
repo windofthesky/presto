@@ -49,7 +49,6 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.node;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.semiJoin;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.tableScan;
-import static com.facebook.presto.sql.planner.plan.JoinNode.Type.FULL;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.LEFT;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -83,10 +82,12 @@ public class TestLogicalPlanner
     public void testSimpleJoin()
             throws Exception
     {
-        assertPlan("SELECT * FROM nation, nation",
+        assertPlan("SELECT * FROM nation, region",
                 anyTree(
-                        join(FULL, ImmutableList.of(), tableScan("nation"), tableScan("nation"))
-                ));
+                        join(INNER, ImmutableList.of(),
+                                tableScan("nation"),
+                                anyTree(
+                                        tableScan("region")))));
     }
 
     @Test

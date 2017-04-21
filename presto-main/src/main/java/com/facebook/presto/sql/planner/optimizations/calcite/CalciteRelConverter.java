@@ -122,7 +122,7 @@ public class CalciteRelConverter
 
     private JoinRelType convertJoinType(JoinNode.Type type)
     {
-        return JoinRelType.FULL;
+        return JoinRelType.INNER;
     }
 
     private RelTraitSet getTraitSet()

@@ -19,10 +19,12 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.plan.Assignments;
+import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.plan.calcite.PrestoJoin;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoProject;
 import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
@@ -30,6 +32,7 @@ import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -46,6 +49,8 @@ import org.apache.calcite.rel.logical.LogicalUnion;
 import org.apache.calcite.rel.logical.LogicalValues;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +58,7 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Lists.newArrayList;
 
 public class PrestoPlanNodeConverter
         implements RelShuttle
@@ -200,10 +206,31 @@ public class PrestoPlanNodeConverter
             stack.push(new ProjectNode(idAllocator.getNextId(), child, assignments.build()));
             return null;
         }
+        else if (other instanceof PrestoJoin) {
+            PrestoJoin prestoJoin = (PrestoJoin) other;
+            visitChildren(prestoJoin);
+            PlanNode right = stack.pop();
+            PlanNode left = stack.pop();
+            List<JoinNode.EquiJoinClause> criteria = Collections.emptyList();
+            ArrayList<Symbol> outputSymbols = newArrayList(left.getOutputSymbols());
+            outputSymbols.addAll(right.getOutputSymbols());
+            Optional<Expression> filter = Optional.empty();
+            Optional<Symbol> leftHashSymbol = Optional.empty();
+            Optional<Symbol> rightHashSymbol = Optional.empty();
+            Optional<JoinNode.DistributionType> empty = Optional.empty();
+            JoinNode joinNode = new JoinNode(idAllocator.getNextId(), convertType(prestoJoin.getJoinType()), left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, empty);
+            stack.push(joinNode);
+            return null;
+        }
         else {
             unsupported();
         }
         throw new IllegalStateException("This line must not be reached");
+    }
+
+    private JoinNode.Type convertType(JoinRelType joinType)
+    {
+        return JoinNode.Type.INNER;
     }
 
     private void visitChildren(RelNode other)

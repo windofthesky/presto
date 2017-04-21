@@ -24,16 +24,16 @@ import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
+import com.facebook.presto.sql.planner.plan.calcite.PrestoProject;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoRelNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoTableScan;
 import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
-import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 
 import java.util.List;
@@ -82,7 +82,12 @@ public class CalciteRelConverter
     public RelNode visitProject(ProjectNode node, Void context)
     {
         RelNode child = visitChild(node, context);
-        return LogicalProject.create(child, ImmutableList.of(), toRowType(node));
+        CalciteRexConverter converter = new CalciteRexConverter(child.getRowType(), node.getSource().getOutputSymbols(), cluster.getRexBuilder());
+        List<RexNode> projections = node.getAssignments().getOutputs().stream()
+                .map(symbol -> node.getAssignments().get(symbol))
+                .map(expression -> converter.process(expression, null))
+                .collect(toImmutableList());
+        return new PrestoProject(cluster, getTraitSet(), child, projections, toRowType(node));
     }
 
     @Override

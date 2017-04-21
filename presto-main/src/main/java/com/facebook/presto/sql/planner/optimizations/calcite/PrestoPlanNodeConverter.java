@@ -18,11 +18,15 @@ import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
+import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
+import com.facebook.presto.sql.planner.plan.calcite.PrestoProject;
 import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
+import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
@@ -47,6 +51,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.facebook.presto.util.ImmutableCollectors.toImmutableList;
 import static com.google.common.base.Preconditions.checkState;
 
 public class PrestoPlanNodeConverter
@@ -74,9 +79,7 @@ public class PrestoPlanNodeConverter
     public RelNode visit(TableScan scan)
     {
         RelOptPrestoTable prestoTable = (RelOptPrestoTable) scan.getTable();
-        List<Symbol> outputSymbols = prestoTable.getRowType().getFieldList().stream()
-                .map(field -> symbolAllocator.newSymbol(field.getName(), typeConverter.toPrestoType(field.getType())))
-                .collect(Collectors.toList());
+        List<Symbol> outputSymbols = getOutputSymbols(scan);
         ImmutableMap.Builder<Symbol, ColumnHandle> assignments = ImmutableMap.builder();
         for (int i = 0; i < outputSymbols.size(); ++i) {
             assignments.put(outputSymbols.get(i), prestoTable.getAssignments().get(i));
@@ -181,6 +184,21 @@ public class PrestoPlanNodeConverter
             stack.push(new OutputNode(idAllocator.getNextId(), child, prestoOutput.getColumnNames(), child.getOutputSymbols()));
             return null;
         }
+        else if (other instanceof PrestoProject) {
+            PrestoProject prestoProject = (PrestoProject) other;
+            visitChildren(other);
+            PlanNode child = stack.pop();
+            List<Expression> expressions = prestoProject.getProjects().stream()
+                    .map(rex -> (Expression) null)
+                    .collect(toImmutableList());
+            List<Symbol> outputSymbols = getOutputSymbols(other);
+            Assignments.Builder assignments = Assignments.builder();
+            for (int i = 0; i < outputSymbols.size(); ++i) {
+                assignments.put(outputSymbols.get(i), expressions.get(i));
+            }
+            stack.push(new ProjectNode(idAllocator.getNextId(), child, assignments.build()));
+            return null;
+        }
         else {
             unsupported();
         }
@@ -195,5 +213,12 @@ public class PrestoPlanNodeConverter
     private RelNode unsupported()
     {
         throw new UnsupportedOperationException("Calcite -> Presto conversion not yet implemented");
+    }
+
+    private List<Symbol> getOutputSymbols(RelNode node)
+    {
+        return node.getRowType().getFieldList().stream()
+                .map(field -> symbolAllocator.newSymbol(field.getName(), typeConverter.toPrestoType(field.getType())))
+                .collect(Collectors.toList());
     }
 }

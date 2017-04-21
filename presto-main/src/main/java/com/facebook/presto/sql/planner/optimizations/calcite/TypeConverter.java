@@ -73,7 +73,7 @@ public class TypeConverter
         else if (type instanceof BooleanType) {
             return createNullavbleType(SqlTypeName.BOOLEAN);
         }
-        throw new UnsupportedOperationException("Presto type -> calcite type conversion not supported");
+        throw new UnsupportedOperationException("Presto type -> calcite type conversion not supported for " + type);
     }
 
     private RelDataType nullable(RelDataType sqlType)

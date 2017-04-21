@@ -22,6 +22,7 @@ import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoJoin;
@@ -91,7 +92,7 @@ public class PrestoPlanNodeConverter
             assignments.put(outputSymbols.get(i), prestoTable.getAssignments().get(i));
         }
         TableScanNode node = new TableScanNode(
-                idAllocator.getNextId(),
+                nextId(),
                 prestoTable.getTable(),
                 outputSymbols,
                 assignments.build(),
@@ -187,7 +188,7 @@ public class PrestoPlanNodeConverter
             PrestoOutput prestoOutput = (PrestoOutput) other;
             visitChildren(other);
             PlanNode child = stack.pop();
-            stack.push(new OutputNode(idAllocator.getNextId(), child, prestoOutput.getColumnNames(), child.getOutputSymbols()));
+            stack.push(new OutputNode(nextId(), child, prestoOutput.getColumnNames(), child.getOutputSymbols()));
             return null;
         }
         else if (other instanceof PrestoProject) {
@@ -203,7 +204,7 @@ public class PrestoPlanNodeConverter
             for (int i = 0; i < outputSymbols.size(); ++i) {
                 assignments.put(outputSymbols.get(i), expressions.get(i));
             }
-            stack.push(new ProjectNode(idAllocator.getNextId(), child, assignments.build()));
+            stack.push(new ProjectNode(nextId(), child, assignments.build()));
             return null;
         }
         else if (other instanceof PrestoJoin) {
@@ -218,7 +219,7 @@ public class PrestoPlanNodeConverter
             Optional<Symbol> leftHashSymbol = Optional.empty();
             Optional<Symbol> rightHashSymbol = Optional.empty();
             Optional<JoinNode.DistributionType> empty = Optional.empty();
-            JoinNode joinNode = new JoinNode(idAllocator.getNextId(), convertType(prestoJoin.getJoinType()), left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, empty);
+            JoinNode joinNode = new JoinNode(nextId(), convertType(prestoJoin.getJoinType()), left, right, criteria, outputSymbols, filter, leftHashSymbol, rightHashSymbol, empty);
             stack.push(joinNode);
             return null;
         }
@@ -226,6 +227,11 @@ public class PrestoPlanNodeConverter
             unsupported();
         }
         throw new IllegalStateException("This line must not be reached");
+    }
+
+    private PlanNodeId nextId()
+    {
+        return idAllocator.getNextId();
     }
 
     private JoinNode.Type convertType(JoinRelType joinType)

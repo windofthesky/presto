@@ -52,13 +52,13 @@ public class WindowNode
     private final boolean experimental;
 
     public WindowNode(
-            @JsonProperty("id") PlanNodeId id,
-            @JsonProperty("source") PlanNode source,
-            @JsonProperty("specification") Specification specification,
-            @JsonProperty("windowFunctions") Map<Symbol, Function> windowFunctions,
-            @JsonProperty("hashSymbol") Optional<Symbol> hashSymbol,
-            @JsonProperty("prePartitionedInputs") Set<Symbol> prePartitionedInputs,
-            @JsonProperty("preSortedOrderPrefix") int preSortedOrderPrefix)
+            PlanNodeId id,
+            PlanNode source,
+            Specification specification,
+            Map<Symbol, Function> windowFunctions,
+            Optional<Symbol> hashSymbol,
+            Set<Symbol> prePartitionedInputs,
+            int preSortedOrderPrefix)
     {
         this(id, source, specification, windowFunctions, hashSymbol, prePartitionedInputs, preSortedOrderPrefix, false);
     }

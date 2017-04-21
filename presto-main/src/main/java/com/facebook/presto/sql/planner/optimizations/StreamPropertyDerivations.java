@@ -466,6 +466,7 @@ final class StreamPropertyDerivations
         public StreamProperties visitSort(SortNode node, List<StreamProperties> inputProperties)
         {
             return StreamProperties.ordered();
+//            return new StreamProperties(SINGLE, false, Optional.of(ImmutableSet.of(new Symbol("regionkey"))), true);
         }
 
         @Override

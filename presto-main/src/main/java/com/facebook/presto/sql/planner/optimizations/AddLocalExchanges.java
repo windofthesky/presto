@@ -270,9 +270,10 @@ public class AddLocalExchanges
         public PlanWithProperties visitWindow(WindowNode node, StreamPreferredProperties parentPreferences)
         {
             StreamPreferredProperties childRequirements = parentPreferences
+//                    .singleStream()
                     .constrainTo(node.getSource().getOutputSymbols())
-                    .withDefaultParallelism(session)
-                    .withPartitioning(node.getPartitionBy());
+                    .withDefaultParallelism(session);
+//                    .withPartitioning(node.getPartitionBy());
 
             PlanWithProperties child = planAndEnforce(node.getSource(), childRequirements, childRequirements);
 
@@ -294,6 +295,8 @@ public class AddLocalExchanges
                         .collect(toImmutableSet());
             }
 
+            prePartitionedInputs = ImmutableSet.copyOf(node.getPartitionBy());
+
             int preSortedOrderPrefix = 0;
             if (prePartitionedInputs.equals(ImmutableSet.copyOf(node.getPartitionBy()))) {
                 while (matchIterator.hasNext() && !matchIterator.next().isPresent()) {
@@ -308,7 +311,8 @@ public class AddLocalExchanges
                     node.getWindowFunctions(),
                     node.getHashSymbol(),
                     prePartitionedInputs,
-                    preSortedOrderPrefix,
+                    1,
+//                    preSortedOrderPrefix,
                     node.getExperimental());
 
             return deriveProperties(result, child.getProperties());

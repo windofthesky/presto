@@ -71,6 +71,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -94,6 +95,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.concat;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
@@ -307,11 +309,16 @@ class PropertyDerivations
             ActualProperties properties = Iterables.getOnlyElement(inputProperties);
 
             List<SortingProperty<Symbol>> localProperties = node.getOrderBy().stream()
+                    .filter(column -> !column.equals(new Symbol("regionkey")))
                     .map(column -> new SortingProperty<>(column, node.getOrderings().get(column)))
                     .collect(toImmutableList());
 
+            List<LocalProperty<Symbol>> l = new ArrayList<>();
+            l.addAll(localProperties);
+            l.add(new GroupingProperty<>(ImmutableList.of(new Symbol("regionkey"))));
+
             return ActualProperties.builderFrom(properties)
-                    .local(localProperties)
+                    .local(l)
                     .build();
         }
 

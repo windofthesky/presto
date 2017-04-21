@@ -799,15 +799,15 @@ public class LocalExecutionPlanner
             }
 
             OperatorFactory operatorFactory;
-            if (node.getExperimental()) {
-                operatorFactory = new PrePartitionedWindowOperator.PrePartitionedWindowOperatorFactory(
-                        context.getNextOperatorId(),
-                        node.getId(),
-                        source.getTypes(),
-                        outputChannels.build(),
-                        windowFunctionsBuilder.build());
-            }
-            else {
+//            if (node.getExperimental()) {
+//                operatorFactory = new PrePartitionedWindowOperator.PrePartitionedWindowOperatorFactory(
+//                        context.getNextOperatorId(),
+//                        node.getId(),
+//                        source.getTypes(),
+//                        outputChannels.build(),
+//                        windowFunctionsBuilder.build());
+//            }
+//            else {
                 operatorFactory = new WindowOperatorFactory(
                         context.getNextOperatorId(),
                         node.getId(),
@@ -821,7 +821,7 @@ public class LocalExecutionPlanner
                         node.getPreSortedOrderPrefix(),
                         10_000,
                         pagesIndexFactory);
-            }
+//            }
 
             return new PhysicalOperation(operatorFactory, outputMappings.build(), source);
         }

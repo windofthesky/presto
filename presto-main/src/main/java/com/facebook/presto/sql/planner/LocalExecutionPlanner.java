@@ -42,6 +42,7 @@ import com.facebook.presto.operator.LocalPlannerAware;
 import com.facebook.presto.operator.LookupJoinOperators;
 import com.facebook.presto.operator.LookupSourceFactory;
 import com.facebook.presto.operator.MarkDistinctOperator.MarkDistinctOperatorFactory;
+import com.facebook.presto.operator.MergeOperator.MergeOperatorFactory;
 import com.facebook.presto.operator.MetadataDeleteOperator.MetadataDeleteOperatorFactory;
 import com.facebook.presto.operator.NestedLoopJoinPagesSupplier;
 import com.facebook.presto.operator.OperatorFactory;
@@ -54,6 +55,7 @@ import com.facebook.presto.operator.RowNumberOperator;
 import com.facebook.presto.operator.ScanFilterAndProjectOperator;
 import com.facebook.presto.operator.SetBuilderOperator.SetBuilderOperatorFactory;
 import com.facebook.presto.operator.SetBuilderOperator.SetSupplier;
+import com.facebook.presto.operator.SimpleMergeSortComparator;
 import com.facebook.presto.operator.SourceOperatorFactory;
 import com.facebook.presto.operator.TableScanOperator.TableScanOperatorFactory;
 import com.facebook.presto.operator.TaskOutputOperator.TaskOutputFactory;
@@ -118,6 +120,7 @@ import com.facebook.presto.sql.planner.plan.IndexSourceNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
+import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.MetadataDeleteNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -587,6 +590,37 @@ public class LocalExecutionPlanner
                     exchangeClientSupplier,
                     new PagesSerdeFactory(blockEncodingSerde, isExchangeCompressionEnabled(session)),
                     types);
+
+            return new PhysicalOperation(operatorFactory, makeLayout(node));
+        }
+
+        @Override
+        public PhysicalOperation visitMergeRemoteSource(MergeRemoteSourceNode node, LocalExecutionPlanContext context)
+        {
+            List<Type> types = getSourceOperatorTypes(node, context.getTypes());
+
+            Map<Symbol, Integer> sourceLayout = makeLayoutFromOutputSymbols(node.getOutputSymbols());
+            List<Symbol> orderBySymbols = node.getOrderBy();
+            List<Integer> sortChannels = getChannelsForSymbols(orderBySymbols, sourceLayout);
+            List<SortOrder> sortOrder = orderBySymbols.stream()
+                    .map(symbol -> node.getOrderings().get(symbol))
+                    .collect(toImmutableList());
+
+            ImmutableList.Builder<Integer> outputChannels = ImmutableList.builder();
+            for (int i = 0; i < types.size(); i++) {
+                outputChannels.add(i);
+            }
+
+            OperatorFactory operatorFactory = new MergeOperatorFactory(
+                    context.getNextOperatorId(),
+                    node.getId(),
+                    exchangeClientSupplier,
+                    new PagesSerdeFactory(blockEncodingSerde, isExchangeCompressionEnabled(session)),
+                    new SimpleMergeSortComparator.Factory(),
+                    types,
+                    outputChannels.build(),
+                    sortChannels,
+                    sortOrder);
 
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
@@ -1269,9 +1303,14 @@ public class LocalExecutionPlanner
 
         private ImmutableMap<Symbol, Integer> makeLayout(PlanNode node)
         {
+            return makeLayoutFromOutputSymbols(node.getOutputSymbols());
+        }
+
+        private ImmutableMap<Symbol, Integer> makeLayoutFromOutputSymbols(List<Symbol> outputSymbols)
+        {
             Builder<Symbol, Integer> outputMappings = ImmutableMap.builder();
             int channel = 0;
-            for (Symbol symbol : node.getOutputSymbols()) {
+            for (Symbol symbol : outputSymbols) {
                 outputMappings.put(symbol, channel);
                 channel++;
             }

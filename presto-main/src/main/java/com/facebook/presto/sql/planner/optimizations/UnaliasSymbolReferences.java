@@ -40,6 +40,7 @@ import com.facebook.presto.sql.planner.plan.IntersectNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
+import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
@@ -279,7 +280,7 @@ public class UnaliasSymbolReferences
                     node.getPartitioningScheme().isReplicateNulls(),
                     node.getPartitioningScheme().getBucketToPartition());
 
-            return new ExchangeNode(node.getId(), node.getType(), node.getScope(), partitioningScheme, sources, inputs);
+            return new ExchangeNode(node.getId(), node.getType(), node.getScope(), partitioningScheme, sources, inputs, node.getOrderingScheme());
         }
 
         private void mapExchangeNodeSymbols(ExchangeNode node)
@@ -332,6 +333,22 @@ public class UnaliasSymbolReferences
         public PlanNode visitRemoteSource(RemoteSourceNode node, RewriteContext<Void> context)
         {
             return new RemoteSourceNode(node.getId(), node.getSourceFragmentIds(), canonicalizeAndDistinct(node.getOutputSymbols()));
+        }
+
+        @Override
+        public PlanNode visitMergeRemoteSource(MergeRemoteSourceNode node, RewriteContext<Void> context)
+        {
+            Set<Symbol> added = new HashSet<>();
+            ImmutableList.Builder<Symbol> orderBySymbols = ImmutableList.builder();
+            ImmutableMap.Builder<Symbol, SortOrder> orderings = ImmutableMap.builder();
+            for (Symbol symbol : node.getOrderBy()) {
+                Symbol canonical = canonicalize(symbol);
+                if (added.add(canonical)) {
+                    orderBySymbols.add(canonical);
+                    orderings.put(canonical, node.getOrderings().get(symbol));
+                }
+            }
+            return new MergeRemoteSourceNode(node.getId(), node.getSourceFragmentIds(), canonicalizeAndDistinct(node.getOutputSymbols()), orderBySymbols.build(), orderings.build());
         }
 
         @Override

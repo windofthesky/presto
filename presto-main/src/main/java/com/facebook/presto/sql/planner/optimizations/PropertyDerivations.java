@@ -463,8 +463,15 @@ class PropertyDerivations
             switch (node.getType()) {
                 case GATHER:
                     boolean coordinatorOnly = node.getPartitioningScheme().getPartitioning().getHandle().isCoordinatorOnly();
+                    ImmutableList.Builder<SortingProperty<Symbol>> localProperties = ImmutableList.builder();
+                    if (node.getOrderingScheme().isPresent()) {
+                        node.getOrderingScheme().get().getOrderBy().stream()
+                                .map(column -> new SortingProperty<>(column, node.getOrderingScheme().get().getOrderings().get(column)))
+                                .forEach(localProperties::add);
+                    }
                     return ActualProperties.builder()
                             .global(coordinatorOnly ? coordinatorSingleStreamPartition() : singleStreamPartition())
+                            .local(localProperties.build())
                             .constants(constants)
                             .build();
                 case REPARTITION:

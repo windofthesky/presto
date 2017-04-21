@@ -70,6 +70,7 @@ public final class SystemSessionProperties
     public static final String ITERATIVE_OPTIMIZER = "iterative_optimizer_enabled";
     public static final String ITERATIVE_OPTIMIZER_TIMEOUT = "iterative_optimizer_timeout";
     public static final String EXCHANGE_COMPRESSION = "exchange_compression";
+    public static final String DISTRIBUTED_SORT = "distributed_sort";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -300,6 +301,11 @@ public final class SystemSessionProperties
                         EXCHANGE_COMPRESSION,
                         "Enable compression in exchanges",
                         featuresConfig.isExchangeCompressionEnabled(),
+                        false),
+                booleanSessionProperty(
+                        DISTRIBUTED_SORT,
+                        "Parallelize sort across multiple nodes",
+                        featuresConfig.isDistributedSortEnabled(),
                         false));
     }
 
@@ -465,5 +471,10 @@ public final class SystemSessionProperties
     public static boolean isExchangeCompressionEnabled(Session session)
     {
         return session.getSystemProperty(EXCHANGE_COMPRESSION, Boolean.class);
+    }
+
+    public static boolean isDistributedSortEnabled(Session session)
+    {
+        return session.getSystemProperty(DISTRIBUTED_SORT, Boolean.class);
     }
 }

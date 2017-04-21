@@ -131,6 +131,17 @@ public class ProjectionPushDown
                             inputs.add(symbol);
                         });
 
+                if (exchange.getOrderingScheme().isPresent()) {
+                    // need to retain ordering columns for the exchange
+                    exchange.getOrderingScheme().get().getOrderBy().stream()
+                            .map(outputToInputMap::get)
+                            .forEach(nameReference -> {
+                                Symbol symbol = Symbol.from(nameReference);
+                                projections.put(symbol, nameReference);
+                                inputs.add(symbol);
+                            });
+                }
+
                 if (exchange.getPartitioningScheme().getHashColumn().isPresent()) {
                     // Need to retain the hash symbol for the exchange
                     projections.put(exchange.getPartitioningScheme().getHashColumn().get(), exchange.getPartitioningScheme().getHashColumn().get().toSymbolReference());
@@ -154,6 +165,9 @@ public class ProjectionPushDown
             if (exchange.getPartitioningScheme().getHashColumn().isPresent()) {
                 outputBuilder.add(exchange.getPartitioningScheme().getHashColumn().get());
             }
+            if (exchange.getOrderingScheme().isPresent()) {
+                outputBuilder.addAll(exchange.getOrderingScheme().get().getOrderBy());
+            }
             for (Map.Entry<Symbol, Expression> projection : node.getAssignments().entrySet()) {
                 outputBuilder.add(projection.getKey());
             }
@@ -172,7 +186,8 @@ public class ProjectionPushDown
                     exchange.getScope(),
                     partitioningScheme,
                     newSourceBuilder.build(),
-                    inputsBuilder.build());
+                    inputsBuilder.build(),
+                    exchange.getOrderingScheme());
         }
     }
 

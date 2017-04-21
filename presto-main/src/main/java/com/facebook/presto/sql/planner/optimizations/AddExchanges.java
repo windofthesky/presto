@@ -30,6 +30,7 @@ import com.facebook.presto.sql.planner.DependencyExtractor;
 import com.facebook.presto.sql.planner.DomainTranslator;
 import com.facebook.presto.sql.planner.ExpressionInterpreter;
 import com.facebook.presto.sql.planner.LookupSymbolResolver;
+import com.facebook.presto.sql.planner.OrderingScheme;
 import com.facebook.presto.sql.planner.Partitioning;
 import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -114,6 +115,7 @@ import static com.facebook.presto.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.Type.GATHER;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.Type.REPARTITION;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.gatheringExchange;
+import static com.facebook.presto.sql.planner.plan.ExchangeNode.mergingGatheringExchange;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.partitionedExchange;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.replicatedExchange;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -454,6 +456,22 @@ public class AddExchanges
         @Override
         public PlanWithProperties visitSort(SortNode node, Context context)
         {
+            if (SystemSessionProperties.isDistributedSortEnabled(session)) {
+                PlanWithProperties source = node.getSource().accept(this, context);
+                source = withDerivedProperties(
+                        partitionedExchange(
+                                idAllocator.getNextId(),
+                                REMOTE,
+                                source.getNode(),
+                                new PartitioningScheme(
+                                        Partitioning.create(FIXED_ARBITRARY_DISTRIBUTION, ImmutableList.of()), source.getNode().getOutputSymbols())),
+                        source.getProperties());
+                source = rebaseAndDeriveProperties(node, source);
+                return withDerivedProperties(
+                        mergingGatheringExchange(idAllocator.getNextId(), REMOTE, source.getNode(), new OrderingScheme(node.getOrderBy(), node.getOrderings())),
+                        source.getProperties());
+            }
+
             PlanWithProperties child = planChild(node, context.withPreferredProperties(PreferredProperties.undistributed()));
 
             if (!child.getProperties().isSingleNode()) {
@@ -1126,7 +1144,8 @@ public class AddExchanges
                         REMOTE,
                         new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
                         partitionedChildren,
-                        partitionedOutputLayouts);
+                        partitionedOutputLayouts,
+                        Optional.empty());
             }
             else if (!unpartitionedChildren.isEmpty()) {
                 if (!partitionedChildren.isEmpty()) {
@@ -1143,7 +1162,8 @@ public class AddExchanges
                             REMOTE,
                             new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), exchangeOutputLayout),
                             partitionedChildren,
-                            partitionedOutputLayouts);
+                            partitionedOutputLayouts,
+                            Optional.empty());
 
                     unpartitionedChildren.add(result);
                     unpartitionedOutputLayouts.add(result.getOutputSymbols());
@@ -1195,7 +1215,8 @@ public class AddExchanges
                                 REMOTE,
                                 new PartitioningScheme(Partitioning.create(FIXED_ARBITRARY_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
                                 partitionedChildren,
-                                partitionedOutputLayouts));
+                                partitionedOutputLayouts,
+                                Optional.empty()));
             }
         }
 

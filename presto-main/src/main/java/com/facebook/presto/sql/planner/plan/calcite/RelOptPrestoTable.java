@@ -37,4 +37,14 @@ public class RelOptPrestoTable
         this.table = table;
         this.assignments = assignments;
     }
+
+    public TableHandle getTable()
+    {
+        return table;
+    }
+
+    public List<ColumnHandle> getAssignments()
+    {
+        return assignments;
+    }
 }

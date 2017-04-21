@@ -69,6 +69,16 @@ public class TestLogicalPlanner
     }
 
     @Test
+    public void testSimpleProject()
+            throws Exception
+    {
+        assertPlan("SELECT nationkey=nationkey FROM nation",
+                anyTree(
+                        tableScan("nation")
+                ));
+    }
+
+    @Test
     public void testDistinctLimitOverInequalityJoin()
             throws Exception
     {

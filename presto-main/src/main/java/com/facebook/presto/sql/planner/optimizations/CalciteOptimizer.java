@@ -19,8 +19,9 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
-import com.facebook.presto.sql.planner.optimizations.calcite.CalciteConverter;
-import com.facebook.presto.sql.planner.optimizations.calcite.PrestoConverter;
+import com.facebook.presto.sql.planner.optimizations.calcite.CalciteRelConverter;
+import com.facebook.presto.sql.planner.optimizations.calcite.PrestoPlanNodeConverter;
+import com.facebook.presto.sql.planner.optimizations.calcite.TypeConverter;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -41,18 +42,18 @@ public class CalciteOptimizer
     @Override
     public PlanNode optimize(PlanNode plan, Session session, Map<Symbol, Type> types, SymbolAllocator symbolAllocator, PlanNodeIdAllocator idAllocator)
     {
-        CalciteConverter converter = new CalciteConverter();
+        return Frameworks.withPlanner((cluster, relOptSchema, rootSchema) -> {
+            TypeConverter typeConverter = new TypeConverter(cluster.getTypeFactory());
+            CalciteRelConverter converter = new CalciteRelConverter(typeConverter, types, cluster, relOptSchema, rootSchema, metadata, session);
 
-        RelNode rewrittenCalcitePlan = Frameworks.withPlanner((cluster, relOptSchema, rootSchema) -> {
             RelOptPlanner planner = cluster.getPlanner();
-            CalciteConverter.Context context = new CalciteConverter.Context(cluster, relOptSchema, rootSchema, metadata, session);
-            RelNode converted = plan.accept(converter, context);
+            RelNode converted = plan.accept(converter, null);
             planner.setRoot(converted);
-            return planner.findBestExp();
-        }, Frameworks.newConfigBuilder().build());
+            RelNode bestPlan = planner.findBestExp();
 
-        PrestoConverter unconverter = new PrestoConverter(idAllocator);
-        rewrittenCalcitePlan.accept(unconverter);
-        return unconverter.getResult();
+            PrestoPlanNodeConverter unconverter = new PrestoPlanNodeConverter(idAllocator, symbolAllocator, typeConverter);
+            bestPlan.accept(unconverter);
+            return unconverter.getResult();
+        }, Frameworks.newConfigBuilder().build());
     }
 }

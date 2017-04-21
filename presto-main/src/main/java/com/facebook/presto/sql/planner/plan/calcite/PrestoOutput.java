@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.sql.planner.plan.calcite;
 
-import com.facebook.presto.sql.planner.Symbol;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -25,16 +24,15 @@ import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 
-public class PrestoOutput extends AbstactPrestoRelNode
+public class PrestoOutput
+        extends AbstactPrestoRelNode
 {
     private final List<String> columnNames;
-    private final List<Symbol> outputs;
 
-    public PrestoOutput(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<String> columnNames, List<Symbol> outputs)
+    public PrestoOutput(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, List<String> columnNames)
     {
         super(cluster, traitSet, ImmutableList.of(input));
         this.columnNames = columnNames;
-        this.outputs = outputs;
     }
 
     @Override
@@ -42,24 +40,18 @@ public class PrestoOutput extends AbstactPrestoRelNode
     {
         return super.explainTerms(pw)
                 .input("source", getOnlyElement(getInputs()))
-                .item("columnNames", columnNames)
-                .item("outputs", outputs);
+                .item("columnNames", columnNames);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs)
     {
-        return new PrestoOutput(getCluster(), traitSet, getOnlyElement(inputs), columnNames, outputs);
+        return new PrestoOutput(getCluster(), traitSet, getOnlyElement(inputs), columnNames);
     }
 
     public List<String> getColumnNames()
     {
         return columnNames;
-    }
-
-    public List<Symbol> getOutputs()
-    {
-        return outputs;
     }
 
     @Override

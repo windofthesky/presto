@@ -13,10 +13,17 @@
  */
 package com.facebook.presto.sql.planner.optimizations.calcite;
 
+import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
+import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.calcite.PrestoOutput;
+import com.facebook.presto.sql.planner.plan.calcite.RelOptPrestoTable;
+import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.TableFunctionScan;
@@ -36,18 +43,25 @@ import org.apache.calcite.rel.logical.LogicalValues;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 
-public class PrestoConverter
+public class PrestoPlanNodeConverter
         implements RelShuttle
 {
     private final Deque<PlanNode> stack = new ArrayDeque<>();
     private final PlanNodeIdAllocator idAllocator;
+    private final SymbolAllocator symbolAllocator;
+    private final TypeConverter typeConverter;
 
-    public PrestoConverter(PlanNodeIdAllocator idAllocator)
+    public PrestoPlanNodeConverter(PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, TypeConverter typeConverter)
     {
         this.idAllocator = idAllocator;
+        this.symbolAllocator = symbolAllocator;
+        this.typeConverter = typeConverter;
     }
 
     public PlanNode getResult()
@@ -59,13 +73,24 @@ public class PrestoConverter
     @Override
     public RelNode visit(TableScan scan)
     {
-//        PrestoTableScan prestoTableScan = (PrestoTableScan) scan;
-//        TableScanNode node = new TableScanNode(
-//                idAllocator.getNextId(),
-//                prestoTableScan.
-//        );
-//        stack.push(node);
-        return unsupported();
+        RelOptPrestoTable prestoTable = (RelOptPrestoTable) scan.getTable();
+        List<Symbol> outputSymbols = prestoTable.getRowType().getFieldList().stream()
+                .map(field -> symbolAllocator.newSymbol(field.getName(), typeConverter.toPrestoType(field.getType())))
+                .collect(Collectors.toList());
+        ImmutableMap.Builder<Symbol, ColumnHandle> assignments = ImmutableMap.builder();
+        for (int i = 0; i < outputSymbols.size(); ++i) {
+            assignments.put(outputSymbols.get(i), prestoTable.getAssignments().get(i));
+        }
+        TableScanNode node = new TableScanNode(
+                idAllocator.getNextId(),
+                prestoTable.getTable(),
+                outputSymbols,
+                assignments.build(),
+                Optional.empty(),
+                TupleDomain.all(),
+                null);
+        stack.push(node);
+        return null;
     }
 
     @Override
@@ -152,7 +177,9 @@ public class PrestoConverter
         if (other instanceof PrestoOutput) {
             PrestoOutput prestoOutput = (PrestoOutput) other;
             visitChildren(other);
-            stack.push(new OutputNode(null, stack.pop(), prestoOutput.getColumnNames(), prestoOutput.getOutputs()));
+            PlanNode child = stack.pop();
+            stack.push(new OutputNode(idAllocator.getNextId(), child, prestoOutput.getColumnNames(), child.getOutputSymbols()));
+            return null;
         }
         else {
             unsupported();

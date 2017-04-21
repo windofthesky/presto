@@ -23,8 +23,12 @@ import com.facebook.presto.sql.planner.optimizations.calcite.CalciteRelConverter
 import com.facebook.presto.sql.planner.optimizations.calcite.PrestoPlanNodeConverter;
 import com.facebook.presto.sql.planner.optimizations.calcite.TypeConverter;
 import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.calcite.PrestoJoin;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.rules.JoinCommuteRule;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.tools.Frameworks;
 
 import java.util.Map;
@@ -47,9 +51,12 @@ public class CalciteOptimizer
             CalciteRelConverter converter = new CalciteRelConverter(typeConverter, types, cluster, relOptSchema, rootSchema, metadata, session);
 
             RelOptPlanner planner = cluster.getPlanner();
+            planner.addRule(new JoinCommuteRule(PrestoJoin.class, prestoRelBuilderFactory, true));
             RelNode converted = plan.accept(converter, null);
             planner.setRoot(converted);
             RelNode bestPlan = planner.findBestExp();
+
+            System.out.println(RelOptUtil.toString(bestPlan, SqlExplainLevel.ALL_ATTRIBUTES));
 
             PrestoPlanNodeConverter unconverter = new PrestoPlanNodeConverter(idAllocator, symbolAllocator, typeConverter);
             bestPlan.accept(unconverter);

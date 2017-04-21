@@ -104,6 +104,21 @@ public class TestLogicalPlanner
     }
 
     @Test
+    public void testThreeWayJoinWithCondition()
+            throws Exception
+    {
+        assertPlan("SELECT * FROM nation n" +
+                        " JOIN region r on n.regionkey = r.regionkey" +
+                        " JOIN nation n2 on n2.regionkey = r.regionkey",
+                anyTree(
+                        join(INNER, ImmutableList.of(equiJoinClause("NATION_RK", "REGION_RK")),
+                                anyTree(
+                                        tableScan("nation", ImmutableMap.of("NATION_RK", "regionkey"))),
+                                anyTree(
+                                        tableScan("region", ImmutableMap.of("REGION_RK", "regionkey"))))));
+    }
+
+    @Test
     public void testDistinctLimitOverInequalityJoin()
             throws Exception
     {

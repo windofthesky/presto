@@ -16,6 +16,7 @@ package com.facebook.presto.sql.planner.plan.calcite;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 public class PrestoTableScan
         extends TableScan
@@ -24,5 +25,18 @@ public class PrestoTableScan
     public PrestoTableScan(RelOptCluster cluster, RelTraitSet traitSet, RelOptPrestoTable table)
     {
         super(cluster, traitSet, table);
+    }
+
+    @Override
+    public double estimateRowCount(RelMetadataQuery mq)
+    {
+//        List<String> name = getTable().getQualifiedName();
+//        if (name.contains("region")) {
+//            return 5;
+//        }
+//        else if (name.contains("nation")) {
+//            return 25;
+//        }
+        return super.estimateRowCount(mq);
     }
 }

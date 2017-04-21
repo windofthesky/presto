@@ -4,7 +4,27 @@ services:
   presto-master:
     command: /docker/volumes/conf/docker/files/presto-launcher-wrapper.sh multinode-master run
 
-  presto-worker:
+  presto-worker-1:
+    extends:
+      file: ../common/standard.yml
+      service: java-8-base
+    command: /docker/volumes/conf/docker/files/presto-launcher-wrapper.sh multinode-worker run
+    depends_on:
+      - presto-master
+    volumes_from:
+      - presto-master
+
+  presto-worker-2:
+    extends:
+      file: ../common/standard.yml
+      service: java-8-base
+    command: /docker/volumes/conf/docker/files/presto-launcher-wrapper.sh multinode-worker run
+    depends_on:
+      - presto-master
+    volumes_from:
+      - presto-master
+
+  presto-worker-3:
     extends:
       file: ../common/standard.yml
       service: java-8-base

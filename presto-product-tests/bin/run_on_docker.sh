@@ -179,7 +179,7 @@ shift 1
 
 PRESTO_SERVICES="presto-master"
 if [[ "$ENVIRONMENT" == "multinode" ]]; then
-   PRESTO_SERVICES="${PRESTO_SERVICES} presto-worker"
+   PRESTO_SERVICES="${PRESTO_SERVICES} presto-worker-1 presto-worker-2 presto-worker-3"
 fi
 
 # check docker and docker compose installation

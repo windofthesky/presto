@@ -311,7 +311,7 @@ public class AddLocalExchanges
                     node.getWindowFunctions(),
                     node.getHashSymbol(),
                     prePartitionedInputs,
-                    1,
+                    node.getOrderBy().size(),
 //                    preSortedOrderPrefix,
                     node.getExperimental());
 

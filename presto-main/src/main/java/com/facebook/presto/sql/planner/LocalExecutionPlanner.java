@@ -51,7 +51,6 @@ import com.facebook.presto.operator.OutputFactory;
 import com.facebook.presto.operator.PagesIndex;
 import com.facebook.presto.operator.PartitionFunction;
 import com.facebook.presto.operator.PartitionedOutputOperator.PartitionedOutputFactory;
-import com.facebook.presto.operator.PrePartitionedWindowOperator;
 import com.facebook.presto.operator.RowNumberOperator;
 import com.facebook.presto.operator.ScanFilterAndProjectOperator;
 import com.facebook.presto.operator.SetBuilderOperator.SetBuilderOperatorFactory;

@@ -188,8 +188,9 @@ public class PrestoPlanNodeConverter
             PrestoProject prestoProject = (PrestoProject) other;
             visitChildren(other);
             PlanNode child = stack.pop();
+            PrestoExpressionConverter expressionConverter = new PrestoExpressionConverter(child.getOutputSymbols());
             List<Expression> expressions = prestoProject.getProjects().stream()
-                    .map(rex -> (Expression) null)
+                    .map(rex -> rex.accept(expressionConverter))
                     .collect(toImmutableList());
             List<Symbol> outputSymbols = getOutputSymbols(other);
             Assignments.Builder assignments = Assignments.builder();

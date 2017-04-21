@@ -42,7 +42,7 @@ public class RelOptPrestoTable
     public double getRowCount()
     {
         if (getName().contains("nation")) {
-            return 25;
+            return 250;
         }
         else if (getName().contains("region")) {
             return 5;

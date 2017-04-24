@@ -70,7 +70,7 @@ public class CacheModule
         ConnectorFactory cachingFactory = context.getConnectorFactory("memory");
         Connector cacheConnector = cachingFactory.create(
                 "caching_dunno",
-                ImmutableMap.of("memory.max-data-per-node", "4GB"),
+                ImmutableMap.of("memory.max-data-per-node", "16GB"),
                 context);
 
         binder.bind(Connector.class).annotatedWith(Source.class).toInstance(sourceConnector);

@@ -243,7 +243,7 @@ final class ShowQueriesRewrite
             for (String schema : allowedSchemas) {
                 accessControl.checkCanShowTablesMetadata(session.getRequiredTransactionId(), session.getIdentity(), new CatalogSchemaName(catalogName, schema));
             }
-            
+
             return simpleQuery(
                     selectList(
                             aliasedName("grantor", "Grantor"),

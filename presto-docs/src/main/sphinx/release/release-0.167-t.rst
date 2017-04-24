@@ -226,3 +226,12 @@ users.  These columns are not shown when ``describe table`` or ``select *`` SQL 
 MySQL catalog names are mapped to Presto schema names.
 
 ----
+
+===================
+Release 0.167-t.0.4
+===================
+
+The following has been added to 0.167-t.0.4:
+
+* Hive configuration property to enable/disable creating non-managed (external) Hive tables
+* Support NULLs as valid values in `value IN (%subquery%)`

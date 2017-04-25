@@ -374,7 +374,8 @@ public class HiveMetadata
 
         TableStatistics.Builder tableStatistics = TableStatistics.builder();
 
-        tableStatistics.setRowCount(calculateRowsCount(partitionStatistics));
+        Estimate rowCount = calculateRowsCount(partitionStatistics);
+        tableStatistics.setRowCount(rowCount);
 
         for (Map.Entry<String, ColumnHandle> columnEntry : tableColumns.entrySet()) {
             String columnName = columnEntry.getKey();
@@ -385,11 +386,11 @@ public class HiveMetadata
             ColumnStatistics.Builder columnStatistics = ColumnStatistics.builder();
             if (hiveColumnHandle.isPartitionKey()) {
                 columnStatistics.setDistinctValuesCount(countDistinctPartitionKeys(hiveColumnHandle, hivePartitions));
-                columnStatistics.setNullsCount(calculateNullsCountForPartitioningKey(hiveColumnHandle, hivePartitions, partitionStatistics));
+                columnStatistics.setNullsFraction(calculateNullsFractionForPartitioningKey(hiveColumnHandle, hivePartitions, partitionStatistics));
             }
             else {
                 columnStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
-                columnStatistics.setNullsCount(calculateNullsCount(partitionStatistics, columnName));
+                columnStatistics.setNullsFraction(calculateNullsFraction(partitionStatistics, columnName, rowCount));
             }
             tableStatistics.setColumnStatistics(hiveColumnHandle, columnStatistics.build());
         }
@@ -430,9 +431,9 @@ public class HiveMetadata
                 DoubleStream::max);
     }
 
-    private Estimate calculateNullsCount(Map<String, PartitionStatistics> statisticsByPartitionName, String column)
+    private Estimate calculateNullsFraction(Map<String, PartitionStatistics> statisticsByPartitionName, String column, Estimate totalRowsCount)
     {
-        return summarizePartitionStatistics(
+        Estimate totalNullsCount = summarizePartitionStatistics(
                 statisticsByPartitionName.values(),
                 column,
                 columnStatistics -> {
@@ -444,11 +445,10 @@ public class HiveMetadata
                     }
                 },
                 nullsCountStream -> {
-                    double totalNullsCount = 0;
+                    double nullsCount = 0;
                     long partitionsWithStatisticsCount = 0;
                     for (PrimitiveIterator.OfDouble nullsCountIterator = nullsCountStream.iterator(); nullsCountIterator.hasNext(); ) {
-                        double nullsCount = nullsCountIterator.nextDouble();
-                        totalNullsCount += nullsCount;
+                        nullsCount += nullsCountIterator.nextDouble();
                         partitionsWithStatisticsCount++;
                     }
 
@@ -457,9 +457,17 @@ public class HiveMetadata
                     }
                     else {
                         int allPartitionsCount = statisticsByPartitionName.size();
-                        return OptionalDouble.of(allPartitionsCount / partitionsWithStatisticsCount * totalNullsCount);
+                        return OptionalDouble.of(allPartitionsCount / partitionsWithStatisticsCount * nullsCount);
                     }
                 });
+
+        if (totalNullsCount.isValueUnknown() || totalRowsCount.isValueUnknown()) {
+            return Estimate.unknownValue();
+        }
+        if (totalRowsCount.getValue() == 0.0) {
+            return new Estimate(0.0);
+        }
+        return new Estimate(totalNullsCount.getValue() / totalRowsCount.getValue());
     }
 
     private Estimate countDistinctPartitionKeys(HiveColumnHandle partitionColumn, List<HivePartition> partitions)
@@ -471,7 +479,7 @@ public class HiveMetadata
                 .count());
     }
 
-    private Estimate calculateNullsCountForPartitioningKey(HiveColumnHandle partitionColumn, List<HivePartition> partitions, Map<String, PartitionStatistics> partitionStatistics)
+    private Estimate calculateNullsFractionForPartitioningKey(HiveColumnHandle partitionColumn, List<HivePartition> partitions, Map<String, PartitionStatistics> partitionStatistics)
     {
         OptionalDouble rowsPerPartition = partitionStatistics.values().stream()
                 .map(PartitionStatistics::getRowCount)
@@ -483,11 +491,13 @@ public class HiveMetadata
             return Estimate.unknownValue();
         }
 
-        return new Estimate(partitions.stream()
+        double estimatedTotalRowsCount = rowsPerPartition.getAsDouble() * partitions.size();
+        double estimatedNullsCount = partitions.stream()
                 .filter(partition -> partition.getKeys().get(partitionColumn).isNull())
                 .map(HivePartition::getPartitionId)
                 .mapToLong(partitionId -> partitionStatistics.get(partitionId).getRowCount().orElse((long) rowsPerPartition.getAsDouble()))
-                .sum());
+                .sum();
+        return new Estimate(estimatedNullsCount / estimatedTotalRowsCount);
     }
 
     private Estimate summarizePartitionStatistics(

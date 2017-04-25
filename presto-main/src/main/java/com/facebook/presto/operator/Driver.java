@@ -51,6 +51,7 @@ import static com.facebook.presto.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.Futures.getUnchecked;
 import static java.lang.Boolean.TRUE;
 import static java.util.Objects.requireNonNull;
 
@@ -294,6 +295,17 @@ public class Driver
     private ListenableFuture<?> processInternal()
     {
         checkLockHeld("Lock must be held to call processInternal");
+
+        // revoke operators memory
+        // do this synchronously for now
+        for (int i = 0; i < operators.size() && !driverContext.isDone(); i++) {
+            Operator current = operators.get(i);
+            if (current.getOperatorContext().isMemoryRevokingRequested()) {
+                getUnchecked(current.startMemoryRevoke());
+                current.finishMemoryRevoke();
+                current.getOperatorContext().resetMemoryRevokingRequested();
+            }
+        }
 
         try {
             processNewSources();

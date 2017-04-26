@@ -409,7 +409,7 @@ public class TestMapOperators
         assertFunction("MAP_KEYS(MAP(ARRAY[CAST(1.0 as DOUBLE), CAST(2.0 as DOUBLE)], ARRAY[ARRAY[1, 2], ARRAY[3]]))", new ArrayType(DOUBLE), ImmutableList.of(1.0, 2.0));
         assertFunction("MAP_KEYS(MAP(ARRAY['puppies'], ARRAY['kittens']))", new ArrayType(createVarcharType(7)), ImmutableList.of("puppies"));
         assertFunction("MAP_KEYS(MAP(ARRAY[TRUE], ARRAY[2]))", new ArrayType(BOOLEAN), ImmutableList.of(true));
-        assertFunction("MAP_KEYS(MAP(ARRAY[from_unixtime(1)], ARRAY[CAST(1.0 as DOUBLE)]))", new ArrayType(TIMESTAMP), ImmutableList.of(sqlTimestampOf(1000)));
+        assertFunction("MAP_KEYS(MAP(ARRAY[from_unixtime(1)], ARRAY[CAST(1.0 as DOUBLE)]))", new ArrayType(TIMESTAMP), ImmutableList.of(sqlTimestamp(1000)));
         assertFunction("MAP_KEYS(MAP(ARRAY[CAST('puppies' as varbinary)], ARRAY['kittens']))", new ArrayType(VARBINARY), ImmutableList.of(new SqlVarbinary("puppies".getBytes(UTF_8))));
         assertFunction("MAP_KEYS(MAP(ARRAY[1,2],  ARRAY[ARRAY[1, 2], ARRAY[3]]))", new ArrayType(INTEGER), ImmutableList.of(1, 2));
         assertFunction("MAP_KEYS(MAP(ARRAY[1,4], ARRAY[MAP(ARRAY[2], ARRAY[3]), MAP(ARRAY[5], ARRAY[6])]))", new ArrayType(INTEGER), ImmutableList.of(1, 4));

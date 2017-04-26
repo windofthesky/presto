@@ -282,6 +282,50 @@ public class TestAllDatatypesFromHiveConnector
         }
     }
 
+    private void assertColumnTypesParquet(QueryResult queryResult)
+    {
+        Connection connection = defaultQueryExecutor().getConnection();
+        if (usingPrestoJdbcDriver(connection)) {
+            assertThat(queryResult).hasColumns(
+                    TINYINT,
+                    SMALLINT,
+                    INTEGER,
+                    BIGINT,
+                    REAL,
+                    DOUBLE,
+                    DECIMAL,
+                    DECIMAL,
+                    TIMESTAMP,
+                    LONGNVARCHAR,
+                    LONGNVARCHAR,
+                    CHAR,
+                    BOOLEAN,
+                    LONGVARBINARY
+            );
+        }
+        else if (usingTeradataJdbcDriver(connection)) {
+            assertThat(queryResult).hasColumns(
+                    TINYINT,
+                    SMALLINT,
+                    INTEGER,
+                    BIGINT,
+                    REAL,
+                    DOUBLE,
+                    DECIMAL,
+                    DECIMAL,
+                    TIMESTAMP,
+                    VARCHAR,
+                    VARCHAR,
+                    CHAR,
+                    BOOLEAN,
+                    VARBINARY
+            );
+        }
+        else {
+            throw new IllegalStateException();
+        }
+    }
+
     @Requires(ParquetRequirements.class)
     @Test(groups = {HIVE_CONNECTOR, POST_HIVE_1_0_1, QUARANTINE})
     public void testSelectAllDatatypesParquetFile()
@@ -324,23 +368,7 @@ public class TestAllDatatypesFromHiveConnector
         );
 
         QueryResult queryResult = query(format("SELECT * FROM %s", tableName));
-        assertThat(queryResult).hasColumns(
-                TINYINT,
-                SMALLINT,
-                INTEGER,
-                BIGINT,
-                REAL,
-                DOUBLE,
-                DECIMAL,
-                DECIMAL,
-                TIMESTAMP,
-                LONGNVARCHAR,
-                LONGNVARCHAR,
-                CHAR,
-                BOOLEAN,
-                LONGVARBINARY
-        );
-
+        assertColumnTypesParquet(queryResult);
         assertThat(queryResult).containsOnly(
                 row(
                         127,

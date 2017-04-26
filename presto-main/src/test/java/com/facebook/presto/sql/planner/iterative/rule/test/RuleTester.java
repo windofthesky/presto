@@ -60,18 +60,6 @@ public class RuleTester
         this.costCalculator = queryRunner.getCostCalculator();
     }
 
-    public RuleTester(Session session)
-    {
-        this.session = session;
-        queryRunner = new LocalQueryRunner(session);
-        queryRunner.createCatalog(session.getCatalog().get(),
-                new TpchConnectorFactory(1),
-                ImmutableMap.<String, String>of());
-
-        this.metadata = queryRunner.getMetadata();
-        this.costCalculator = queryRunner.getCostCalculator();
-    }
-
     public RuleAssert assertThat(Rule rule)
     {
         return new RuleAssert(metadata, costCalculator, session, queryRunner.getTransactionManager(), queryRunner.getAccessControl(), rule);

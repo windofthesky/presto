@@ -13,8 +13,6 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
-import com.facebook.presto.Session;
-import com.facebook.presto.SystemSessionProperties;
 import com.facebook.presto.block.BlockEncodingManager;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.Signature;
@@ -37,6 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.Optional;
 
+import static com.facebook.presto.SystemSessionProperties.OPTIMIZE_DISTINCT_AGGREGATIONS;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.sql.analyzer.TypeSignatureProvider.fromTypeSignatures;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggregation;
@@ -45,7 +44,6 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.groupi
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values;
 import static com.facebook.presto.sql.planner.iterative.rule.test.PlanBuilder.expression;
-import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 
 public class TestOptimizeMixedDistinctAggregations
 {
@@ -57,13 +55,7 @@ public class TestOptimizeMixedDistinctAggregations
     @BeforeClass
     public void setUp()
     {
-        Session session = testSessionBuilder()
-                .setCatalog("local")
-                .setSchema("tiny")
-                .setSystemProperty("task_concurrency", "1")
-                .setSystemProperty(SystemSessionProperties.OPTIMIZE_DISTINCT_AGGREGATIONS, "true")
-                .build();
-        tester = new RuleTester(session);
+        tester = new RuleTester(ImmutableMap.of(OPTIMIZE_DISTINCT_AGGREGATIONS, "true"));
         TypeRegistry typeManager = new TypeRegistry();
         functionRegistry = new FunctionRegistry(typeManager, new BlockEncodingManager(typeManager), new FeaturesConfig());
         optimizeMixedDistinctAggregations = new OptimizeMixedDistinctAggregations(functionRegistry);

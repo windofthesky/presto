@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.hive;
 
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.HostAndPort;
 import io.airlift.units.DataSize;
@@ -73,6 +74,7 @@ public class HdfsConfigurationUpdater
     private final DataSize s3MultipartMinFileSize;
     private final DataSize s3MultipartMinPartSize;
     private final File s3StagingDirectory;
+    private final File wasbStagingDirectory = new File(StandardSystemProperty.JAVA_IO_TMPDIR.value());
     private final boolean pinS3ClientToCurrentRegion;
     private final String s3UserAgentPrefix;
     private final String wasbAccessKey;
@@ -167,6 +169,14 @@ public class HdfsConfigurationUpdater
         config.set("fs.s3n.impl", PrestoS3FileSystem.class.getName());
         config.set("fs.s3bfs.impl", "org.apache.hadoop.fs.s3.S3FileSystem");
 
+        // re-map filesystem schemes to match Azure Blob Storage
+        config.set("fs.wasb.impl", PrestoWasbFileSystem.class.getName());
+
+        // set Azure credentials for WASB
+        if (wasbAccessKey != null) {
+            config.set(PrestoWasbFileSystem.WASB_ACCESS_KEY, wasbAccessKey);
+        }
+
         // set AWS credentials for S3
         if (s3AwsAccessKey != null) {
             config.set(PrestoS3FileSystem.S3_ACCESS_KEY, s3AwsAccessKey);
@@ -214,6 +224,9 @@ public class HdfsConfigurationUpdater
         config.setLong(PrestoS3FileSystem.S3_MULTIPART_MIN_PART_SIZE, s3MultipartMinPartSize.toBytes());
         config.setBoolean(PrestoS3FileSystem.S3_PIN_CLIENT_TO_CURRENT_REGION, pinS3ClientToCurrentRegion);
         config.set(PrestoS3FileSystem.S3_USER_AGENT_PREFIX, s3UserAgentPrefix);
+        // For Azure
+        config.set(PrestoWasbFileSystem.WASB_STAGING_DIRECTORY, wasbStagingDirectory.toString());
+        // For Azure
     }
 
     public static void configureCompression(Configuration config, HiveCompressionCodec compressionCodec)

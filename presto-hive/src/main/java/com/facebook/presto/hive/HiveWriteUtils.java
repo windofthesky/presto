@@ -443,6 +443,16 @@ public final class HiveWriteUtils
         }
     }
 
+    public static boolean isWasbFileSystem(String user, HdfsEnvironment hdfsEnvironment, Path path)
+    {
+        try {
+            return hdfsEnvironment.getFileSystem(user, path) instanceof PrestoWasbFileSystem;
+        }
+        catch (IOException e) {
+            throw new PrestoException(HIVE_FILESYSTEM_ERROR, "Failed checking path: " + path, e);
+        }
+    }
+
     public static boolean isViewFileSystem(String user, HdfsEnvironment hdfsEnvironment, Path path)
     {
         try {

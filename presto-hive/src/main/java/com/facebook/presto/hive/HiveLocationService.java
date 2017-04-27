@@ -27,6 +27,7 @@ import static com.facebook.presto.hive.HiveErrorCode.HIVE_PATH_ALREADY_EXISTS;
 import static com.facebook.presto.hive.HiveWriteUtils.createTemporaryPath;
 import static com.facebook.presto.hive.HiveWriteUtils.getTableDefaultLocation;
 import static com.facebook.presto.hive.HiveWriteUtils.isS3FileSystem;
+import static com.facebook.presto.hive.HiveWriteUtils.isWasbFileSystem;
 import static com.facebook.presto.hive.HiveWriteUtils.pathExists;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -81,8 +82,8 @@ public class HiveLocationService
 
     private boolean shouldUseTemporaryDirectory(String user, Path path)
     {
-        // skip using temporary directory for S3
-        return !isS3FileSystem(user, hdfsEnvironment, path);
+        // skip using temporary directory for S3 and WASB
+        return !(isS3FileSystem(user, hdfsEnvironment, path) || isWasbFileSystem(user, hdfsEnvironment, path));
     }
 
     @Override

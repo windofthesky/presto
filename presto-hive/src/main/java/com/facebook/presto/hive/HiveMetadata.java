@@ -393,7 +393,19 @@ public class HiveMetadata
             else {
                 rangeStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
                 rangeStatistics.setNullsFraction(calculateNullsFraction(partitionStatistics, columnName, rowCount));
+
+
+                partitionStatistics.values().stream()
+                        .map(PartitionStatistics::getColumnStatistics)
+                        .filter(stats -> stats.containsKey(columnName))
+                        .map(stats -> stats.get(columnName))
+                        .map(HiveColumnStatistics::getLowValue)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .min();
+
             }
+
             columnStatistics.addRange(rangeStatistics.build());
             tableStatistics.setColumnStatistics(hiveColumnHandle, columnStatistics.build());
         }

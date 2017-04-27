@@ -75,9 +75,10 @@ public class HdfsConfigurationUpdater
     private final File s3StagingDirectory;
     private final boolean pinS3ClientToCurrentRegion;
     private final String s3UserAgentPrefix;
+    private final String wasbAccessKey;
 
     @Inject
-    public HdfsConfigurationUpdater(HiveClientConfig hiveClientConfig, HiveS3Config s3Config)
+    public HdfsConfigurationUpdater(HiveClientConfig hiveClientConfig, HiveS3Config s3Config, HiveWasbConfig wasbConfig)
     {
         requireNonNull(hiveClientConfig, "hiveClientConfig is null");
         checkArgument(hiveClientConfig.getDfsTimeout().toMillis() >= 1, "dfsTimeout must be at least 1 ms");
@@ -93,6 +94,7 @@ public class HdfsConfigurationUpdater
         this.fileSystemMaxCacheSize = hiveClientConfig.getFileSystemMaxCacheSize();
 
         this.s3AwsAccessKey = s3Config.getS3AwsAccessKey();
+        this.wasbAccessKey = wasbConfig.getWasbAccessKey();
         this.s3AwsSecretKey = s3Config.getS3AwsSecretKey();
         this.s3Endpoint = s3Config.getS3Endpoint();
         this.s3SignerType = s3Config.getS3SignerType();

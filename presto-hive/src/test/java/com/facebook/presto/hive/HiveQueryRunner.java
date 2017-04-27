@@ -91,7 +91,8 @@ public final class HiveQueryRunner
 
             HiveClientConfig hiveClientConfig = new HiveClientConfig();
             HiveS3Config s3Config = new HiveS3Config();
-            HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationUpdater(hiveClientConfig, s3Config));
+            HiveWasbConfig wasbConfig = new HiveWasbConfig();
+            HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationUpdater(hiveClientConfig, s3Config, wasbConfig));
             HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, hiveClientConfig, new NoHdfsAuthentication());
 
             FileHiveMetastore metastore = new FileHiveMetastore(hdfsEnvironment, baseDir.toURI().toString(), "test");

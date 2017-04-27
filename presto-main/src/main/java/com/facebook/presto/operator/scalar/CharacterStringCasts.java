@@ -113,6 +113,7 @@ public final class CharacterStringCasts
             return codePointsToSliceUtf8(nCopies(toIntExact(y), (int) '\0'));
         }
 
+        codePoints = new ArrayList<>(codePoints);
         codePoints.set(codePoints.size() - 1, codePoints.get(codePoints.size() - 1) - 1);
         codePoints.addAll(nCopies(toIntExact(y) - codePoints.size(), Character.MAX_CODE_POINT));
 
@@ -123,11 +124,11 @@ public final class CharacterStringCasts
 
     private static List<Integer> trimTrailing(List<Integer> codePoints, int codePointToTrim)
     {
-        List<Integer> trimmed = new ArrayList<>(codePoints);
-        while (!trimmed.isEmpty() && trimmed.get(trimmed.size() - 1) == codePointToTrim) {
-            trimmed.remove(trimmed.size() - 1);
+        int endIndex = codePoints.size();
+        while (endIndex > 0 && codePoints.get(endIndex - 1) == codePointToTrim) {
+            endIndex--;
         }
-        return trimmed;
+        return ImmutableList.copyOf(codePoints.subList(0, endIndex));
     }
 
     private static List<Integer> toCodePoints(Slice slice)

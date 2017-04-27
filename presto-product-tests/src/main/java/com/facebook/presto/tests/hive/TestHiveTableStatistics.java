@@ -106,9 +106,9 @@ public class TestHiveTableStatistics
         onHive().executeQuery("ANALYZE TABLE " + tableNameInDatabase + " COMPUTE STATISTICS FOR COLUMNS");
 
         assertThat(query(showStatsWholeTable)).containsOnly(
-                row("n_nationkey", null, 19.0, 0.0, null, null, null),
+                row("n_nationkey", null, 19.0, 0.0, null, "0", "24"),
                 row("n_name", null, 24.0, 0.0, null, null, null),
-                row("n_regionkey", null, 5.0, 0.0, null, null, null),
+                row("n_regionkey", null, 5.0, 0.0, null, "0", "4"),
                 row("n_comment", null, 31.0, 0.0, null, null, null),
                 row(null, null, null, null, 25.0, null, null));
     }
@@ -128,14 +128,14 @@ public class TestHiveTableStatistics
         assertThat(query(showStatsWholeTable)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 3.0, null, null, null, null),
+                row("p_regionkey", null, 3.0, null, null, "1", "3"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, null, null, null));
 
         assertThat(query(showStatsPartitionOne)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, null, null, null, null),
+                row("p_regionkey", null, 1.0, null, null, "1", "1"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, null, null, null));
 
@@ -146,21 +146,21 @@ public class TestHiveTableStatistics
         assertThat(query(showStatsWholeTable)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 3.0, 0.0, null, null, null),
+                row("p_regionkey", null, 3.0, 0.0, null, "1", "3"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 15.0, null, null));
 
         assertThat(query(showStatsPartitionOne)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "1", "1"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
         assertThat(query(showStatsPartitionTwo)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, null, null, null, null),
+                row("p_regionkey", null, 1.0, null, null, "2", "2"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, null, null, null));
 
@@ -171,21 +171,21 @@ public class TestHiveTableStatistics
         assertThat(query(showStatsWholeTable)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 3.0, 0.0, null, null, null),
+                row("p_regionkey", null, 3.0, 0.0, null, "1", "3"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 15.0, null, null));
 
         assertThat(query(showStatsPartitionOne)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "1", "1"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
         assertThat(query(showStatsPartitionTwo)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "2", "2"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
@@ -194,23 +194,23 @@ public class TestHiveTableStatistics
         onHive().executeQuery("ANALYZE TABLE " + tableNameInDatabase + " PARTITION (p_regionkey = \"1\") COMPUTE STATISTICS FOR COLUMNS");
 
         assertThat(query(showStatsWholeTable)).containsOnly(
-                row("p_nationkey", null, 5.0, 0.0, null, null, null),
+                row("p_nationkey", null, 5.0, 0.0, null, "1", "24"),
                 row("p_name", null, 6.0, 0.0, null, null, null),
-                row("p_regionkey", null, 3.0, 0.0, null, null, null),
+                row("p_regionkey", null, 3.0, 0.0, null, "1", "3"),
                 row("p_comment", null, 1.0, 0.0, null, null, null),
                 row(null, null, null, null, 15.0, null, null));
 
         assertThat(query(showStatsPartitionOne)).containsOnly(
-                row("p_nationkey", null, 5.0, 0.0, null, null, null),
+                row("p_nationkey", null, 5.0, 0.0, null, "1", "24"),
                 row("p_name", null, 6.0, 0.0, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "1", "1"),
                 row("p_comment", null, 1.0, 0.0, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
         assertThat(query(showStatsPartitionTwo)).containsOnly(
                 row("p_nationkey", null, null, null, null, null, null),
                 row("p_name", null, null, null, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "2", "2"),
                 row("p_comment", null, null, null, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
@@ -219,23 +219,23 @@ public class TestHiveTableStatistics
         onHive().executeQuery("ANALYZE TABLE " + tableNameInDatabase + " PARTITION (p_regionkey) COMPUTE STATISTICS FOR COLUMNS");
 
         assertThat(query(showStatsWholeTable)).containsOnly(
-                row("p_nationkey", null, 5.0, 0.0, null, null, null),
+                row("p_nationkey", null, 5.0, 0.0, null, "1", "24"),
                 row("p_name", null, 6.0, 0.0, null, null, null),
-                row("p_regionkey", null, 3.0, 0.0, null, null, null),
+                row("p_regionkey", null, 3.0, 0.0, null, "1", "3"),
                 row("p_comment", null, 1.0, 0.0, null, null, null),
                 row(null, null, null, null, 15.0, null, null));
 
         assertThat(query(showStatsPartitionOne)).containsOnly(
-                row("p_nationkey", null, 5.0, 0.0, null, null, null),
+                row("p_nationkey", null, 5.0, 0.0, null, "1", "24"),
                 row("p_name", null, 6.0, 0.0, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "1", "1"),
                 row("p_comment", null, 1.0, 0.0, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
 
         assertThat(query(showStatsPartitionTwo)).containsOnly(
-                row("p_nationkey", null, 4.0, 0.0, null, null, null),
+                row("p_nationkey", null, 4.0, 0.0, null, "8", "21"),
                 row("p_name", null, 6.0, 0.0, null, null, null),
-                row("p_regionkey", null, 1.0, 0.0, null, null, null),
+                row("p_regionkey", null, 1.0, 0.0, null, "2", "2"),
                 row("p_comment", null, 1.0, 0.0, null, null, null),
                 row(null, null, null, null, 5.0, null, null));
     }
@@ -262,26 +262,26 @@ public class TestHiveTableStatistics
                 row("c_char", null, null, null, null, null, null),
                 row("c_boolean", null, null, null, null, null, null),
                 row("c_binary", null, null, null, null, null, null),
-                row(null, null, null, null, 1.0, null, null));
+                row(null, null, null, null, 2.0, null, null));
 
         onHive().executeQuery("ANALYZE TABLE " + tableNameInDatabase + " COMPUTE STATISTICS FOR COLUMNS");
 
         assertThat(query("SHOW STATS FOR " + tableNameInDatabase)).containsOnly(
-                row("c_tinyint", null, 1.0, 0.0, null, null, null),
-                row("c_smallint", null, 1.0, 0.0, null, null, null),
-                row("c_int", null, 2.0, 0.0, null, null, null),
-                row("c_bigint", null, 1.0, 0.0, null, null, null),
-                row("c_float", null, 1.0, 0.0, null, null, null),
-                row("c_double", null, 1.0, 0.0, null, null, null),
-                row("c_decimal", null, 1.0, 0.0, null, null, null),
-                row("c_decimal_w_params", null, 1.0, 0.0, null, null, null),
-                row("c_timestamp", null, 1.0, 0.0, null, null, null),
-                row("c_string", null, 1.0, 0.0, null, null, null),
-                row("c_varchar", null, 1.0, 0.0, null, null, null),
-                row("c_char", null, 1.0, 0.0, null, null, null),
-                row("c_boolean", null, 1.0, 0.0, null, null, null),
+                row("c_tinyint", null, 2.0, 0.0, null, "121", "127"),
+                row("c_smallint", null, 2.0, 0.0, null, "32761", "32767"),
+                row("c_int", null, 2.0, 0.0, null, "2147483641", "2147483647"),
+                row("c_bigint", null, 2.0, 0.0, null, "9223372036854775801", "9223372036854775807"),
+                row("c_float", null, 2.0, 0.0, null, "123.341", "123.345"),
+                row("c_double", null, 1.0, 0.0, null, "234.561", "234.567"),
+                row("c_decimal", null, 2.0, 0.0, null, "345", "346"),
+                row("c_decimal_w_params", null, 2.0, 0.0, null, "345.67100", "345.67800"),
+                row("c_timestamp", null, 2.0, 0.0, null, "2015-05-10 12:15:31.000", "2015-05-10 12:15:35.000"),
+                row("c_string", null, 2.0, 0.0, null, null, null),
+                row("c_varchar", null, 2.0, 0.0, null, null, null),
+                row("c_char", null, 2.0, 0.0, null, null, null),
+                row("c_boolean", null, 2.0, 0.0, null, null, null),
                 row("c_binary", null, null, 0.0, null, null, null),
-                row(null, null, null, null, 1.0, null, null));
+                row(null, null, null, null, 2.0, null, null));
     }
 
     @Test(groups = {HIVE_CONNECTOR})

@@ -120,6 +120,9 @@ import static com.facebook.presto.hive.HiveTableProperties.getBucketProperty;
 import static com.facebook.presto.hive.HiveTableProperties.getExternalLocation;
 import static com.facebook.presto.hive.HiveTableProperties.getHiveStorageFormat;
 import static com.facebook.presto.hive.HiveTableProperties.getPartitionedBy;
+import static com.facebook.presto.hive.HiveType.HIVE_INT;
+import static com.facebook.presto.hive.HiveType.HIVE_LONG;
+import static com.facebook.presto.hive.HiveType.HIVE_SHORT;
 import static com.facebook.presto.hive.HiveType.HIVE_STRING;
 import static com.facebook.presto.hive.HiveType.toHiveType;
 import static com.facebook.presto.hive.HiveUtil.PRESTO_VIEW_FLAG;
@@ -394,16 +397,36 @@ public class HiveMetadata
                 rangeStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
                 rangeStatistics.setNullsFraction(calculateNullsFraction(partitionStatistics, columnName, rowCount));
 
+                if (HIVE_SHORT.equals(hiveColumnHandle.getHiveType())
+                        || HIVE_INT.equals(hiveColumnHandle.getHiveType())
+                        || HIVE_LONG.equals(hiveColumnHandle.getHiveType())) {
+                    OptionalLong low = partitionStatistics.values().stream()
+                            .map(PartitionStatistics::getColumnStatistics)
+                            .filter(stats -> stats.containsKey(columnName))
+                            .map(stats -> stats.get(columnName))
+                            .map(HiveColumnStatistics::getLowValue)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .mapToLong(val -> (Long) val)
+                            .min();
 
-                partitionStatistics.values().stream()
-                        .map(PartitionStatistics::getColumnStatistics)
-                        .filter(stats -> stats.containsKey(columnName))
-                        .map(stats -> stats.get(columnName))
-                        .map(HiveColumnStatistics::getLowValue)
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .min();
+                    OptionalLong high = partitionStatistics.values().stream()
+                            .map(PartitionStatistics::getColumnStatistics)
+                            .filter(stats -> stats.containsKey(columnName))
+                            .map(stats -> stats.get(columnName))
+                            .map(HiveColumnStatistics::getHighValue)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .mapToLong(val -> (Long) val)
+                            .max();
 
+                    if (low.isPresent()) {
+                        rangeStatistics.setLowValue(Optional.of(low.getAsLong()));
+                    }
+                    if (high.isPresent()) {
+                        rangeStatistics.setHighValue(Optional.of(high.getAsLong()));
+                    }
+                }
             }
 
             columnStatistics.addRange(rangeStatistics.build());

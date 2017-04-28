@@ -173,6 +173,6 @@ public class PushProjectionThroughExchange
 
     private static Expression translateExpression(Expression inputExpression, Map<Symbol, SymbolReference> symbolMapping)
     {
-        return ExpressionSymbolInliner.inlineSymbols(symbolMapping, inputExpression);
+        return new ExpressionSymbolInliner(symbolMapping).rewrite(inputExpression);
     }
 }

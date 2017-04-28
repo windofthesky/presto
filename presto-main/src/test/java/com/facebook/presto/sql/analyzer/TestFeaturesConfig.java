@@ -98,9 +98,7 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("deprecated.legacy-timestamp", "true")
-                .put("small-table-coefficient", "0.2")
                 .put("deprecated.parse-decimal-literals-as-double", "true")
-                .put("deprecated.legacy-timestamp", "false")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
@@ -131,7 +129,6 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("deprecated.legacy-timestamp", "true")
-                .put("small-table-coefficient", "0.2")
                 .put("deprecated.parse-decimal-literals-as-double", "true")
                 .build();
 
@@ -162,8 +159,8 @@ public class TestFeaturesConfig
                 .setSpillerThreads(42)
                 .setSpillMaxUsedSpaceThreshold(0.8)
                 .setLegacyOrderBy(true)
-                .setExchangeCompressionEnabled(true)
                 .setLegacyTimestamp(true)
+                .setParseDecimalLiteralsAsDouble(true)
                 .setExchangeCompressionEnabled(true);
 
         assertFullMapping(properties, expected);

@@ -45,11 +45,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_ADDED_PREPARE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_CLEAR_TRANSACTION_ID;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_DEALLOCATED_PREPARE;
-import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_ROLE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_PREPARED_STATEMENT_IN_BODY;
+import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_ROLE;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_SET_SESSION;
 import static com.facebook.presto.client.PrestoHeaders.PRESTO_STARTED_TRANSACTION_ID;
 import static com.google.common.base.MoreObjects.firstNonNull;

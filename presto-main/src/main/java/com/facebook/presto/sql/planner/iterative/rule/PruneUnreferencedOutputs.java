@@ -34,6 +34,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.UnmodifiableIterator;
 
 import java.util.Optional;
+import java.util.stream.IntStream;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class PruneUnreferencedOutputs
     implements Rule
@@ -44,7 +47,7 @@ public class PruneUnreferencedOutputs
         @Override
         public ImmutableList<ImmutableSet<Symbol>> visitPlan(PlanNode projectNode, Void context)
         {
-            return null;
+            throw new RuntimeException("Unexpected plan node type " + projectNode.getClass().getName());
         }
 
         @Override
@@ -65,7 +68,7 @@ public class PruneUnreferencedOutputs
         @Override
         public PlanNode visitPlan(PlanNode projectNode, ImmutableSet<Symbol> requiredSymbols)
         {
-            return null;
+            throw new RuntimeException("Unexpected plan node type " + projectNode.getClass().getName());
         }
 
         @Override
@@ -80,8 +83,16 @@ public class PruneUnreferencedOutputs
         @Override
         public PlanNode visitValues(ValuesNode valuesNode, ImmutableSet<Symbol> requiredSymbols)
         {
-            // TODO filter output symbols
-            return valuesNode;
+            final ImmutableList<Integer> projection = IntStream.range(0, valuesNode.getOutputSymbols().size()).filter(
+                    column -> requiredSymbols.contains(valuesNode.getOutputSymbols().get(column))
+            ).boxed().collect(toImmutableList());
+
+            return new ValuesNode(
+                    valuesNode.getId(),
+                    projection.stream().map(valuesNode.getOutputSymbols()::get).collect(toImmutableList()),
+                    valuesNode.getRows().stream().map(
+                            row -> projection.stream().map(row::get).collect(toImmutableList())
+                    ).collect(toImmutableList()));
         }
     }
 
@@ -96,7 +107,6 @@ public class PruneUnreferencedOutputs
             if (childRef.getOutputSymbols().stream().allMatch(requiredSymbols.get(i)::contains)) {
                 newChildListBuilder.add(childRef);
             } else {
-                //newChildListBuilder.add(SimplePlanRewriter.rewriteWith(new RestrictOutputSymbols(), lookup.resolve(childRef), requiredSymbols.get(i)));
                 newChildListBuilder.add(lookup.resolve(childRef).accept(new RestrictOutputSymbols(), requiredSymbols.get(i)));
                 areChildrenModified = true;
             }

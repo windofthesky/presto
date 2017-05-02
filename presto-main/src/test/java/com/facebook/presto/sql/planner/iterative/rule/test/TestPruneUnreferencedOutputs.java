@@ -78,4 +78,20 @@ public class TestPruneUnreferencedOutputs
                         values(ImmutableMap.of("FOO_x", 0)))));
                         */
     }
+
+    @Test
+    public void testValues()
+            throws Exception
+    {
+        // TODO extend plan matcher to validate rows of ValuesNode
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.project(
+                                Assignments.of(p.symbol("y", BIGINT), expression("x")),
+                                p.values(p.symbol("unused", BIGINT), p.symbol("x", BIGINT))))
+                .matches(
+                        project(
+                                ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
+                                values(ImmutableMap.of("FOO_x", 0))));
+    }
 }

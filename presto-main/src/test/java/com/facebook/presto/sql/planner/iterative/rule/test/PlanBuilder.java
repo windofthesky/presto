@@ -60,6 +60,7 @@ import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static com.facebook.presto.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
@@ -246,6 +247,22 @@ public class PlanBuilder
     public UnionNode union(List<? extends PlanNode> sources, ListMultimap<Symbol, Symbol> outputsToInputs, List<Symbol> outputs)
     {
         return new UnionNode(idAllocator.getNextId(), (List<PlanNode>) sources, outputsToInputs, outputs);
+    }
+
+    public UnionNode union(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
+    {
+        checkMappingsMatchesSources(mapping, sources);
+        ImmutableList<Symbol> outputs = ImmutableList.copyOf(mapping.keySet());
+        return new UnionNode(idAllocator.getNextId(), ImmutableList.copyOf(sources), mapping, outputs);
+    }
+
+    private void checkMappingsMatchesSources(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
+    {
+        checkArgument(
+                mapping.keySet().size() == sources.length,
+                "Mapping keys size does not match length of sources: %s vs %s",
+                mapping.keySet().size(),
+                sources.length);
     }
 
     public TableWriterNode tableWriter(

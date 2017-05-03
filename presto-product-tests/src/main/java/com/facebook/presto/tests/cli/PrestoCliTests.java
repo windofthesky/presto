@@ -30,7 +30,6 @@ import java.io.IOException;
 
 import static com.facebook.presto.tests.TestGroups.CLI;
 import static com.facebook.presto.tests.TestGroups.PREPARED_STATEMENTS;
-import static com.facebook.presto.tests.TestGroups.QUARANTINE;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Strings.repeat;
 import static com.teradata.tempto.fulfillment.table.hive.tpch.TpchTableDefinitions.NATION;
@@ -162,8 +161,7 @@ public class PrestoCliTests
         assertThat(trimLines(presto.readRemainingOutputLines())).containsAll(nationTableBatchLines);
     }
 
-    // SWARM-4470
-    @Test(groups = {CLI, PREPARED_STATEMENTS, QUARANTINE}, timeOut = TIMEOUT)
+    @Test(groups = {CLI, PREPARED_STATEMENTS}, timeOut = TIMEOUT)
     public void shouldExecuteLongPreparedStatement()
             throws IOException, InterruptedException
     {
@@ -174,8 +172,7 @@ public class PrestoCliTests
         assertThat(trimLines(presto.readRemainingOutputLines())).containsAll(nationTableBatchLines);
     }
 
-    // SWARM-4470
-    @Test(groups = {CLI, PREPARED_STATEMENTS, QUARANTINE}, timeOut = TIMEOUT)
+    @Test(groups = {CLI, PREPARED_STATEMENTS}, timeOut = TIMEOUT)
     public void shouldAddAndDeallocateLongPreparedStatement()
             throws IOException, InterruptedException
     {

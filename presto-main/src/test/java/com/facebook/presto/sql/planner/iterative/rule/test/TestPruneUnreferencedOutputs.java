@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule.test;
 
+import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.rule.PruneUnreferencedOutputs;
 import com.facebook.presto.sql.planner.plan.Assignments;
@@ -28,6 +30,7 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggreg
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictProject;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictTableScan;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.symbol;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values;
 import static com.facebook.presto.sql.planner.iterative.rule.test.PlanBuilder.expression;
@@ -55,6 +58,7 @@ public class TestPruneUnreferencedOutputs
     public void testProject()
             throws Exception
     {
+        // TODO fix after fixing test system problem with validation of multiple project nodes creating duplicate aliases.
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p ->
                         p.project(
@@ -66,17 +70,37 @@ public class TestPruneUnreferencedOutputs
                                         p.values(p.symbol("x", BIGINT)))))
                 .matches(
                         anyTree(
-                                project(
-                                        ImmutableMap.of("FOO_y", PlanMatchPattern.expression("1")),
-                                        //values(ImmutableMap.of()))));
-                                        values(ImmutableMap.of("FOO_x", 0)))));
+                                values(ImmutableMap.of("FOO_x", 0))));
         /*
-        project(
+        strictProject(
                 ImmutableMap.of("FOO_complex", PlanMatchPattern.expression("FOO_y * 2")),
-                project(
+                strictProject(
                         ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
                         values(ImmutableMap.of("FOO_x", 0)))));
                         */
+    }
+
+    @Test
+    public void testTableScan()
+            throws Exception
+    {
+        // TODO uncomment and fix this after the epic/statistics-3 branch lands, as it needs
+        // e7575a8 for tableScan validation during rule testing
+        /*
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.project(
+                                Assignments.of(p.symbol("y", BIGINT), expression("x")),
+                                p.tableScan(
+                                        ImmutableList.of(p.symbol("unused", BIGINT), p.symbol("x", BIGINT)),
+                                        ImmutableMap.of(
+                                                p.symbol("unused", BIGINT), new TestingColumnHandle("unused"),
+                                                p.symbol("x", BIGINT), new TestingColumnHandle("x")))))
+                .matches(
+                        strictProject(
+                                ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
+                                strictTableScan("BOGUS", ImmutableMap.of("FOO_x", "x"))));
+                                */
     }
 
     @Test

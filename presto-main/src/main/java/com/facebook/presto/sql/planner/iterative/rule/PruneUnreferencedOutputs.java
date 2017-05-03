@@ -106,18 +106,19 @@ public class PruneUnreferencedOutputs
         @Override
         public PlanNode visitValues(ValuesNode node, ImmutableSet<Symbol> requiredSymbols)
         {
-            final int[] projection = IntStream.range(0, node.getOutputSymbols().size())
-                    .filter(column -> requiredSymbols.contains(node.getOutputSymbols().get(column)))
-                    .toArray();
+            ImmutableList<Integer> requiredColumnNumbers = IntStream.range(0, node.getOutputSymbols().size())
+                    .filter(columnNumber -> requiredSymbols.contains(node.getOutputSymbols().get(columnNumber)))
+                    .boxed()
+                    .collect(toImmutableList());
 
             return new ValuesNode(
                     node.getId(),
-                    Arrays.stream(projection)
-                            .mapToObj(node.getOutputSymbols()::get)
+                    requiredColumnNumbers.stream()
+                            .map(node.getOutputSymbols()::get)
                             .collect(toImmutableList()),
                     node.getRows().stream()
-                            .map(row -> Arrays.stream(projection)
-                                    .mapToObj(row::get)
+                            .map(row -> requiredColumnNumbers.stream()
+                                    .map(row::get)
                                     .collect(toImmutableList()))
                             .collect(toImmutableList()));
         }

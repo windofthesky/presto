@@ -1917,12 +1917,11 @@ public abstract class AbstractTestQueries
             throws Exception
     {
         assertQuery(
-            "SELECT orderkey, custkey, sum(totalprice), grouping(orderkey)+grouping(custkey) as g, " +
-                "       rank() OVER (PARTITION BY grouping(orderkey)+grouping(custkey), " +
-                "       CASE WHEN grouping(orderkey) = 0 THEN custkey END ORDER BY orderkey ASC) as r " +
-                "FROM orders " +
-                "GROUP BY ROLLUP (orderkey, custkey) " +
-                "ORDER BY orderkey, custkey " +
+            "SELECT a.orderkey, a.custkey, sum(a.totalprice), grouping(a.orderkey) + grouping(a.custkey) as g," +
+                "   rank() OVER (PARTITION BY grouping(a.orderkey) + grouping(a.custkey), CASE WHEN grouping(a.orderkey) = 0 THEN a.custkey END ORDER BY a.orderkey ASC) as r" +
+                "FROM orders as a" +
+                "GROUP BY ROLLUP (a.orderkey, a.custkey)" +
+                "ORDER BY a.orderkey, a.custkey" +
                 "LIMIT 10",
             "VALUES (1, 370, 172799.49, 0, 1), " +
                 "       (1, NULL, 172799.49, 1, 1), " +
@@ -1948,14 +1947,14 @@ public abstract class AbstractTestQueries
 
         // Inner query has a single GROUP BY and outer query has GROUPING SETS
         assertQuery(
-            "SELECT orderkey, custkey, sum(agg_price) as outer_sum, grouping(orderkey, custkey), t.g " +
+            "SELECT t.orderkey, t.custkey, sum(t.agg_price) as outer_sum, grouping(t.orderkey, t.custkey), t.g " +
                 "FROM " +
                 "    (SELECT orderkey, custkey, sum(totalprice) as agg_price, grouping(custkey, orderkey) as g " +
                 "        FROM orders " +
                 "        GROUP BY orderkey, custkey " +
                 "        ORDER BY agg_price ASC " +
                 "        LIMIT 5) as t " +
-                "GROUP BY GROUPING SETS ((orderkey, custkey), t.g) " +
+                "GROUP BY GROUPING SETS ((t.orderkey, t.custkey), t.g) " +
                 "ORDER BY outer_sum",
             "VALUES (35271, 334, 874.89, 0, NULL), " +
                 "       (28647, 1351, 924.33, 0, NULL), " +
@@ -1966,14 +1965,14 @@ public abstract class AbstractTestQueries
 
         // Inner query has GROUPING SETS and outer query has GROUP BY
         assertQuery(
-            "SELECT orderkey, custkey, t.g, sum(agg_price) as outer_sum, grouping(orderkey, custkey) " +
+            "SELECT t.orderkey, t.custkey, t.g, sum(t.agg_price) as outer_sum, grouping(t.orderkey, t.custkey) " +
                 "FROM " +
                 "    (SELECT orderkey, custkey, sum(totalprice) as agg_price, grouping(custkey, orderkey) as g " +
                 "     FROM orders " +
                 "     GROUP BY GROUPING SETS ((custkey), (orderkey)) " +
                 "     ORDER BY agg_price ASC " +
                 "     LIMIT 5) as t " +
-                "GROUP BY orderkey, custkey, t.g",
+                "GROUP BY t.orderkey, t.custkey, t.g",
             "VALUES (28647, NULL, 2, 924.33, 0), " +
                 "       (8354, NULL, 2, 974.04, 0), " +
                 "       (37415, NULL, 2, 986.63, 0), " +
@@ -1982,13 +1981,13 @@ public abstract class AbstractTestQueries
 
         // Inner query has GROUPING SETS but no grouping and outer query has a simple GROUP BY
         assertQuery(
-            "SELECT orderkey, custkey, sum(agg_price) as outer_sum, grouping(orderkey, custkey) " +
+            "SELECT t.orderkey, t.custkey, sum(t.agg_price) as outer_sum, grouping(t.orderkey, t.custkey) " +
                 "FROM " +
                 "   (SELECT orderkey, custkey, sum(totalprice) as agg_price " +
                 "    FROM orders " +
                 "    GROUP BY GROUPING SETS ((custkey), (orderkey)) " +
                 "    ORDER BY agg_price ASC NULLS FIRST) as t " +
-                "GROUP BY orderkey, custkey " +
+                "GROUP BY t.orderkey, t.custkey " +
                 "ORDER BY outer_sum ASC NULLS FIRST " +
                 "LIMIT 5",
             "VALUES (35271, NULL, 874.89, 0), " +

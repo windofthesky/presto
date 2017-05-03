@@ -19,8 +19,6 @@ import com.facebook.presto.client.QueryResults;
 import com.facebook.presto.client.StatementStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HttpHeaders;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
@@ -82,9 +80,7 @@ public class TestProgressMonitor
                 new StatementStats(state, state.equals("QUEUED"), true, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null),
                 null,
                 null,
-                null,
-                ImmutableMap.of(),
-                ImmutableSet.of());
+                null);
 
         return QUERY_RESULTS_CODEC.toJson(queryResults);
     }

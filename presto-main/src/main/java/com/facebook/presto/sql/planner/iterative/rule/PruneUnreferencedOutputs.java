@@ -21,6 +21,7 @@ import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.Assignments;
+import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
@@ -55,6 +56,12 @@ public class PruneUnreferencedOutputs
         }
 
         @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitExplainAnalyze(ExplainAnalyzeNode node, Void context)
+        {
+            return ImmutableList.of(ImmutableSet.copyOf(node.getSource().getOutputSymbols()));
+        }
+
+        @Override
         public ImmutableList<ImmutableSet<Symbol>> visitProject(ProjectNode node, Void context)
         {
             return ImmutableList.of(ImmutableSet.copyOf(DependencyExtractor.extractUnique(node)));
@@ -73,45 +80,51 @@ public class PruneUnreferencedOutputs
         }
     }
 
-    private static class RestrictOutputSymbols extends PlanVisitor<ImmutableSet<Symbol>, PlanNode>
+    private static class RestrictOutputSymbols extends PlanVisitor<ImmutableSet<Symbol>, Optional<PlanNode>>
     {
         @Override
-        public PlanNode visitPlan(PlanNode node, ImmutableSet<Symbol> requiredSymbols)
+        public Optional<PlanNode> visitPlan(PlanNode node, ImmutableSet<Symbol> requiredSymbols)
         {
             throw new RuntimeException("Unexpected plan node type " + node.getClass().getName());
         }
 
         @Override
-        public PlanNode visitProject(ProjectNode node, ImmutableSet<Symbol> requiredSymbols)
+        public Optional<PlanNode> visitExplainAnalyze(ExplainAnalyzeNode node, ImmutableSet<Symbol> requiredSymbols)
         {
-            return new ProjectNode(
-                    node.getId(),
-                    node.getSource(),
-                    node.getAssignments().filter(requiredSymbols));
+            return Optional.empty();
         }
 
         @Override
-        public PlanNode visitTableScan(TableScanNode node, ImmutableSet<Symbol> requiredSymbols)
+        public Optional<PlanNode> visitProject(ProjectNode node, ImmutableSet<Symbol> requiredSymbols)
         {
-            return new TableScanNode(
+            return Optional.of(new ProjectNode(
+                    node.getId(),
+                    node.getSource(),
+                    node.getAssignments().filter(requiredSymbols)));
+        }
+
+        @Override
+        public Optional<PlanNode> visitTableScan(TableScanNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            return Optional.of(new TableScanNode(
                     node.getId(),
                     node.getTable(),
                     ImmutableList.copyOf(requiredSymbols),
                     Maps.filterKeys(node.getAssignments(), requiredSymbols::contains),
                     node.getLayout(),
                     node.getCurrentConstraint(),
-                    node.getOriginalConstraint());
+                    node.getOriginalConstraint()));
         }
 
         @Override
-        public PlanNode visitValues(ValuesNode node, ImmutableSet<Symbol> requiredSymbols)
+        public Optional<PlanNode> visitValues(ValuesNode node, ImmutableSet<Symbol> requiredSymbols)
         {
             ImmutableList<Integer> requiredColumnNumbers = IntStream.range(0, node.getOutputSymbols().size())
                     .filter(columnNumber -> requiredSymbols.contains(node.getOutputSymbols().get(columnNumber)))
                     .boxed()
                     .collect(toImmutableList());
 
-            return new ValuesNode(
+            return Optional.of(new ValuesNode(
                     node.getId(),
                     requiredColumnNumbers.stream()
                             .map(node.getOutputSymbols()::get)
@@ -120,7 +133,7 @@ public class PruneUnreferencedOutputs
                             .map(row -> requiredColumnNumbers.stream()
                                     .map(row::get)
                                     .collect(toImmutableList()))
-                            .collect(toImmutableList()));
+                            .collect(toImmutableList())));
         }
     }
 
@@ -132,12 +145,15 @@ public class PruneUnreferencedOutputs
         boolean areChildrenModified = false;
         for (int i = 0; i < requiredSymbols.size(); ++i) {
             PlanNode childRef = node.getSources().get(i);
-            if (childRef.getOutputSymbols().stream().allMatch(requiredSymbols.get(i)::contains)) {
-                newChildListBuilder.add(childRef);
-            } else {
-                newChildListBuilder.add(lookup.resolve(childRef).accept(new RestrictOutputSymbols(), requiredSymbols.get(i)));
-                areChildrenModified = true;
+            if (!childRef.getOutputSymbols().stream().allMatch(requiredSymbols.get(i)::contains)) {
+                Optional<PlanNode> newSource = lookup.resolve(childRef).accept(new RestrictOutputSymbols(), requiredSymbols.get(i));
+                if (newSource.isPresent()) {
+                    newChildListBuilder.add(newSource.get());
+                    areChildrenModified = true;
+                    continue;
+                }
             }
+            newChildListBuilder.add(childRef);
         }
 
         if (!areChildrenModified) { return Optional.empty(); }

@@ -117,5 +117,12 @@ public class TestPruneUnreferencedOutputs
                         project(
                                 ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
                                 values(ImmutableMap.of("FOO_x", 0))));
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.project(
+                                Assignments.of(p.symbol("y", BIGINT), expression("x")),
+                                p.values(p.symbol("x", BIGINT))))
+                .doesNotFire();
     }
 }

@@ -88,7 +88,7 @@ final class HttpRequestSessionFactory
     private final boolean clientTransactionSupport;
     private final String clientInfo;
 
-    public HttpRequestSessionFactory(HttpServletRequest servletRequest, Map<String, String> additionalPreparedStatements)
+    public HttpRequestSessionFactory(HttpServletRequest servletRequest)
             throws WebApplicationException
     {
         catalog = trimEmptyToNull(servletRequest.getHeader(PRESTO_CATALOG));
@@ -140,7 +140,6 @@ final class HttpRequestSessionFactory
                 .collect(toImmutableMap(Entry::getKey, entry -> ImmutableMap.copyOf(entry.getValue())));
 
         preparedStatements = parsePreparedStatementsHeaders(servletRequest);
-        preparedStatements.putAll(additionalPreparedStatements);
 
         String transactionIdHeader = servletRequest.getHeader(PRESTO_TRANSACTION_ID);
         clientTransactionSupport = transactionIdHeader != null;

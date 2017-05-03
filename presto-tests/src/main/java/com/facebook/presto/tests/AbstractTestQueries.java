@@ -1918,10 +1918,10 @@ public abstract class AbstractTestQueries
     {
         assertQuery(
             "SELECT a.orderkey, a.custkey, sum(a.totalprice), grouping(a.orderkey) + grouping(a.custkey) as g," +
-                "   rank() OVER (PARTITION BY grouping(a.orderkey) + grouping(a.custkey), CASE WHEN grouping(a.orderkey) = 0 THEN a.custkey END ORDER BY a.orderkey ASC) as r" +
-                "FROM orders as a" +
-                "GROUP BY ROLLUP (a.orderkey, a.custkey)" +
-                "ORDER BY a.orderkey, a.custkey" +
+                "   rank() OVER (PARTITION BY grouping(a.orderkey) + grouping(a.custkey), CASE WHEN grouping(a.orderkey) = 0 THEN a.custkey END ORDER BY a.orderkey ASC) as r " +
+                "FROM orders as a " +
+                "GROUP BY ROLLUP (a.orderkey, a.custkey) " +
+                "ORDER BY a.orderkey, a.custkey " +
                 "LIMIT 10",
             "VALUES (1, 370, 172799.49, 0, 1), " +
                 "       (1, NULL, 172799.49, 1, 1), " +

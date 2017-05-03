@@ -16,7 +16,6 @@ package com.facebook.presto.benchmark.driver;
 import com.facebook.presto.client.ClientSession;
 import com.facebook.presto.client.QueryError;
 import com.facebook.presto.client.QueryResults;
-import com.facebook.presto.client.QuerySubmission;
 import com.facebook.presto.client.StatementClient;
 import com.facebook.presto.client.StatementStats;
 import com.google.common.base.Throwables;
@@ -62,7 +61,6 @@ public class BenchmarkQueryRunner
     private final HttpClient httpClient;
     private final List<URI> nodes;
     private final JsonCodec<QueryResults> queryResultsCodec;
-    private final JsonCodec<QuerySubmission> querySubmissionCodec;
 
     private int failures;
 
@@ -80,7 +78,6 @@ public class BenchmarkQueryRunner
         this.debug = debug;
 
         this.queryResultsCodec = jsonCodec(QueryResults.class);
-        this.querySubmissionCodec = jsonCodec(QuerySubmission.class);
 
         requireNonNull(socksProxy, "socksProxy is null");
         HttpClientConfig httpClientConfig = new HttpClientConfig();
@@ -152,7 +149,7 @@ public class BenchmarkQueryRunner
         failures = 0;
         while (true) {
             // start query
-            StatementClient client = new StatementClient(httpClient, queryResultsCodec, querySubmissionCodec, session, "show schemas");
+            StatementClient client = new StatementClient(httpClient, queryResultsCodec, session, "show schemas");
 
             // read query output
             ImmutableList.Builder<String> schemas = ImmutableList.builder();
@@ -193,7 +190,7 @@ public class BenchmarkQueryRunner
     private StatementStats execute(ClientSession session, String name, String query)
     {
         // start query
-        StatementClient client = new StatementClient(httpClient, queryResultsCodec, querySubmissionCodec, session, query);
+        StatementClient client = new StatementClient(httpClient, queryResultsCodec, session, query);
 
         // read query output
         while (client.isValid() && client.advance()) {

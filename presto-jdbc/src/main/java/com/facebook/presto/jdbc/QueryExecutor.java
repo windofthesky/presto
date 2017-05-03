@@ -15,7 +15,6 @@ package com.facebook.presto.jdbc;
 
 import com.facebook.presto.client.ClientSession;
 import com.facebook.presto.client.QueryResults;
-import com.facebook.presto.client.QuerySubmission;
 import com.facebook.presto.client.ServerInfo;
 import com.facebook.presto.client.StatementClient;
 import com.google.common.net.HostAndPort;
@@ -46,19 +45,17 @@ class QueryExecutor
     private final JsonCodec<QueryResults> queryInfoCodec;
     private final JsonCodec<ServerInfo> serverInfoCodec;
     private final HttpClient httpClient;
-    private final JsonCodec<QuerySubmission> querySubmissionCodec;
 
-    private QueryExecutor(JsonCodec<QueryResults> queryResultsCodec, JsonCodec<ServerInfo> serverInfoCodec, JsonCodec<QuerySubmission> querySubmissionCodec, HttpClient httpClient)
+    private QueryExecutor(JsonCodec<QueryResults> queryResultsCodec, JsonCodec<ServerInfo> serverInfoCodec, HttpClient httpClient)
     {
         this.queryInfoCodec = requireNonNull(queryResultsCodec, "queryResultsCodec is null");
         this.serverInfoCodec = requireNonNull(serverInfoCodec, "serverInfoCodec is null");
-        this.querySubmissionCodec = requireNonNull(querySubmissionCodec, "querySubmissionCodec is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
     }
 
     public StatementClient startQuery(ClientSession session, String query)
     {
-        return new StatementClient(httpClient, queryInfoCodec, querySubmissionCodec, session, query);
+        return new StatementClient(httpClient, queryInfoCodec, session, query);
     }
 
     @Override
@@ -91,7 +88,7 @@ class QueryExecutor
 
     static QueryExecutor create(HttpClient httpClient)
     {
-        return new QueryExecutor(jsonCodec(QueryResults.class), jsonCodec(ServerInfo.class), jsonCodec(QuerySubmission.class), httpClient);
+        return new QueryExecutor(jsonCodec(QueryResults.class), jsonCodec(ServerInfo.class), httpClient);
     }
 
     @Nullable

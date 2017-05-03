@@ -127,11 +127,11 @@ public class PruneUnreferencedOutputs
     @Override
     public Optional<PlanNode> apply(PlanNode node, Lookup lookup, PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, Session session)
     {
-        final ImmutableList<ImmutableSet<Symbol>> requiredSymbols = node.accept(new RequiredInputSymbols(), null);
-        final ImmutableList.Builder<PlanNode> newChildListBuilder = ImmutableList.builder();
+        ImmutableList<ImmutableSet<Symbol>> requiredSymbols = node.accept(new RequiredInputSymbols(), null);
+        ImmutableList.Builder<PlanNode> newChildListBuilder = ImmutableList.builder();
         boolean areChildrenModified = false;
         for (int i = 0; i < requiredSymbols.size(); ++i) {
-            final PlanNode childRef = node.getSources().get(i);
+            PlanNode childRef = node.getSources().get(i);
             if (childRef.getOutputSymbols().stream().allMatch(requiredSymbols.get(i)::contains)) {
                 newChildListBuilder.add(childRef);
             } else {

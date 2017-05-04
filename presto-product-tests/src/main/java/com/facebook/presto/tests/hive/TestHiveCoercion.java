@@ -38,6 +38,7 @@ import static com.facebook.presto.tests.TestGroups.HIVE_COERCION;
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
 import static com.facebook.presto.tests.utils.JdbcDriverUtils.usingPrestoJdbcDriver;
 import static com.facebook.presto.tests.utils.JdbcDriverUtils.usingTeradataJdbcDriver;
+import static com.teradata.tempto.Requirements.compose;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
 import static com.teradata.tempto.assertions.QueryAssert.assertThat;
 import static com.teradata.tempto.context.ThreadLocalTestContextHolder.testContext;
@@ -57,66 +58,104 @@ public class TestHiveCoercion
         extends ProductTest
 {
     private static String tableNameFormat = "%s_hive_coercion";
+    private static final String COLUMN_DEFINITIONS =
+            "CREATE TABLE %NAME%(" +
+                    "    tinyint_to_smallint        TINYINT," +
+                    "    tinyint_to_int             TINYINT," +
+                    "    tinyint_to_bigint          TINYINT," +
+                    "    smallint_to_int            SMALLINT," +
+                    "    smallint_to_bigint         SMALLINT," +
+                    "    int_to_bigint              INT," +
+                    "    bigint_to_varchar          BIGINT," +
+                    "    float_to_double            FLOAT" +
+                    ") ";
 
-    public static final HiveTableDefinition HIVE_COERCION_TEXTFILE = tableDefinitionBuilder("TEXTFILE", Optional.empty(), Optional.of("DELIMITED FIELDS TERMINATED BY '|'"))
+    private static final String COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER =
+            "CREATE TABLE %NAME%(" +
+                    "    varchar_to_integer         STRING" +
+                    ") ";
+
+    public static final HiveTableDefinition HIVE_COERCION_TEXTFILE = tableDefinitionBuilder("TEXTFILE", Optional.empty(), Optional.of("DELIMITED FIELDS TERMINATED BY '|'"), COLUMN_DEFINITIONS)
             .setNoData()
             .build();
 
-    public static final HiveTableDefinition HIVE_COERCION_PARQUET = parquetTableDefinitionBuilder()
+    public static final HiveTableDefinition HIVE_COERCION_PARQUET = parquetTableDefinitionBuilder(COLUMN_DEFINITIONS)
             .setNoData()
             .build();
 
-    public static final HiveTableDefinition HIVE_COERCION_ORC = tableDefinitionBuilder("ORC", Optional.empty(), Optional.empty())
+    public static final HiveTableDefinition HIVE_COERCION_ORC = tableDefinitionBuilder("ORC", Optional.empty(), Optional.empty(), COLUMN_DEFINITIONS)
             .setNoData()
             .build();
 
-    public static final HiveTableDefinition HIVE_COERCION_RCTEXT = tableDefinitionBuilder("RCFILE", Optional.of("RCTEXT"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'"))
+    public static final HiveTableDefinition HIVE_COERCION_RCTEXT = tableDefinitionBuilder("RCFILE", Optional.of("RCTEXT"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'"), COLUMN_DEFINITIONS)
             .setNoData()
             .build();
 
-    public static final HiveTableDefinition HIVE_COERCION_RCBINARY = tableDefinitionBuilder("RCFILE", Optional.of("RCBINARY"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe'"))
+    public static final HiveTableDefinition HIVE_COERCION_RCBINARY = tableDefinitionBuilder("RCFILE", Optional.of("RCBINARY"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe'"), COLUMN_DEFINITIONS)
             .setNoData()
             .build();
 
-    private static HiveTableDefinition.HiveTableDefinitionBuilder tableDefinitionBuilder(String fileFormat, Optional<String> recommendTableName, Optional<String> rowFormat)
+    public static final HiveTableDefinition HIVE_COERCION_TEXTFILE_VARCHAR_TO_INT = tableDefinitionBuilder("TEXTFILE", Optional.empty(), Optional.of("DELIMITED FIELDS TERMINATED BY '|'"), COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER)
+            .setNoData()
+            .build();
+
+    public static final HiveTableDefinition HIVE_COERCION_PARQUET_VARCHAR_TO_INT = parquetTableDefinitionBuilder(COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER)
+            .setNoData()
+            .build();
+
+    public static final HiveTableDefinition HIVE_COERCION_ORC_VARCHAR_TO_INT = tableDefinitionBuilder("ORC", Optional.empty(), Optional.empty(), COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER)
+            .setNoData()
+            .build();
+
+    public static final HiveTableDefinition HIVE_COERCION_RCTEXT_VARCHAR_TO_INT = tableDefinitionBuilder("RCFILE", Optional.of("RCTEXT"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'"), COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER)
+            .setNoData()
+            .build();
+
+    public static final HiveTableDefinition HIVE_COERCION_RCBINARY_VARCHAR_TO_INT = tableDefinitionBuilder("RCFILE", Optional.of("RCBINARY"), Optional.of("SERDE 'org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe'"), COLUMN_DEFINITIONS_VARCHAR_TO_INTEGER)
+            .setNoData()
+            .build();
+
+    private static HiveTableDefinition.HiveTableDefinitionBuilder tableDefinitionBuilder(String fileFormat, Optional<String> recommendTableName, Optional<String> rowFormat, String createTableDDL)
     {
         String tableName = format(tableNameFormat, recommendTableName.orElse(fileFormat).toLowerCase(Locale.ENGLISH));
         return HiveTableDefinition.builder(tableName)
-                .setCreateTableDDLTemplate("" +
-                        "CREATE TABLE %NAME%(" +
-                        "    tinyint_to_smallint        TINYINT," +
-                        "    tinyint_to_int             TINYINT," +
-                        "    tinyint_to_bigint          TINYINT," +
-                        "    smallint_to_int            SMALLINT," +
-                        "    smallint_to_bigint         SMALLINT," +
-                        "    int_to_bigint              INT," +
-                        "    bigint_to_varchar          BIGINT," +
-                        "    varchar_to_integer         STRING," +
-                        "    float_to_double            FLOAT" +
-                        ") " +
+                .setCreateTableDDLTemplate(createTableDDL +
                         "PARTITIONED BY (id BIGINT) " +
                         (rowFormat.isPresent() ? "ROW FORMAT " + rowFormat.get() + " " : " ") +
                         "STORED AS " + fileFormat);
     }
 
-    private static HiveTableDefinition.HiveTableDefinitionBuilder parquetTableDefinitionBuilder()
+//    private static HiveTableDefinition.HiveTableDefinitionBuilder tableDefinitionBuilderVarcharToInteger(String fileFormat, Optional<String> recommendTableName, Optional<String> rowFormat)
+//    {
+//        String tableName = format(tableNameFormat, recommendTableName.orElse(fileFormat).toLowerCase(Locale.ENGLISH));
+//        return HiveTableDefinition.builder(tableName)
+//                .setCreateTableDDLTemplate("" +
+//                        "CREATE TABLE %NAME%(" +
+//                        "    varchar_to_integer         STRING" +
+//                        ") " +
+//                        "PARTITIONED BY (id BIGINT) " +
+//                        (rowFormat.isPresent() ? "ROW FORMAT " + rowFormat.get() + " " : " ") +
+//                        "STORED AS " + fileFormat);
+//    }
+
+    private static HiveTableDefinition.HiveTableDefinitionBuilder parquetTableDefinitionBuilder(String createTableDDL)
     {
         return HiveTableDefinition.builder("parquet_hive_coercion")
-                .setCreateTableDDLTemplate("" +
-                        "CREATE TABLE %NAME%(" +
-                        "    tinyint_to_smallint        TINYINT," +
-                        "    tinyint_to_int             TINYINT," +
-                        "    tinyint_to_bigint          TINYINT," +
-                        "    smallint_to_int            SMALLINT," +
-                        "    smallint_to_bigint         SMALLINT," +
-                        "    int_to_bigint              INT," +
-                        "    bigint_to_varchar          BIGINT," +
-                        "    varchar_to_integer         STRING," +
-                        "    float_to_double            DOUBLE" +
-                        ") " +
+                .setCreateTableDDLTemplate(createTableDDL +
                         "PARTITIONED BY (id BIGINT) " +
                         "STORED AS PARQUET");
     }
+
+//    private static HiveTableDefinition.HiveTableDefinitionBuilder parquetTableDefinitionBuilderVarcharToInteger()
+//    {
+//        return HiveTableDefinition.builder("parquet_hive_coercion_varchar_to_integer")
+//                .setCreateTableDDLTemplate("" +
+//                        "CREATE TABLE %NAME%(" +
+//                        "    varchar_to_integer         STRING" +
+//                        ") " +
+//                        "PARTITIONED BY (id BIGINT) " +
+//                        "STORED AS PARQUET");
+//    }
 
     public static final class TextRequirements
             implements RequirementsProvider
@@ -124,7 +163,9 @@ public class TestHiveCoercion
         @Override
         public Requirement getRequirements(Configuration configuration)
         {
-            return MutableTableRequirement.builder(HIVE_COERCION_TEXTFILE).withState(CREATED).build();
+            return compose(
+                    MutableTableRequirement.builder(HIVE_COERCION_TEXTFILE).withState(CREATED).build(),
+                    MutableTableRequirement.builder(HIVE_COERCION_TEXTFILE_VARCHAR_TO_INT).withState(CREATED).build());
         }
     }
 
@@ -134,7 +175,9 @@ public class TestHiveCoercion
         @Override
         public Requirement getRequirements(Configuration configuration)
         {
-            return MutableTableRequirement.builder(HIVE_COERCION_ORC).withState(CREATED).build();
+            return compose(
+                    MutableTableRequirement.builder(HIVE_COERCION_ORC).withState(CREATED).build(),
+                    MutableTableRequirement.builder(HIVE_COERCION_ORC_VARCHAR_TO_INT).withState(CREATED).build());
         }
     }
 
@@ -144,7 +187,9 @@ public class TestHiveCoercion
         @Override
         public Requirement getRequirements(Configuration configuration)
         {
-            return MutableTableRequirement.builder(HIVE_COERCION_RCTEXT).withState(CREATED).build();
+            return compose(
+                    MutableTableRequirement.builder(HIVE_COERCION_RCTEXT).withState(CREATED).build(),
+                    MutableTableRequirement.builder(HIVE_COERCION_RCTEXT_VARCHAR_TO_INT).withState(CREATED).build());
         }
     }
 
@@ -154,7 +199,9 @@ public class TestHiveCoercion
         @Override
         public Requirement getRequirements(Configuration configuration)
         {
-            return MutableTableRequirement.builder(HIVE_COERCION_RCBINARY).withState(CREATED).build();
+            return compose(
+                    MutableTableRequirement.builder(HIVE_COERCION_RCBINARY).withState(CREATED).build(),
+                    MutableTableRequirement.builder(HIVE_COERCION_RCBINARY_VARCHAR_TO_INT).withState(CREATED).build());
         }
     }
 
@@ -164,7 +211,9 @@ public class TestHiveCoercion
         @Override
         public Requirement getRequirements(Configuration configuration)
         {
-            return MutableTableRequirement.builder(HIVE_COERCION_PARQUET).withState(CREATED).build();
+            return compose(
+                    MutableTableRequirement.builder(HIVE_COERCION_PARQUET).withState(CREATED).build(),
+                    MutableTableRequirement.builder(HIVE_COERCION_PARQUET_VARCHAR_TO_INT).withState(CREATED).build());
         }
     }
 

@@ -91,6 +91,20 @@ public class TestPruneUnreferencedOutputs
                                 ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
                                 exchange(
                                         values(ImmutableMap.of("FOO_x", 0, "FOO_unused", 1)))));
+
+        // The partitioning and hash columns always stay in the output of the ExchangeNode, so we can't prune them.
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.project(
+                                Assignments.of(),
+                                p.exchange(eb -> eb
+                                        .fixedHashDistributionParitioningScheme(
+                                                ImmutableList.of(p.symbol("x", BIGINT), p.symbol("hashed_x", BIGINT)),
+                                                ImmutableList.of(p.symbol("x", BIGINT)),
+                                                p.symbol("hashed_x", BIGINT))
+                                        .addSource(p.values(p.symbol("x", BIGINT), p.symbol("hashed_x", BIGINT)))
+                                        .addInputsSet(ImmutableList.of(p.symbol("x", BIGINT), p.symbol("hashed_x", BIGINT))))))
+                .doesNotFire();
     }
 
     @Test

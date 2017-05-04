@@ -18,6 +18,7 @@ import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.rule.PruneUnreferencedOutputs;
 import com.facebook.presto.sql.planner.plan.Assignments;
+import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import jdk.nashorn.internal.ir.Assignment;
@@ -28,6 +29,7 @@ import org.testng.annotations.Test;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggregation;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.exchange;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictProject;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictTableScan;
@@ -52,6 +54,43 @@ public class TestPruneUnreferencedOutputs
     {
         closeAllRuntimeException(tester);
         tester = null;
+    }
+
+
+    @Test
+    public void testExchange()
+            throws Exception
+    {
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.gatheringExchange(
+                                ExchangeNode.Scope.REMOTE,
+                                p.values(p.symbol("x", BIGINT))
+                        ).replaceChildren(ImmutableList.of(
+                                p.values(p.symbol("x", BIGINT), p.symbol("unused", BIGINT)))))
+                .matches(
+                        exchange(
+                                values(ImmutableMap.of("FOO_x", 0))));
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.gatheringExchange(
+                                ExchangeNode.Scope.REMOTE,
+                                p.values(p.symbol("x", BIGINT))))
+                .doesNotFire();
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                        p.project(
+                                Assignments.of(p.symbol("y", BIGINT), expression("x")),
+                                p.gatheringExchange(
+                                        ExchangeNode.Scope.REMOTE,
+                                        p.values(p.symbol("x", BIGINT), p.symbol("unused", BIGINT)))))
+                .matches(
+                        strictProject(
+                                ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
+                                exchange(
+                                        values(ImmutableMap.of("FOO_x", 0, "FOO_unused", 1)))));
     }
 
     @Test

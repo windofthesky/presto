@@ -15,12 +15,14 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.sql.planner.DependencyExtractor;
+import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.Assignments;
+import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -35,10 +37,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.collect.UnmodifiableIterator;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -59,6 +65,14 @@ public class PruneUnreferencedOutputs
         public ImmutableList<ImmutableSet<Symbol>> visitExplainAnalyze(ExplainAnalyzeNode node, Void context)
         {
             return ImmutableList.of(ImmutableSet.copyOf(node.getSource().getOutputSymbols()));
+        }
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitExchange(ExchangeNode node, Void context)
+        {
+            return node.getInputs().stream()
+                    .map(ImmutableSet::copyOf)
+                    .collect(toImmutableList());
         }
 
         @Override
@@ -92,6 +106,51 @@ public class PruneUnreferencedOutputs
         public Optional<PlanNode> visitExplainAnalyze(ExplainAnalyzeNode node, ImmutableSet<Symbol> requiredSymbols)
         {
             return Optional.empty();
+        }
+
+        @Override
+        public Optional<PlanNode> visitExchange(ExchangeNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            Set<Symbol> expectedOutputSymbols = Sets.newHashSet(requiredSymbols);
+            node.getPartitioningScheme().getHashColumn().ifPresent(expectedOutputSymbols::add);
+            node.getPartitioningScheme().getPartitioning().getColumns().stream()
+                    .forEach(expectedOutputSymbols::add);
+
+            List<List<Symbol>> inputsBySource = new ArrayList<>(node.getInputs().size());
+            for (int i = 0; i < node.getInputs().size(); i++) {
+                inputsBySource.add(new ArrayList<>());
+            }
+
+            List<Symbol> newOutputSymbols = new ArrayList<>(node.getOutputSymbols().size());
+            for (int i = 0; i < node.getOutputSymbols().size(); i++) {
+                Symbol outputSymbol = node.getOutputSymbols().get(i);
+                if (expectedOutputSymbols.contains(outputSymbol)) {
+                    newOutputSymbols.add(outputSymbol);
+                    for (int source = 0; source < node.getInputs().size(); source++) {
+                        inputsBySource.get(source).add(node.getInputs().get(source).get(i));
+                    }
+                }
+            }
+
+            if (ImmutableList.copyOf(newOutputSymbols).size() >= ImmutableList.copyOf(node.getOutputSymbols()).size()) {
+                return Optional.empty();
+            }
+
+            // newOutputSymbols contains all partition and hash symbols so simply swap the output layout
+            PartitioningScheme partitioningScheme = new PartitioningScheme(
+                    node.getPartitioningScheme().getPartitioning(),
+                    newOutputSymbols,
+                    node.getPartitioningScheme().getHashColumn(),
+                    node.getPartitioningScheme().isReplicateNulls(),
+                    node.getPartitioningScheme().getBucketToPartition());
+
+            return Optional.of(new ExchangeNode(
+                    node.getId(),
+                    node.getType(),
+                    node.getScope(),
+                    partitioningScheme,
+                    node.getSources(),
+                    inputsBySource));
         }
 
         @Override

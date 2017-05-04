@@ -40,6 +40,9 @@ public class ValuesMatcher
 
         ValuesNode valuesNode = (ValuesNode) node;
 
+        if (outputIndex >= valuesNode.getOutputSymbols().size()) {
+            return Optional.empty();
+        }
         return Optional.of(valuesNode.getOutputSymbols().get(outputIndex));
     }
 }

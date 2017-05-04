@@ -56,7 +56,6 @@ import com.facebook.presto.operator.RowNumberOperator;
 import com.facebook.presto.operator.ScanFilterAndProjectOperator;
 import com.facebook.presto.operator.SetBuilderOperator.SetBuilderOperatorFactory;
 import com.facebook.presto.operator.SetBuilderOperator.SetSupplier;
-import com.facebook.presto.operator.SimpleMergeSortComparator;
 import com.facebook.presto.operator.SourceOperatorFactory;
 import com.facebook.presto.operator.TableScanOperator.TableScanOperatorFactory;
 import com.facebook.presto.operator.TaskOutputOperator.TaskOutputFactory;
@@ -105,6 +104,7 @@ import com.facebook.presto.sql.gen.ExpressionCompiler;
 import com.facebook.presto.sql.gen.JoinCompiler;
 import com.facebook.presto.sql.gen.JoinFilterFunctionCompiler;
 import com.facebook.presto.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
+import com.facebook.presto.sql.gen.OrderingCompiler;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.Partitioning.ArgumentBinding;
 import com.facebook.presto.sql.planner.SortExpressionExtractor.SortExpression;
@@ -253,6 +253,7 @@ public class LocalExecutionPlanner
     private final PagesIndex.Factory pagesIndexFactory;
     private final JoinCompiler joinCompiler;
     private final LookupJoinOperators lookupJoinOperators;
+    private final OrderingCompiler orderingCompiler;
 
     @Inject
     public LocalExecutionPlanner(
@@ -274,7 +275,8 @@ public class LocalExecutionPlanner
             BlockEncodingSerde blockEncodingSerde,
             PagesIndex.Factory pagesIndexFactory,
             JoinCompiler joinCompiler,
-            LookupJoinOperators lookupJoinOperators)
+            LookupJoinOperators lookupJoinOperators,
+            OrderingCompiler orderingCompiler)
     {
         requireNonNull(compilerConfig, "compilerConfig is null");
         this.queryPerformanceFetcher = requireNonNull(queryPerformanceFetcher, "queryPerformanceFetcher is null");
@@ -297,6 +299,7 @@ public class LocalExecutionPlanner
         this.pagesIndexFactory = requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
         this.lookupJoinOperators = requireNonNull(lookupJoinOperators, "lookupJoinOperators is null");
+        this.orderingCompiler = requireNonNull(orderingCompiler, "orderingCompiler is null");
 
         interpreterEnabled = compilerConfig.isInterpreterEnabled();
     }
@@ -619,7 +622,7 @@ public class LocalExecutionPlanner
                     node.getId(),
                     exchangeClientSupplier,
                     new PagesSerdeFactory(blockEncodingSerde, isExchangeCompressionEnabled(session)),
-                    new SimpleMergeSortComparator.Factory(),
+                    orderingCompiler,
                     types,
                     outputChannels,
                     sortChannels,
@@ -1908,9 +1911,9 @@ public class LocalExecutionPlanner
             OperatorFactory operatorFactory = new LocalMergeSourceOperatorFactory(
                     context.getNextOperatorId(),
                     node.getId(),
-                    new SimpleMergeSortComparator.Factory(),
                     exchange,
                     types,
+                    orderingCompiler,
                     sortChannels,
                     orderings);
             return new PhysicalOperation(operatorFactory, makeLayout(node));

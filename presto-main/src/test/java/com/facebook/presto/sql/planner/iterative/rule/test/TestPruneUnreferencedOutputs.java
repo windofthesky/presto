@@ -111,7 +111,6 @@ public class TestPruneUnreferencedOutputs
     public void testProject()
             throws Exception
     {
-        // TODO fix after fixing test system problem with validation of multiple project nodes creating duplicate aliases.
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p ->
                         p.project(
@@ -122,15 +121,11 @@ public class TestPruneUnreferencedOutputs
                                                 p.symbol("literal1", BIGINT), expression("1")),
                                         p.values(p.symbol("x", BIGINT)))))
                 .matches(
-                        anyTree(
-                                values(ImmutableMap.of("FOO_x", 0))));
-        /*
-        strictProject(
-                ImmutableMap.of("FOO_complex", PlanMatchPattern.expression("FOO_y * 2")),
-                strictProject(
-                        ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
-                        values(ImmutableMap.of("FOO_x", 0)))));
-                        */
+                        strictProject(
+                                ImmutableMap.of("FOO_complex", PlanMatchPattern.expression("FOO_y * 2")),
+                                strictProject(
+                                        ImmutableMap.of("FOO_y", PlanMatchPattern.expression("FOO_x")),
+                                        values(ImmutableMap.of("FOO_x", 0)))));
     }
 
     @Test

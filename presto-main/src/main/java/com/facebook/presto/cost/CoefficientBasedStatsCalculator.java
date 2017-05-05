@@ -19,7 +19,9 @@ import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
+import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.DomainTranslator;
@@ -37,16 +39,26 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
+import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.BooleanLiteral;
+import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.GenericLiteral;
+import com.facebook.presto.sql.tree.Literal;
+import com.facebook.presto.sql.tree.LongLiteral;
+import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
+import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
 
 /**
  * Simple implementation of StatsCalculator. It make many arbitrary decisions (e.g filtering selectivity, join matching).
@@ -112,9 +124,10 @@ public class CoefficientBasedStatsCalculator
         @Override
         public PlanNodeStatsEstimate visitFilter(FilterNode node, Void context)
         {
-            PlanNodeStatsEstimate sourceStats = lookupStats(node.getSource());
-            return sourceStats
-                    .mapOutputRowCount(value -> value * FILTER_COEFFICIENT);
+            sourceCosts.get(0).getOutputRowCount();
+
+            Expression expr = node.getPredicate();
+            return getOnlyElement(new ExpressionVisitor().process(expr, sourceCosts));
         }
 
         @Override
@@ -162,8 +175,18 @@ public class CoefficientBasedStatsCalculator
             Constraint<ColumnHandle> constraint = getConstraint(node, BooleanLiteral.TRUE_LITERAL);
 
             TableStatistics tableStatistics = metadata.getTableStatistics(session, node.getTable(), constraint);
+            Map<Symbol, ColumnStatistics> outputSymbolStats = new HashMap<>();
+
+            // TODO as stream
+            for (Map.Entry<Symbol, ColumnHandle> entry : node.getAssignments().entrySet()) {
+                Symbol symbol = entry.getKey();
+                ColumnStatistics statistics = tableStatistics.getColumnStatistics().get(entry.getValue());
+                outputSymbolStats.put(symbol, statistics);
+            }
+
             return PlanNodeStatsEstimate.builder()
                     .setOutputRowCount(tableStatistics.getRowCount())
+                    .setSymbolStatistics(outputSymbolStats)
                     .build();
         }
 
@@ -218,6 +241,101 @@ public class CoefficientBasedStatsCalculator
                 limitCost.setOutputRowCount(new Estimate(node.getCount()));
             }
             return limitCost.build();
+        }
+    }
+
+    private class ExpressionVisitor
+            extends AstVisitor<List<PlanNodeStatsEstimate>, List<PlanNodeStatsEstimate>>
+    {
+        protected List<PlanNodeStatsEstimate> visitComparisonExpression(ComparisonExpression node, List<PlanNodeStatsEstimate> context)
+        {
+            if (!(node.getLeft() instanceof SymbolReference)) {
+                return context;
+            }
+            Symbol left = Symbol.from(node.getLeft());
+            switch (node.getType()) {
+                case EQUAL:
+                    if ((node.getRight() instanceof GenericLiteral || node.getRight() instanceof LongLiteral) && node.getLeft() instanceof SymbolReference) { // FIXME other types of literals
+                        LongLiteral literal;
+                        if (node.getRight() instanceof GenericLiteral) {
+                            literal = new LongLiteral(((GenericLiteral) node.getRight()).getValue());
+                        }
+                        else {
+                            literal = (LongLiteral) node.getRight();
+                        }
+                        return context.stream().map(statsEstimate ->
+                        {
+                            if (statsEstimate.containsSymbolStats(left)) {
+                                RangeColumnStatistics columnStats = statsEstimate.getOnlyRangeStats(left);
+
+                                if (!columnStats.getHighValue().isPresent() || !columnStats.getLowValue().isPresent()) {
+                                    return statsEstimate;
+                                }
+
+                                boolean isInRange = literal.getValue() >= (Long) columnStats.getLowValue().get() && literal.getValue() <= (Long) columnStats.getHighValue().get();
+                                double oldRowCount =  statsEstimate.getOutputRowCount().getValue();
+                                double newRowCount = 0;
+                                if (isInRange) {
+                                    newRowCount = oldRowCount * (1 - columnStats.getNullsFraction().getValue()) / columnStats.getDistinctValuesCount().getValue();
+                                }
+                                double filterRate = newRowCount/oldRowCount;
+
+                                final RangeColumnStatistics newColumnStats = columnStats.builderFrom()
+                                        .setNullsFraction(zeroValue())
+                                        .setDistinctValuesCount(new Estimate(isInRange ? 1 : 0))
+                                        .setDataSize(new Estimate(filterRate * columnStats.getDataSize().getValue()))
+                                        .setLowValue(Optional.of(literal.getValue()))
+                                        .setHighValue(Optional.of(literal.getValue())).build();
+
+                                return statsEstimate
+                                        .mapSymbolColumnStatistics(left, input -> newColumnStats)
+                                        .mapOutputRowCount(size -> size * filterRate)
+                                        .mapOutputSizeInBytes(size -> size * filterRate);
+                            }
+                            return statsEstimate;
+                        }).collect(Collectors.toList());
+                    }
+                    break;
+                case NOT_EQUAL:
+                    break;
+                case LESS_THAN:
+                    break;
+                case LESS_THAN_OR_EQUAL:
+                    break;
+                case GREATER_THAN:
+                    break;
+                case GREATER_THAN_OR_EQUAL:
+                    break;
+                case IS_DISTINCT_FROM:
+                    break;
+            }
+            return context;
+        }
+    }
+
+    private class IsKnownSymbolReference extends AstVisitor<List<PlanNodeStatsEstimate>, Boolean>
+    {
+        protected Boolean visitNode(Node node, List<PlanNodeStatsEstimate> context)
+        {
+            return false;
+        }
+
+        protected Boolean visitSymbolReference(SymbolReference node, List<PlanNodeStatsEstimate> context)
+        {
+            return context.stream().anyMatch(stats -> stats.containsSymbolStats(Symbol.from(node)));
+        }
+    }
+
+    private class IsLiteral extends AstVisitor<Void, Boolean>
+    {
+        protected Boolean visitNode(Node node, List<PlanNodeStatsEstimate> context)
+        {
+            return false;
+        }
+
+        protected Boolean visitLiteral(Literal node, List<PlanNodeStatsEstimate> context)
+        {
+            return false;
         }
     }
 }

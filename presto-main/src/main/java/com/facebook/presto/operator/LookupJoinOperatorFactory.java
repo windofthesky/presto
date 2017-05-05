@@ -48,7 +48,6 @@ public class LookupJoinOperatorFactory
     private final JoinProbeFactory joinProbeFactory;
     private final Optional<OperatorFactory> outerOperatorFactory;
     private final ReferenceCount referenceCount;
-    private final SharedMemoryContext sharedMemoryContext;
     private final OptionalInt totalOperatorsCount;
     private final HashGenerator probeHashGenerator;
     private boolean closed;
@@ -85,7 +84,6 @@ public class LookupJoinOperatorFactory
         }
 
         this.referenceCount = new ReferenceCount();
-        this.sharedMemoryContext = new SharedMemoryContext();
 
         if (joinType == INNER || joinType == PROBE_OUTER) {
             // when all join operators finish, destroy the lookup source (freeing the memory)
@@ -112,7 +110,7 @@ public class LookupJoinOperatorFactory
         this.totalOperatorsCount = totalOperatorsCount;
     }
 
-    private LookupJoinOperatorFactory(LookupJoinOperatorFactory other, SharedMemoryContext sharedMemoryContext)
+    private LookupJoinOperatorFactory(LookupJoinOperatorFactory other)
     {
         requireNonNull(other, "other is null");
         operatorId = other.operatorId;
@@ -127,7 +125,6 @@ public class LookupJoinOperatorFactory
         referenceCount = other.referenceCount;
         outerOperatorFactory = other.outerOperatorFactory;
         probeHashGenerator = other.probeHashGenerator;
-        this.sharedMemoryContext = sharedMemoryContext;
         totalOperatorsCount = other.totalOperatorsCount;
 
         referenceCount.retain();
@@ -165,7 +162,6 @@ public class LookupJoinOperatorFactory
                 joinProbeFactory,
                 referenceCount::release,
                 totalOperatorsCount,
-                sharedMemoryContext,
                 probeHashGenerator);
     }
 
@@ -182,7 +178,7 @@ public class LookupJoinOperatorFactory
     @Override
     public OperatorFactory duplicate()
     {
-        return new LookupJoinOperatorFactory(this, new SharedMemoryContext());
+        return new LookupJoinOperatorFactory(this);
     }
 
     @Override

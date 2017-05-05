@@ -17,12 +17,9 @@ import com.facebook.presto.operator.PartitionedConsumption.Partition;
 import com.facebook.presto.spi.Page;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.util.Iterator;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static java.util.Objects.requireNonNull;
 
 public class SpilledLookupJoiner
@@ -30,9 +27,6 @@ public class SpilledLookupJoiner
     private final Partition<LookupSource> lookupPartition;
     private final LookupJoiner lookupJoiner;
     private final Iterator<Page> probePages;
-
-    @GuardedBy("this")
-    private boolean memoryReserved = false;
 
     public SpilledLookupJoiner(
             Partition<LookupSource> lookupPartition,
@@ -42,14 +36,6 @@ public class SpilledLookupJoiner
         this.lookupPartition = requireNonNull(lookupPartition, "lookupPartition is null");
         this.lookupJoiner = lookupJoiner;
         this.probePages = requireNonNull(probePages, "probePages is null");
-    }
-
-    public synchronized void reserveMemory(SharedMemoryContext sharedMemoryContext, OperatorContext operatorContext)
-    {
-        if (!memoryReserved && lookupPartition.load().isDone()) {
-            sharedMemoryContext.reserve(lookupPartition.number(), operatorContext, getInMemorySizeInBytes());
-            memoryReserved = true;
-        }
     }
 
     public ListenableFuture<?> isBlocked()
@@ -77,16 +63,9 @@ public class SpilledLookupJoiner
         return lookupJoiner.isFinished();
     }
 
-    private long getInMemorySizeInBytes()
-    {
-        checkState(lookupPartition.load().isDone(), "Size is not known yet");
-        return getFutureValue(lookupPartition.load()).getInMemorySizeInBytes();
-    }
-
-    public void finish(SharedMemoryContext sharedMemoryContext)
+    public void finish()
     {
         checkState(lookupPartition.load().isDone());
-        sharedMemoryContext.free(lookupPartition.number(), getInMemorySizeInBytes());
         lookupPartition.release();
     }
 }

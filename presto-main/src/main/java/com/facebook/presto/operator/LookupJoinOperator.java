@@ -44,7 +44,6 @@ public class LookupJoinOperator
 
     private final List<Type> allTypes;
     private final List<Type> probeTypes;
-    private final SharedMemoryContext sharedMemoryContext;
     private final LookupSourceFactory lookupSourceFactory;
     private final JoinProbeFactory joinProbeFactory;
     private final Runnable onClose;
@@ -72,13 +71,11 @@ public class LookupJoinOperator
             JoinProbeFactory joinProbeFactory,
             Runnable onClose,
             OptionalInt lookupJoinsCount,
-            SharedMemoryContext sharedMemoryContext,
             HashGenerator hashGenerator)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.allTypes = ImmutableList.copyOf(requireNonNull(allTypes, "allTypes is null"));
         this.probeTypes = ImmutableList.copyOf(requireNonNull(probeTypes, "probeTypes is null"));
-        this.sharedMemoryContext = requireNonNull(sharedMemoryContext, "sharedMemoryContext is null");
 
         requireNonNull(joinType, "joinType is null");
 
@@ -127,7 +124,7 @@ public class LookupJoinOperator
         checkState(lookupPartitions.isPresent());
 
         spilledLookupJoiner.ifPresent(joiner -> {
-            joiner.finish(sharedMemoryContext);
+            joiner.finish();
         });
 
         if (lookupPartitions.get().hasNext()) {
@@ -244,7 +241,6 @@ public class LookupJoinOperator
                 return null;
             }
             SpilledLookupJoiner joiner = spilledLookupJoiner.get();
-            joiner.reserveMemory(sharedMemoryContext, operatorContext);
             return joiner.getOutput();
         }
 

@@ -23,17 +23,20 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.testing.MaterializedResult;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static com.facebook.presto.operator.PageAssertions.assertPageEquals;
 import static com.facebook.presto.testing.assertions.Assert.assertEquals;
 import static com.facebook.presto.type.TypeJsonUtils.appendToBlockBuilder;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
+import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
 import static io.airlift.testing.Assertions.assertEqualsIgnoreOrder;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -55,6 +58,12 @@ public final class OperatorAssertion
         }
 
         for (int loops = 0; !operator.isFinished() && loops < 10_000; loops++) {
+            ListenableFuture<?> isBlocked = operator.isBlocked();
+            if (!isBlocked.isDone()) {
+                tryGetFutureValue(isBlocked, 1, TimeUnit.MILLISECONDS);
+                continue;
+            }
+
             if (operator.needsInput()) {
                 if (input.hasNext()) {
                     Page inputPage = input.next();

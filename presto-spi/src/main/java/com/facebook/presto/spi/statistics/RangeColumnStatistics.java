@@ -93,6 +93,16 @@ public class RangeColumnStatistics
         return new Builder();
     }
 
+    public Builder builderFrom()
+    {
+        return builder()
+                .setDataSize(getDataSize())
+                .setDistinctValuesCount(getDistinctValuesCount())
+                .setHighValue(getHighValue())
+                .setLowValue(getLowValue())
+                .setNullsFraction(getNullsFraction());
+    }
+
     public static final class Builder
     {
         private Optional<Object> lowValue = Optional.empty();

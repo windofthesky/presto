@@ -57,8 +57,6 @@ public class SharedMemoryContext
             this.reservationBytes = Optional.of(inMemorySizeInBytes);
             TaskContext taskContext = operatorContext.getDriverContext().getPipelineContext().getTaskContext();
             this.taskContext = Optional.of(taskContext);
-            operatorContext.reserveMemory(inMemorySizeInBytes);
-            operatorContext.transferMemoryToTaskContext(inMemorySizeInBytes);
         }
         else {
             checkCurrentReservationPresent();
@@ -83,7 +81,6 @@ public class SharedMemoryContext
         if (reservations == 0) {
             this.reservationKey = null;
             this.reservationBytes = null;
-            taskContext.get().freeMemory(inMemorySizeInBytes);
             taskContext = null;
         }
     }

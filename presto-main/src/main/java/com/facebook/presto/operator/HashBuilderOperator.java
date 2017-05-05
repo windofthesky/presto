@@ -331,7 +331,7 @@ public class HashBuilderOperator
                         filterFunctionFactory,
                         Optional.of(outputChannels));
 
-                // TODO operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
+                operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
                 hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
 
                 unspillingDone.set(partition.get());

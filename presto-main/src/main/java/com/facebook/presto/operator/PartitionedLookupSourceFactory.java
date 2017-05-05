@@ -21,7 +21,6 @@ import com.facebook.presto.spi.PageBuilder;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spiller.PartitioningSpiller;
 import com.facebook.presto.spiller.PartitioningSpillerFactory;
-import com.facebook.presto.spiller.SingleStreamSpiller;
 import com.facebook.presto.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import com.facebook.presto.sql.planner.Symbol;
 import com.google.common.collect.ImmutableList;
@@ -30,6 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.concurrent.MoreFutures;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -72,7 +72,7 @@ public final class PartitionedLookupSourceFactory
     private int partitionsSet;
 
     @GuardedBy("this")
-    private Map<Integer, SingleStreamSpiller> spilledLookupSources = new HashMap<>();
+    private Map<Integer, Supplier<ListenableFuture<LookupSource>>> spilledLookupSources = new HashMap<>();
 
     @GuardedBy("this")
     private final PartitioningSpillerFactory partitioningSpillerFactory;
@@ -157,13 +157,13 @@ public final class PartitionedLookupSourceFactory
         }
     }
 
-    public synchronized void setPartitionSpilledLookupSourceSupplier(int partitionIndex, SingleStreamSpiller lookupSourceSpiller)
+    public synchronized void setPartitionSpilledLookupSourceSupplier(int partitionIndex, Supplier<ListenableFuture<LookupSource>> unspillCallback)
     {
         SetLookupSourceResult result;
         synchronized (this) {
-            requireNonNull(lookupSourceSpiller, "lookupSource is null");
+            requireNonNull(unspillCallback, "unspillCallback is null");
 
-            spilledLookupSources.put(partitionIndex, lookupSourceSpiller);
+            spilledLookupSources.put(partitionIndex, unspillCallback);
 
             result = internalSetLookupSource(partitionIndex, () -> new SpilledLookupSource(outputTypes.size()));
         }
@@ -207,10 +207,7 @@ public final class PartitionedLookupSourceFactory
     @Override
     public void destroy()
     {
-        synchronized (this) {
-            spilledLookupSources.values().forEach(SingleStreamSpiller::close);
-            spilledLookupSources.clear();
-        }
+        spilledLookupSources.clear();
         lookupSourceUnspilling.ifPresent(partitionedConsumption -> {
             try {
                 partitionedConsumption.close();
@@ -261,7 +258,7 @@ public final class PartitionedLookupSourceFactory
     }
 
     @Override
-    public synchronized Iterator<Partition<LookupSource>> beginLookupSourceUnspilling(int consumersCount, Session session)
+    public synchronized Iterator<Partition<LookupSource>> beginLookupSourceUnspilling(int consumersCount)
     {
         checkState(hasSpilled());
         if (lookupSourceUnspilling.isPresent()) {
@@ -272,17 +269,17 @@ public final class PartitionedLookupSourceFactory
         }
         else {
             Set<Integer> partitionNumbers = spilledLookupSources.keySet();
-            Function<Integer, CompletableFuture<LookupSource>> partitionLoader = partitionNumber -> loadLookupSourcePartition(session, partitionNumber);
+            Function<Integer, CompletableFuture<LookupSource>> partitionLoader = partitionNumber -> loadLookupSourcePartition(partitionNumber);
             lookupSourceUnspilling = Optional.of(new PartitionedConsumption<>(consumersCount, partitionNumbers, partitionLoader));
         }
         return lookupSourceUnspilling.get().getPartitions().iterator();
     }
 
-    private CompletableFuture<LookupSource> loadLookupSourcePartition(Session session, Integer partitionNumber)
+    private CompletableFuture<LookupSource> loadLookupSourcePartition(Integer partitionNumber)
     {
-        SingleStreamSpiller lookupSourceSpiller = spilledLookupSources.get(partitionNumber);
-        CompletableFuture<List<Page>> spilledPages = lookupSourceSpiller.getAllSpilledPages();
-        return spilledPages.thenApply((List<Page> spilledBuildPages) -> getLookupSource(session, spilledBuildPages));
+        Supplier<ListenableFuture<LookupSource>> unspillCallback = spilledLookupSources.get(partitionNumber);
+        // TODO replace with ListenableFuture
+        return MoreFutures.toCompletableFuture(unspillCallback.get());
     }
 
     private LookupSource getLookupSource(Session session, List<Page> spilledBuildPages)

@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.operator;
 
-import com.facebook.presto.Session;
 import com.facebook.presto.operator.PartitionedConsumption.Partition;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spiller.PartitioningSpiller;
@@ -49,7 +48,7 @@ public interface LookupSourceFactory
         return false;
     }
 
-    default Iterator<Partition<LookupSource>> beginLookupSourceUnspilling(int lookupSourceConsumers, Session session)
+    default Iterator<Partition<LookupSource>> beginLookupSourceUnspilling(int lookupSourceConsumers)
     {
         throw new UnsupportedOperationException();
     }

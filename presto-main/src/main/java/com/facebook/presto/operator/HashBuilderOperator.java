@@ -23,6 +23,8 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.concurrent.MoreFutures;
 import io.airlift.units.DataSize;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -34,6 +36,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.Objects.requireNonNull;
 
@@ -211,7 +214,12 @@ public class HashBuilderOperator
     private Optional<SingleStreamSpiller> spiller = Optional.empty();
     private ListenableFuture<?> spillInProgress = NOT_BLOCKED;
 
-    private boolean finishing;
+    private SettableFuture<?> unspillingRequested;
+    private boolean unspillingInititated;
+    private ListenableFuture<List<Page>> unspillFuture = immediateFuture(null);
+    private SettableFuture<LookupSource> unspillingDone;
+
+    private boolean noMoreInput;
     private final HashCollisionsCounter hashCollisionsCounter;
 
     public HashBuilderOperator(
@@ -247,6 +255,12 @@ public class HashBuilderOperator
         this.spillEnabled = spillEnabled;
         this.memoryLimitBeforeSpill = memoryLimitBeforeSpill;
         this.singleStreamSpillerFactory = singleStreamSpillerFactory;
+
+        unspillingRequested = SettableFuture.create();
+        unspillingRequested.set(null);
+
+        unspillingDone = SettableFuture.create();
+        unspillingDone.set(null);
     }
 
     @Override
@@ -264,56 +278,124 @@ public class HashBuilderOperator
     @Override
     public void finish()
     {
-        if (finishing) {
-            return;
+        if (!noMoreInput) {
+            if (!spillInProgress.isDone()) {
+                // Not ready to handle finish() yet
+                return;
+            }
+
+            noMoreInput = true;
+
+            if (spiller.isPresent()) {
+                index.clear(); // already fully spilled
+                unspillingRequested = SettableFuture.create();
+                unspillingDone = SettableFuture.create();
+                unspillFuture = SettableFuture.create();
+                lookupSourceFactory.setPartitionSpilledLookupSourceSupplier(partitionIndex, this::unspill);
+
+                operatorContext.setMemoryReservation(index.getEstimatedSize().toBytes());
+                hashCollisionsCounter.recordHashCollision(0, 0);
+            }
+            else {
+                LookupSourceSupplier partition = index.createLookupSourceSupplier(operatorContext.getSession(), hashChannels, preComputedHashChannel, filterFunctionFactory, Optional.of(outputChannels));
+                lookupSourceFactory.setPartitionLookupSourceSupplier(partitionIndex, partition);
+
+                operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
+                hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
+            }
         }
 
-        if (!spillInProgress.isDone()) {
-            // Not ready to handle finish() yet
-            return;
+        // TODO proper states?
+
+        if (unspillingRequested.isDone() && !unspillingDone.isDone()) {
+
+            if (!unspillingInititated) {
+                unspillingInititated = true;
+                checkState(spiller.isPresent());
+                unspillFuture = MoreFutures.toListenableFuture(spiller.get().getAllSpilledPages());
+            }
+
+            // FIXME those names are hardly distinguishable
+            if (unspillFuture.isDone() && !unspillingDone.isDone()) {
+                List<Page> pages = MoreFutures.getFutureValue(unspillFuture);
+
+                // TODO can I reuse this.index ??????
+                for (Page page : pages) {
+                    index.addPage(page);
+                }
+
+                LookupSourceSupplier partition = index.createLookupSourceSupplier(
+                        operatorContext.getSession(),
+                        hashChannels,
+                        preComputedHashChannel,
+                        filterFunctionFactory,
+                        Optional.of(outputChannels));
+
+                // TODO operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
+                hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
+
+                unspillingDone.set(partition.get());
+            }
         }
+    }
 
-        finishing = true;
-
-        if (spiller.isPresent()) {
-            index.clear(); // already fully spilled
-            lookupSourceFactory.setPartitionSpilledLookupSourceSupplier(partitionIndex, spiller.get());
-            spiller = Optional.empty();
-
-            operatorContext.setMemoryReservation(index.getEstimatedSize().toBytes());
-            hashCollisionsCounter.recordHashCollision(0, 0);
-        }
-        else {
-            LookupSourceSupplier partition = index.createLookupSourceSupplier(operatorContext.getSession(), hashChannels, preComputedHashChannel, filterFunctionFactory, Optional.of(outputChannels));
-            lookupSourceFactory.setPartitionLookupSourceSupplier(partitionIndex, partition);
-
-            operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
-            hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
-        }
+    /* @ThreadSafe */
+    private ListenableFuture<LookupSource> unspill()
+    {
+        checkState(!unspillingRequested.isDone(), "unspilling already requested");
+        unspillingRequested.set(null);
+        return unspillingDone;
     }
 
     @Override
     public boolean isFinished()
     {
-        return finishing && lookupSourceFactory.isDestroyed().isDone();
+        return noMoreInput
+                && unspillingDone.isDone()
+                && lookupSourceFactory.isDestroyed().isDone();
     }
 
     @Override
     public boolean needsInput()
     {
-        return !finishing;
+        return !noMoreInput;
     }
 
     @Override
     public ListenableFuture<?> isBlocked()
     {
+        // TODO if someone wanna say this method looks terribly, let's inform them proclaiming a truism is not something they could feel proud of
+
         if (!spillInProgress.isDone()) {
             return spillInProgress;
         }
-        if (!finishing) {
+
+        if (needsInput()) {
             return NOT_BLOCKED;
         }
-        return lookupSourceFactory.isDestroyed();
+
+        if (!unspillingRequested.isDone()) {
+            return unspillingRequested;
+        }
+
+        if (!unspillFuture.isDone()) {
+            if (!unspillingInititated) {
+                return NOT_BLOCKED;
+            }
+            return unspillFuture;
+        }
+
+        if (unspillingInititated && !unspillingDone.isDone()) {
+            return NOT_BLOCKED;
+        }
+
+        ListenableFuture<?> destroyed = lookupSourceFactory.isDestroyed();
+        if (destroyed.isDone()) {
+            return destroyed;
+        }
+        else {
+            return destroyed;
+        }
     }
 
     @Override

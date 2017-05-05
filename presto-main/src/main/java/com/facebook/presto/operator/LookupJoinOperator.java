@@ -115,8 +115,7 @@ public class LookupJoinOperator
         //during other LookupJoinOperator operator's work. At least, at the moment of writing of this comment...
         if (!finishing && lookupSourceFactory.hasSpilled()) {
             int consumersCount = lookupJoinsCount.orElseThrow(() -> new IllegalStateException("Indeterminate number of LookupJoinOperator-s when using spill to disk. This is a bug."));
-            lookupPartitions = Optional.of(
-                    lookupSourceFactory.beginLookupSourceUnspilling(consumersCount, operatorContext.getSession()));
+            lookupPartitions = Optional.of(lookupSourceFactory.beginLookupSourceUnspilling(consumersCount));
             ensureSpillerLoaded();
         }
         finishing = true;

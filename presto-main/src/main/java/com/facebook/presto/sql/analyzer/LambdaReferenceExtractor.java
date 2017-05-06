@@ -17,6 +17,7 @@ import com.facebook.presto.sql.tree.DefaultExpressionTraversalVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.NodeRef;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
@@ -55,7 +56,7 @@ public class LambdaReferenceExtractor
         @Override
         protected Void visitIdentifier(Identifier node, ImmutableList.Builder<Expression> context)
         {
-            if (NodeRefCollections.toIdentityMap(analysis.getLambdaArgumentReferences()).containsKey(node)) {
+            if (analysis.getLambdaArgumentReferences().containsKey(NodeRef.of(node))) {
                 context.add(node);
             }
             return null;

@@ -55,7 +55,7 @@ public class LambdaReferenceExtractor
         @Override
         protected Void visitIdentifier(Identifier node, ImmutableList.Builder<Expression> context)
         {
-            if (analysis.getLambdaArgumentReferences().containsKey(node)) {
+            if (NodeRefCollections.toIdentityMap(analysis.getLambdaArgumentReferences()).containsKey(node)) {
                 context.add(node);
             }
             return null;

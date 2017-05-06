@@ -138,7 +138,7 @@ class AggregationAnalyzer
                 .map(e -> ExpressionTreeRewriter.rewriteWith(new ParameterRewriter(analysis.getParameters()), e))
                 .collect(toImmutableList());
 
-        this.columnReferences = analysis.getColumnReferenceFields();
+        this.columnReferences = NodeRefCollections.toIdentityMap(analysis.getColumnReferenceFields());
 
         this.groupingFields = groupByExpressions.stream()
                 .filter(columnReferences::containsKey)
@@ -423,7 +423,7 @@ class AggregationAnalyzer
         @Override
         protected Boolean visitIdentifier(Identifier node, Void context)
         {
-            if (analysis.getLambdaArgumentReferences().containsKey(node)) {
+            if (NodeRefCollections.toIdentityMap(analysis.getLambdaArgumentReferences()).containsKey(node)) {
                 return true;
             }
             return isGroupingKey(node);

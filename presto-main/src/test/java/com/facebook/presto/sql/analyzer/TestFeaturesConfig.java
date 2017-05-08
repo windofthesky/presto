@@ -171,6 +171,7 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(true)
                 .setLegacyTimestamp(true)
                 .setParseDecimalLiteralsAsDouble(true)
+                .setExchangeCompressionEnabled(true)
                 .setMemoryRevokingThreshold(0.2)
                 .setMemoryRevokingTarget(0.8);
 

@@ -24,34 +24,63 @@ import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
-import com.facebook.presto.sql.planner.plan.FilterNode;
+import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
-import com.facebook.presto.sql.planner.plan.SimplePlanRewriter;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
-import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.collect.UnmodifiableIterator;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
 public class PruneUnreferencedOutputs
-    implements Rule
+        implements Rule
 {
+
+    private static ImmutableList<ImmutableSet<Symbol>> requiredJoinChildColumns(JoinNode node, ImmutableSet<Symbol> requiredOutputs)
+    {
+        ImmutableSet<Symbol> globallyUsable = requiredOutputs;
+        if (node.getFilter().isPresent()) {
+            globallyUsable = ImmutableSet.<Symbol>builder()
+                    .addAll(requiredOutputs)
+                    .addAll(DependencyExtractor.extractUnique(node.getFilter().get()))
+                    .build();
+        }
+
+        ImmutableSet<Symbol> leftUsable = ImmutableSet.<Symbol>builder()
+                .addAll(globallyUsable)
+                .addAll(node.getCriteria().stream().map(JoinNode.EquiJoinClause::getLeft).iterator())
+                .addAll(node.getLeftHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                .build();
+
+        ImmutableSet<Symbol> rightUsable = ImmutableSet.<Symbol>builder()
+                .addAll(globallyUsable)
+                .addAll(node.getCriteria().stream().map(JoinNode.EquiJoinClause::getRight).iterator())
+                .addAll(node.getRightHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                .build();
+
+        return ImmutableList.of(
+                node.getLeft().getOutputSymbols().stream()
+                        .filter(leftUsable::contains)
+                        .collect(toImmutableSet()),
+                node.getRight().getOutputSymbols().stream()
+                        .filter(rightUsable::contains)
+                        .collect(toImmutableSet())
+        );
+    }
+
     private static class RequiredInputSymbols
             extends PlanVisitor<Void, ImmutableList<ImmutableSet<Symbol>>>
     {
@@ -76,6 +105,12 @@ public class PruneUnreferencedOutputs
         }
 
         @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitJoin(JoinNode node, Void context)
+        {
+            return requiredJoinChildColumns(node, ImmutableSet.copyOf(node.getOutputSymbols()));
+        }
+
+        @Override
         public ImmutableList<ImmutableSet<Symbol>> visitProject(ProjectNode node, Void context)
         {
             return ImmutableList.of(ImmutableSet.copyOf(DependencyExtractor.extractUnique(node)));
@@ -94,8 +129,16 @@ public class PruneUnreferencedOutputs
         }
     }
 
-    private static class RestrictOutputSymbols extends PlanVisitor<ImmutableSet<Symbol>, Optional<PlanNode>>
+    private static class RestrictOutputSymbols
+            extends PlanVisitor<ImmutableSet<Symbol>, Optional<PlanNode>>
     {
+        private PlanNodeIdAllocator idAllocator;
+
+        private RestrictOutputSymbols(PlanNodeIdAllocator idAllocator)
+        {
+            this.idAllocator = idAllocator;
+        }
+
         @Override
         public Optional<PlanNode> visitPlan(PlanNode node, ImmutableSet<Symbol> requiredSymbols)
         {
@@ -154,8 +197,49 @@ public class PruneUnreferencedOutputs
         }
 
         @Override
+        public Optional<PlanNode> visitJoin(JoinNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            List<PlanNode> newChildren;
+
+            if (node.isCrossJoin()) {
+                // TODO: remove this "if" branch when output symbols selection is supported by nested loop join
+                ImmutableList<ImmutableSet<Symbol>> childrenInputs = requiredJoinChildColumns(node, requiredSymbols);
+                ImmutableList.Builder<PlanNode> newChildrenBuilder = ImmutableList.builder();
+                for (int childIndex = 0; childIndex < 2; ++childIndex) {
+                    PlanNode oldChild = node.getSources().get(childIndex);
+                    if (oldChild.getOutputSymbols().stream().allMatch(childrenInputs.get(childIndex)::contains)) {
+                        newChildrenBuilder.add(oldChild);
+                    }
+                    else {
+                        newChildrenBuilder.add(new ProjectNode(
+                                idAllocator.getNextId(),
+                                oldChild,
+                                Assignments.identity(childrenInputs.get(childIndex))));
+                    }
+                }
+                newChildren = newChildrenBuilder.build();
+            }
+            else {
+                newChildren = node.getSources();
+            }
+
+            return Optional.of(new JoinNode(
+                    node.getId(),
+                    node.getType(),
+                    newChildren.get(0),
+                    newChildren.get(1),
+                    node.getCriteria(),
+                    node.getOutputSymbols().stream().filter(requiredSymbols::contains).collect(toImmutableList()),
+                    node.getFilter(),
+                    node.getLeftHashSymbol(),
+                    node.getRightHashSymbol(),
+                    node.getDistributionType()));
+        }
+
+        @Override
         public Optional<PlanNode> visitProject(ProjectNode node, ImmutableSet<Symbol> requiredSymbols)
         {
+            // TODO:  notice if the projection is now a noop, and return its source instead?
             return Optional.of(new ProjectNode(
                     node.getId(),
                     node.getSource(),
@@ -205,7 +289,7 @@ public class PruneUnreferencedOutputs
         for (int i = 0; i < requiredSymbols.size(); ++i) {
             PlanNode childRef = node.getSources().get(i);
             if (!childRef.getOutputSymbols().stream().allMatch(requiredSymbols.get(i)::contains)) {
-                Optional<PlanNode> newSource = lookup.resolve(childRef).accept(new RestrictOutputSymbols(), requiredSymbols.get(i));
+                Optional<PlanNode> newSource = lookup.resolve(childRef).accept(new RestrictOutputSymbols(idAllocator), requiredSymbols.get(i));
                 if (newSource.isPresent()) {
                     newChildListBuilder.add(newSource.get());
                     areChildrenModified = true;
@@ -215,7 +299,9 @@ public class PruneUnreferencedOutputs
             newChildListBuilder.add(childRef);
         }
 
-        if (!areChildrenModified) { return Optional.empty(); }
+        if (!areChildrenModified) {
+            return Optional.empty();
+        }
         return Optional.of(node.replaceChildren(newChildListBuilder.build()));
     }
 }

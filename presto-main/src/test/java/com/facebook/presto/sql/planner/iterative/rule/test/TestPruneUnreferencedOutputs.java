@@ -117,12 +117,12 @@ public class TestPruneUnreferencedOutputs
 
     private class JoinSymbols
     {
-        Symbol leftKey;
-        Symbol leftKeyHash;
-        Symbol leftValue;
-        Symbol rightKey;
-        Symbol rightKeyHash;
-        Symbol rightValue;
+        final Symbol leftKey;
+        final Symbol leftKeyHash;
+        final Symbol leftValue;
+        final Symbol rightKey;
+        final Symbol rightKeyHash;
+        final Symbol rightValue;
 
         JoinSymbols(PlanBuilder planBuilder)
         {

@@ -99,7 +99,7 @@ public class TestPruneUnreferencedOutputs
                     Symbol hashedX = p.symbol("hashedX", BIGINT);
                     return p.project(
                             Assignments.of(),
-                            p.exchange(eb -> eb
+                            p.exchange(exchangeBuilder -> exchangeBuilder
                                     .fixedHashDistributionParitioningScheme(
                                             ImmutableList.of(x, hashedX),
                                             ImmutableList.of(x),

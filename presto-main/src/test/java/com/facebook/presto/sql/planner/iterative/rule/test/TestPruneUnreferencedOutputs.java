@@ -62,7 +62,6 @@ public class TestPruneUnreferencedOutputs
         tester = null;
     }
 
-
     @Test
     public void testExchange()
             throws Exception
@@ -111,7 +110,8 @@ public class TestPruneUnreferencedOutputs
                                             ImmutableList.of(x),
                                             hashedX)
                                     .addSource(p.values(x, hashedX))
-                                    .addInputsSet(ImmutableList.of(x, hashedX))));})
+                                    .addInputsSet(ImmutableList.of(x, hashedX))));
+                })
                 .doesNotFire();
     }
 
@@ -153,7 +153,8 @@ public class TestPruneUnreferencedOutputs
                                     ImmutableList.of(symbols.leftKey, symbols.leftValue, symbols.rightKey, symbols.rightValue),
                                     Optional.of(expression("leftValue > 5")),
                                     Optional.of(symbols.leftKeyHash),
-                                    Optional.of(symbols.rightKeyHash)));})
+                                    Optional.of(symbols.rightKeyHash)));
+                })
                 .matches(
                         strictProject(
                                 ImmutableMap.of(),
@@ -161,8 +162,8 @@ public class TestPruneUnreferencedOutputs
                                         JoinNode.Type.INNER,
                                         ImmutableList.of(equiJoinClause("leftKey_", "rightKey_")),
                                         Optional.of("leftValue_ > 5"),
-                                        values(ImmutableMap.of("leftKey_", 0,"leftKeyHash_", 1, "leftValue_", 2)),
-                                        values(ImmutableMap.of("rightKey_", 0,"rightKeyHash_", 1, "rightValue_", 2)))));
+                                        values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)),
+                                        values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1, "rightValue_", 2)))));
 
         // Cross joins can't prune their outputs, so push the pruning down to new project children
         tester.assertThat(new PruneUnreferencedOutputs())
@@ -178,7 +179,8 @@ public class TestPruneUnreferencedOutputs
                                     ImmutableList.of(symbols.leftKey, symbols.leftValue, symbols.rightKey, symbols.rightValue),
                                     Optional.empty(),
                                     Optional.empty(),
-                                    Optional.empty()));})
+                                    Optional.empty()));
+                })
                 .matches(
                         strictProject(
                                 ImmutableMap.of(),
@@ -188,10 +190,10 @@ public class TestPruneUnreferencedOutputs
                                         Optional.empty(),
                                         strictProject(
                                                 ImmutableMap.of(),
-                                                values(ImmutableMap.of("leftKey_", 0,"leftValue_", 1))),
+                                                values(ImmutableMap.of("leftKey_", 0, "leftValue_", 1))),
                                         strictProject(
                                                 ImmutableMap.of(),
-                                                values(ImmutableMap.of("rightKey_", 0,"rightValue_", 1))))));
+                                                values(ImmutableMap.of("rightKey_", 0, "rightValue_", 1))))));
 
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p -> {
@@ -206,7 +208,8 @@ public class TestPruneUnreferencedOutputs
                                     ImmutableList.of(symbols.leftKey, symbols.leftValue, symbols.rightKey, symbols.rightValue),
                                     Optional.of(expression("leftValue > 5")),
                                     Optional.of(symbols.leftKeyHash),
-                                    Optional.of(symbols.rightKeyHash)));})
+                                    Optional.of(symbols.rightKeyHash)));
+                })
                 .doesNotFire();
 
         // Prune rightValue, but not the other symbols, which are all used by the join node
@@ -221,14 +224,15 @@ public class TestPruneUnreferencedOutputs
                             ImmutableList.of(),
                             Optional.of(expression("leftValue > 5")),
                             Optional.of(symbols.leftKeyHash),
-                            Optional.of(symbols.rightKeyHash));})
+                            Optional.of(symbols.rightKeyHash));
+                })
                 .matches(
                         join(
                                 JoinNode.Type.INNER,
                                 ImmutableList.of(equiJoinClause("leftKey_", "rightKey_")),
                                 Optional.of("leftValue_ > 5"),
-                                values(ImmutableMap.of("leftKey_", 0,"leftKeyHash_", 1, "leftValue_", 2)),
-                                values(ImmutableMap.of("rightKey_", 0,"rightKeyHash_", 1))));
+                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)),
+                                values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1))));
     }
 
     @Test

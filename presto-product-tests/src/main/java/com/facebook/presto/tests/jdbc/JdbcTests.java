@@ -251,13 +251,13 @@ public class JdbcTests
     public void testSessionProperties()
             throws SQLException
     {
-        final String distributedJoin = "distributed_join";
+        final String distributedIndexJoin = "distributed_index_join";
 
-        assertThat(getSessionProperty(connection, distributedJoin)).isEqualTo(TRUE.toString());
-        setSessionProperty(connection, distributedJoin, FALSE.toString());
-        assertThat(getSessionProperty(connection, distributedJoin)).isEqualTo(FALSE.toString());
-        resetSessionProperty(connection, distributedJoin);
-        assertThat(getSessionProperty(connection, distributedJoin)).isEqualTo(TRUE.toString());
+        assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(FALSE.toString());
+        setSessionProperty(connection, distributedIndexJoin, TRUE.toString());
+        assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(TRUE.toString());
+        resetSessionProperty(connection, distributedIndexJoin);
+        assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(FALSE.toString());
     }
 
     private QueryResult queryResult(Statement statement, String query)

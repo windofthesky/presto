@@ -28,7 +28,9 @@ import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
+import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.plan.UnnestNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -49,7 +51,7 @@ public class PruneUnreferencedOutputs
         implements Rule
 {
 
-    private static ImmutableList<ImmutableSet<Symbol>> requiredJoinChildColumns(JoinNode node, ImmutableSet<Symbol> requiredOutputs)
+    private static ImmutableList<ImmutableSet<Symbol>> requiredJoinChildrenSymbols(JoinNode node, ImmutableSet<Symbol> requiredOutputs)
     {
         ImmutableSet<Symbol> globallyUsable = requiredOutputs;
         if (node.getFilter().isPresent()) {
@@ -81,6 +83,16 @@ public class PruneUnreferencedOutputs
         );
     }
 
+    private static ImmutableSet<Symbol> requiredSemiJoinSourceSymbols(SemiJoinNode node, ImmutableSet<Symbol> requiredOutputs)
+    {
+        return ImmutableSet.<Symbol>builder()
+                .addAll(requiredOutputs.stream()
+                        .filter(symbol -> !symbol.equals(node.getSemiJoinOutput())).iterator())
+                .add(node.getSourceJoinSymbol())
+                .addAll(node.getSourceHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                .build();
+    }
+
     private static class RequiredInputSymbols
             extends PlanVisitor<Void, ImmutableList<ImmutableSet<Symbol>>>
     {
@@ -107,7 +119,19 @@ public class PruneUnreferencedOutputs
         @Override
         public ImmutableList<ImmutableSet<Symbol>> visitJoin(JoinNode node, Void context)
         {
-            return requiredJoinChildColumns(node, ImmutableSet.copyOf(node.getOutputSymbols()));
+            return requiredJoinChildrenSymbols(node, ImmutableSet.copyOf(node.getOutputSymbols()));
+        }
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitSemiJoin(SemiJoinNode node, Void context)
+        {
+            return ImmutableList.of(
+                    requiredSemiJoinSourceSymbols(node, ImmutableSet.copyOf(node.getOutputSymbols())),
+                    ImmutableSet.<Symbol>builder()
+                            .add(node.getFilteringSourceJoinSymbol())
+                            .addAll(node.getFilteringSourceHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                            .build()
+            );
         }
 
         @Override
@@ -196,6 +220,16 @@ public class PruneUnreferencedOutputs
                     inputsBySource));
         }
 
+        private PlanNode restrictSymbols(PlanNode node, ImmutableSet<Symbol> targetSymbols)
+        {
+            if (node.getOutputSymbols().stream().allMatch(targetSymbols::contains)) {
+                return node;
+            }
+            else {
+                return new ProjectNode(idAllocator.getNextId(), node, Assignments.identity(targetSymbols));
+            }
+        }
+
         @Override
         public Optional<PlanNode> visitJoin(JoinNode node, ImmutableSet<Symbol> requiredSymbols)
         {
@@ -203,21 +237,10 @@ public class PruneUnreferencedOutputs
 
             if (node.isCrossJoin()) {
                 // TODO: remove this "if" branch when output symbols selection is supported by nested loop join
-                ImmutableList<ImmutableSet<Symbol>> childrenInputs = requiredJoinChildColumns(node, requiredSymbols);
-                ImmutableList.Builder<PlanNode> newChildrenBuilder = ImmutableList.builder();
-                for (int childIndex = 0; childIndex < 2; ++childIndex) {
-                    PlanNode oldChild = node.getSources().get(childIndex);
-                    if (oldChild.getOutputSymbols().stream().allMatch(childrenInputs.get(childIndex)::contains)) {
-                        newChildrenBuilder.add(oldChild);
-                    }
-                    else {
-                        newChildrenBuilder.add(new ProjectNode(
-                                idAllocator.getNextId(),
-                                oldChild,
-                                Assignments.identity(childrenInputs.get(childIndex))));
-                    }
-                }
-                newChildren = newChildrenBuilder.build();
+                ImmutableList<ImmutableSet<Symbol>> childrenInputs = requiredJoinChildrenSymbols(node, requiredSymbols);
+                newChildren = IntStream.range(0, 2)
+                        .mapToObj(childIndex -> restrictSymbols(node.getSources().get(childIndex), childrenInputs.get(childIndex)))
+                        .collect(toImmutableList());
             }
             else {
                 newChildren = node.getSources();
@@ -234,6 +257,22 @@ public class PruneUnreferencedOutputs
                     node.getLeftHashSymbol(),
                     node.getRightHashSymbol(),
                     node.getDistributionType()));
+        }
+
+        @Override
+        public Optional<PlanNode> visitSemiJoin(SemiJoinNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            // SemiJoinNode doesn't support output pruning, so we need to insert a project over the source
+            ImmutableSet<Symbol> requiredSourceSymbols = requiredSemiJoinSourceSymbols(node, requiredSymbols);
+
+            PlanNode newSourceNode = restrictSymbols(node.getSource(), requiredSourceSymbols);
+            PlanNode newNode = node.replaceChildren(ImmutableList.of(newSourceNode, node.getFilteringSource()));
+            if (newNode.getOutputSymbols().size() < node.getOutputSymbols().size()) {
+                return Optional.of(newNode);
+            }
+            else {
+                return Optional.empty();
+            }
         }
 
         @Override

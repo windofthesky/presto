@@ -56,6 +56,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.Objects.requireNonNull;
@@ -329,7 +330,7 @@ public class Analysis
 
     public List<QuantifiedComparisonExpression> getQuantifiedComparisonSubqueries(Node node)
     {
-        return ImmutableList.copyOf(quantifiedComparisonSubqueries.get(NodeRef.of(node)));
+        return unmodifiableList(quantifiedComparisonSubqueries.get(NodeRef.of(node)));
     }
 
     public void setWindowFunctions(QuerySpecification node, List<FunctionCall> functions)

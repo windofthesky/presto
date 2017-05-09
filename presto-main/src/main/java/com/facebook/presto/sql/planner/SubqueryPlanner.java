@@ -407,7 +407,6 @@ class SubqueryPlanner
     {
         return analysis.getCoercions().keySet().stream()
                 .map(NodeRef::getNode)
-                // TODO why is this comparing by equality?
                 .filter(coercionExpression -> coercionExpression.equals(expression))
                 .collect(toImmutableList());
     }

@@ -55,7 +55,6 @@ public class LookupJoinOperator
     private Optional<SpilledLookupJoiner> spilledLookupJoiner = Optional.empty();
 
     private boolean finishing;
-    private boolean lookupJoinerDrained = false;
     private boolean closed;
 
     private Optional<PartitioningSpiller> spiller = Optional.empty();
@@ -223,21 +222,11 @@ public class LookupJoinOperator
     @Override
     public Page getOutput()
     {
-        if (!finishing) {
+        if (!finishing || !lookupJoiner.isFinished()) {
             return lookupJoiner.getOutput();
         }
 
-        if (!lookupJoinerDrained) {
-            Page output = lookupJoiner.getOutput();
-            if (output != null) {
-                lookupJoinerDrained = true;
-                return output;
-            }
-        }
-
         if (spiller.isPresent()) {
-
-
 
             if (!spilledLookupJoiner.isPresent() || spilledLookupJoiner.get().isFinished()) {
                 unspillNextLookupSource();

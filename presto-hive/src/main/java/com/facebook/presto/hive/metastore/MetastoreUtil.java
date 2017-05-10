@@ -23,6 +23,7 @@ import org.apache.hadoop.hive.metastore.ProtectMode;
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
+import org.apache.hadoop.hive.metastore.api.Date;
 import org.apache.hadoop.hive.metastore.api.DateColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.Decimal;
 import org.apache.hadoop.hive.metastore.api.DecimalColumnStatsData;
@@ -39,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -411,8 +413,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDateStats()) {
             DateColumnStatsData dateStatsData = columnStatistics.getStatsData().getDateStats();
             return new HiveColumnStatistics<>(
-                    Optional.ofNullable(dateStatsData.getLowValue()),
-                    Optional.ofNullable(dateStatsData.getHighValue()),
+                    fromMetastoreDate(dateStatsData.getLowValue()),
+                    fromMetastoreDate(dateStatsData.getHighValue()),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -447,6 +449,14 @@ public class MetastoreUtil
         else {
             throw new PrestoException(HIVE_INVALID_METADATA, "Invalid column statistics data: " + columnStatistics);
         }
+    }
+
+    private static Optional<LocalDate> fromMetastoreDate(Date date)
+    {
+        if (date == null) {
+            return Optional.empty();
+        }
+        return Optional.of(LocalDate.ofEpochDay(date.getDaysSinceEpoch()));
     }
 
     private static Optional<BigDecimal> fromMetastoreDecimal(@Nullable Decimal decimal)

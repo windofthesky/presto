@@ -66,7 +66,7 @@ public class MetricComparator
     {
         Stream<Map<PlanNodeId, PlanNodeStats>> stagesStatsStream =
                 getAllStages(Optional.of(outputStageInfo)).stream()
-                        .map(PlanNodeStatsSummarizer::aggregatePlanNodeStats);
+                        .map((StageInfo stageInfo) -> PlanNodeStatsSummarizer.aggregatePlanNodeStats(stageInfo, true));
 
         Map<PlanNodeId, PlanNodeStats> mergedStats = mergeStats(stagesStatsStream);
         return transformValues(mergedStats, this::toPlanNodeCost);

@@ -26,6 +26,7 @@ import com.facebook.presto.sql.planner.plan.ExceptNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.GroupIdNode;
+import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.IntersectNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
@@ -245,6 +246,17 @@ public final class PlanMatchPattern
                         expectedFilter.map(predicate -> rewriteIdentifiersToSymbolReferences(new SqlParser().createExpression(predicate)))));
     }
 
+    public static PlanMatchPattern indexJoin(
+            IndexJoinNode.Type joinType,
+            List<ExpectedValueProvider<IndexJoinNode.EquiJoinClause>> expectedEquiCriteria,
+            PlanMatchPattern probeSource,
+            PlanMatchPattern indexSource)
+    {
+        return node(IndexJoinNode.class, probeSource, indexSource)
+                .with(new IndexJoinMatcher(joinType, expectedEquiCriteria));
+    }
+
+
     public static PlanMatchPattern exchange(PlanMatchPattern... sources)
     {
         return node(ExchangeNode.class, sources);
@@ -274,6 +286,11 @@ public final class PlanMatchPattern
     public static ExpectedValueProvider<JoinNode.EquiJoinClause> equiJoinClause(String left, String right)
     {
         return new EquiJoinClauseProvider(new SymbolAlias(left), new SymbolAlias(right));
+    }
+
+    public static ExpectedValueProvider<IndexJoinNode.EquiJoinClause> indexJoinEquiJoinClause(String left, String right)
+    {
+        return new IndexJoinEquiJoinClauseProvider(new SymbolAlias(left), new SymbolAlias(right));
     }
 
     public static SymbolAlias symbol(String alias)

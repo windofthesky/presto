@@ -36,6 +36,8 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggreg
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.equiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.exchange;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoin;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoinEquiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.join;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.semiJoin;
@@ -330,16 +332,19 @@ public class TestPruneUnreferencedOutputs
                 .matches(
                         strictProject(
                                 ImmutableMap.of(),
-                                semiJoin(
-                                        "leftKey_",
-                                        "rightKey_",
-                                        "semiJoinOutput_",
+                                indexJoin(
+                                        IndexJoinNode.Type.INNER,
+                                        ImmutableList.of(indexJoinEquiJoinClause("leftKey_", "rightKey_")),
                                         strictProject(
                                                 ImmutableMap.of(
                                                         "leftKey_", PlanMatchPattern.expression("leftKey_"),
                                                         "leftKeyHash_", PlanMatchPattern.expression("leftKeyHash_")),
-                                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1))),
-                                        values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1, "rightValue_", 2)))));
+                                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftKeyValue_", 2))),
+                                        strictProject(
+                                                ImmutableMap.of(
+                                                        "rightKey_", PlanMatchPattern.expression("rightKey_"),
+                                                        "rightKeyHash_", PlanMatchPattern.expression("rightKeyHash_")),
+                                                values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1, "rightKeyValue_", 2))))));
 
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p -> {
@@ -367,13 +372,7 @@ public class TestPruneUnreferencedOutputs
                             Optional.of(symbols.leftKeyHash),
                             Optional.of(symbols.rightKeyHash));
                 })
-                .matches(
-                        semiJoin(
-                                "leftKey_",
-                                "rightKey_",
-                                "semiJoinOutput_",
-                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1)),
-                                values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1))));
+                .doesNotFire();
     }
 
     @Test

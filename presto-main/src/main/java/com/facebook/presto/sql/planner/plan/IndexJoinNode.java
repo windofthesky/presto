@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import javax.annotation.concurrent.Immutable;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -160,6 +161,29 @@ public class IndexJoinNode
         public Symbol getIndex()
         {
             return index;
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj) {
+                return true;
+            }
+
+            if (obj == null || !this.getClass().equals(obj.getClass())) {
+                return false;
+            }
+
+            EquiJoinClause other = (EquiJoinClause) obj;
+
+            return Objects.equals(this.probe, other.probe) &&
+                    Objects.equals(this.index, other.index);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(probe, index);
         }
     }
 }

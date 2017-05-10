@@ -19,6 +19,7 @@ import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.rule.PruneUnreferencedOutputs;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
+import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.google.common.collect.ImmutableList;
@@ -239,10 +240,10 @@ public class TestPruneUnreferencedOutputs
     }
 
     @Test
-    public void testSemijoin()
+    public void testSemiJoin()
             throws Exception
     {
-        // Semijoins can't prune their outputs, so push the pruning down to a new project source
+        // SemiJoins can't prune their outputs, so push the pruning down to a new project source
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p -> {
                     JoinSymbols symbols = new JoinSymbols(p);
@@ -305,6 +306,73 @@ public class TestPruneUnreferencedOutputs
                                 "rightKey_",
                                 "semiJoinOutput_",
                                 values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)),
+                                values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1))));
+    }
+
+    @Test
+    public void testIndexJoin()
+            throws Exception
+    {
+        // IndexJoins can't prune their outputs, so push the pruning down to new project children
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p -> {
+                    JoinSymbols symbols = new JoinSymbols(p);
+                    return p.project(
+                            Assignments.of(),
+                            p.indexJoin(
+                                    IndexJoinNode.Type.INNER,
+                                    p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
+                                    p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
+                                    ImmutableList.of(new IndexJoinNode.EquiJoinClause(symbols.leftKey, symbols.rightKey)),
+                                    Optional.of(symbols.leftKeyHash),
+                                    Optional.of(symbols.rightKeyHash)));
+                })
+                .matches(
+                        strictProject(
+                                ImmutableMap.of(),
+                                semiJoin(
+                                        "leftKey_",
+                                        "rightKey_",
+                                        "semiJoinOutput_",
+                                        strictProject(
+                                                ImmutableMap.of(
+                                                        "leftKey_", PlanMatchPattern.expression("leftKey_"),
+                                                        "leftKeyHash_", PlanMatchPattern.expression("leftKeyHash_")),
+                                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1))),
+                                        values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1, "rightValue_", 2)))));
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p -> {
+                    JoinSymbols symbols = new JoinSymbols(p);
+                    return p.project(
+                            Assignments.of(),
+                            p.indexJoin(
+                                    IndexJoinNode.Type.INNER,
+                                    p.values(symbols.leftKey, symbols.leftKeyHash),
+                                    p.values(symbols.rightKey, symbols.rightKeyHash),
+                                    ImmutableList.of(new IndexJoinNode.EquiJoinClause(symbols.leftKey, symbols.rightKey)),
+                                    Optional.of(symbols.leftKeyHash),
+                                    Optional.of(symbols.rightKeyHash)));
+                })
+                .doesNotFire();
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p -> {
+                    JoinSymbols symbols = new JoinSymbols(p);
+                    return p.indexJoin(
+                            IndexJoinNode.Type.INNER,
+                            p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
+                            p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
+                            ImmutableList.of(new IndexJoinNode.EquiJoinClause(symbols.leftKey, symbols.rightKey)),
+                            Optional.of(symbols.leftKeyHash),
+                            Optional.of(symbols.rightKeyHash));
+                })
+                .matches(
+                        semiJoin(
+                                "leftKey_",
+                                "rightKey_",
+                                "semiJoinOutput_",
+                                values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1)),
                                 values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1))));
     }
 

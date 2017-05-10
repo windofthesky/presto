@@ -37,6 +37,7 @@ import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.DeleteNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.FilterNode;
+import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -299,6 +300,25 @@ public class PlanBuilder
                 sourceHashSymbol,
                 filteringSourceHashSymbol,
                 Optional.empty()
+        );
+    }
+
+    public IndexJoinNode indexJoin(
+            IndexJoinNode.Type type,
+            PlanNode left,
+            PlanNode right,
+            List<IndexJoinNode.EquiJoinClause> criteria,
+            Optional<Symbol> leftHashSymbol,
+            Optional<Symbol> rightHashSymbol)
+    {
+        return new IndexJoinNode(
+                idAllocator.getNextId(),
+                type,
+                left,
+                right,
+                criteria,
+                leftHashSymbol,
+                rightHashSymbol
         );
     }
 

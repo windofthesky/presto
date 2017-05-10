@@ -24,6 +24,7 @@ import com.teradata.tempto.query.QueryExecutor;
 import org.testng.annotations.Test;
 
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
+import static com.facebook.presto.tests.TestGroups.SKIP_ON_CDH;
 import static com.facebook.presto.tests.hive.AllAnalyzableTypesTableDefinitions.ALL_ANALYZABLE_HIVE_TYPES_TEXTFILE;
 import static com.facebook.presto.tests.hive.HiveTableDefinitions.NATION_PARTITIONED_BY_REGIONKEY;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
@@ -240,7 +241,7 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 5.0, null, null));
     }
 
-    @Test(groups = {HIVE_CONNECTOR})
+    @Test(groups = {HIVE_CONNECTOR, SKIP_ON_CDH}) // skip on cdh due to no support for date column and stats
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypes()
     {
@@ -257,6 +258,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, null, null, null, null, null),
                 row("c_decimal_w_params", null, null, null, null, null, null),
                 row("c_timestamp", null, null, null, null, null, null),
+                row("c_date", null, null, null, null, null, null),
                 row("c_string", null, null, null, null, null, null),
                 row("c_varchar", null, null, null, null, null, null),
                 row("c_char", null, null, null, null, null, null),
@@ -276,6 +278,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, 2.0, 0.0, null, "345", "346"),
                 row("c_decimal_w_params", null, 2.0, 0.0, null, "345.67100", "345.67800"),
                 row("c_timestamp", null, 2.0, 0.0, null, "2015-05-10 12:15:31.000", "2015-05-10 12:15:35.000"),
+                row("c_date", null, 3.0, 0.0, null, "2015-05-09", "2015-05-10"),
                 row("c_string", null, 2.0, 0.0, null, null, null),
                 row("c_varchar", null, 2.0, 0.0, null, null, null),
                 row("c_char", null, 2.0, 0.0, null, null, null),
@@ -284,7 +287,7 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 2.0, null, null));
     }
 
-    @Test(groups = {HIVE_CONNECTOR})
+    @Test(groups = {HIVE_CONNECTOR, SKIP_ON_CDH}) // skip on cdh due to no support for date column and stats
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypesNoData()
     {
@@ -301,6 +304,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, null, null, null, null, null),
                 row("c_decimal_w_params", null, null, null, null, null, null),
                 row("c_timestamp", null, null, null, null, null, null),
+                row("c_date", null, null, null, null, null, null),
                 row("c_string", null, null, null, null, null, null),
                 row("c_varchar", null, null, null, null, null, null),
                 row("c_char", null, null, null, null, null, null),
@@ -320,6 +324,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, 0.0, 0.0, null, null, null),
                 row("c_decimal_w_params", null, 0.0, 0.0, null, null, null),
                 row("c_timestamp", null, 0.0, 0.0, null, null, null),
+                row("c_date", null, 0.0, 0.0, null, null, null),
                 row("c_string", null, 0.0, 0.0, null, null, null),
                 row("c_varchar", null, 0.0, 0.0, null, null, null),
                 row("c_char", null, 0.0, 0.0, null, null, null),
@@ -328,12 +333,12 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 0.0, null, null));
     }
 
-    @Test(groups = {HIVE_CONNECTOR})
+    @Test(groups = {HIVE_CONNECTOR, SKIP_ON_CDH}) // skip on cdh due to no support for date column and stats
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypesOnlyNulls()
     {
         String tableNameInDatabase = mutableTablesState().get(EMPTY_ALL_TYPES_TABLE_NAME).getNameInDatabase();
-        onHive().executeQuery("INSERT INTO TABLE " + tableNameInDatabase + " VALUES(null, null, null, null, null, null, null, null, null, null, null, null, null, null)");
+        onHive().executeQuery("INSERT INTO TABLE " + tableNameInDatabase + " VALUES(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)");
 
         onHive().executeQuery("ANALYZE TABLE " + tableNameInDatabase + " COMPUTE STATISTICS");
 
@@ -347,6 +352,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, null, null, null, null, null),
                 row("c_decimal_w_params", null, null, null, null, null, null),
                 row("c_timestamp", null, null, null, null, null, null),
+                row("c_date", null, null, null, null, null, null),
                 row("c_string", null, null, null, null, null, null),
                 row("c_varchar", null, null, null, null, null, null),
                 row("c_char", null, null, null, null, null, null),
@@ -366,6 +372,7 @@ public class TestHiveTableStatistics
                 row("c_decimal", null, 1.0, 1.0, null, null, null),
                 row("c_decimal_w_params", null, 1.0, 1.0, null, null, null),
                 row("c_timestamp", null, 1.0, 1.0, null, null, null),
+                row("c_date", null, 1.0, 1.0, null, null, null),
                 row("c_string", null, 1.0, 1.0, null, null, null),
                 row("c_varchar", null, 1.0, 1.0, null, null, null),
                 row("c_char", null, 1.0, 1.0, null, null, null),

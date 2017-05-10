@@ -50,6 +50,7 @@ public final class AllAnalyzableTypesTableDefinitions
                         "   c_decimal            DECIMAL," +
                         "   c_decimal_w_params   DECIMAL(10,5)," +
                         "   c_timestamp          TIMESTAMP," +
+                        "   c_date               DATE," +
                         "   c_string             STRING," +
                         "   c_varchar            VARCHAR(10)," +
                         "   c_char               CHAR(10)," +

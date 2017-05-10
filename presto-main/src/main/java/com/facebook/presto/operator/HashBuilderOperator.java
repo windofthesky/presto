@@ -403,7 +403,6 @@ public class HashBuilderOperator
     {
         requireNonNull(page, "page is null");
         checkState(!isFinished(), "Operator is already finished");
-        checkState(spillInProgress.isDone());
 
         operatorContext.recordGeneratedOutput(page.getSizeInBytes(), page.getPositionCount());
 

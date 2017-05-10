@@ -72,7 +72,7 @@ public final class PartitionedLookupSourceFactory
     private int partitionsSet;
 
     @GuardedBy("this")
-    private Map<Integer, Supplier<ListenableFuture<LookupSource>>> spilledLookupSources = new HashMap<>();
+    private Map<Integer, SpilledLookupSourceHandle> spilledLookupSources = new HashMap<>();
 
     @GuardedBy("this")
     private final PartitioningSpillerFactory partitioningSpillerFactory;
@@ -157,13 +157,13 @@ public final class PartitionedLookupSourceFactory
         }
     }
 
-    public synchronized void setPartitionSpilledLookupSourceSupplier(int partitionIndex, Supplier<ListenableFuture<LookupSource>> unspillCallback)
+    public synchronized void setPartitionSpilledLookupSourceSupplier(int partitionIndex, SpilledLookupSourceHandle spilledLookupSourceHandle)
     {
         SetLookupSourceResult result;
         synchronized (this) {
-            requireNonNull(unspillCallback, "unspillCallback is null");
+            requireNonNull(spilledLookupSourceHandle, "unspillCallback is null");
 
-            spilledLookupSources.put(partitionIndex, unspillCallback);
+            spilledLookupSources.put(partitionIndex, spilledLookupSourceHandle);
 
             result = internalSetLookupSource(partitionIndex, () -> new SpilledLookupSource(outputTypes.size()));
         }
@@ -277,25 +277,9 @@ public final class PartitionedLookupSourceFactory
 
     private CompletableFuture<LookupSource> loadLookupSourcePartition(Integer partitionNumber)
     {
-        Supplier<ListenableFuture<LookupSource>> unspillCallback = spilledLookupSources.get(partitionNumber);
+        SpilledLookupSourceHandle unspillCallback = spilledLookupSources.get(partitionNumber);
         // TODO replace with ListenableFuture
-        return MoreFutures.toCompletableFuture(unspillCallback.get());
-    }
-
-    private LookupSource getLookupSource(Session session, List<Page> spilledBuildPages)
-    {
-        PagesIndex index = pagesIndexFactory.newPagesIndex(types, 10_000);
-
-        for (Page page : spilledBuildPages) {
-            index.addPage(page);
-        }
-
-        return index.createLookupSourceSupplier(
-                session,
-                hashChannels,
-                preComputedHashChannel,
-                filterFunctionFactory,
-                Optional.of(outputChannels)).get();
+        return MoreFutures.toCompletableFuture(unspillCallback.getLookupSource());
     }
 
     private static class SpilledLookupSource

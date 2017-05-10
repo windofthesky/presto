@@ -236,6 +236,9 @@ public class LookupJoinOperator
         }
 
         if (spiller.isPresent()) {
+
+
+
             if (!spilledLookupJoiner.isPresent() || spilledLookupJoiner.get().isFinished()) {
                 unspillNextLookupSource();
                 return null;

@@ -80,8 +80,8 @@ public class TestHiveDistributedQueries
     {
         String catalog = getSession().getCatalog().get();
         Session session = Session.builder(getSession())
-                .setCatalogSessionProperty(catalog, RCFILE_OPTIMIZED_WRITER_ENABLED, "" + rcFileOptimizedWriterEnabled)
-                .setCatalogSessionProperty(catalog, RCFILE_OPTIMIZED_READER_ENABLED, "" + rcFileOptimizedReaderEnabled)
+                .setCatalogSessionProperty(catalog, RCFILE_OPTIMIZED_WRITER_ENABLED, Boolean.toString(rcFileOptimizedWriterEnabled))
+                .setCatalogSessionProperty(catalog, RCFILE_OPTIMIZED_READER_ENABLED, Boolean.toString(rcFileOptimizedReaderEnabled))
                 .build();
 
         assertUpdate(session, "CREATE TABLE test_table_with_char WITH (format = 'RCTEXT') AS SELECT CAST('khaki' AS CHAR(7)) char_column", 1);

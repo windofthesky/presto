@@ -21,29 +21,48 @@ import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.TupleDomain;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import static com.facebook.presto.operator.project.PageFilter.positionsArrayToSelectedPositions;
+import static com.facebook.presto.operator.project.SelectedPositions.positionsRange;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 public class TupleDomainPageFilter
         implements PageFilter
 {
     private final InputChannels inputChannels;
-    private final TupleDomain<Integer> tupleDomain;
-    private final List<List<Integer>> filterChannels;
+    private final List<Integer> filterChannels;
+    @Nullable
+    private final Domain[] domains;
+
     private boolean[] selectedPositions = new boolean[0];
 
-    public TupleDomainPageFilter(
-            InputChannels inputChannels,
-            TupleDomain<Integer> tupleDomain,
-            List<List<Integer>> filterChannels)
+    public TupleDomainPageFilter(InputChannels inputChannels, List<Integer> filterChannels, TupleDomain<Integer> tupleDomain)
+    {
+        this(inputChannels, filterChannels, getDomains(inputChannels, requireNonNull(tupleDomain, "tupleDomain is null")));
+    }
+
+    private TupleDomainPageFilter(InputChannels inputChannels, List<Integer> filterChannels, @Nullable Domain[] domains)
     {
         this.inputChannels = requireNonNull(inputChannels, "inputChannels is null");
-        this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
         this.filterChannels = requireNonNull(filterChannels, "filterChannels is null");
+        this.domains = domains;
+    }
+
+    @Nullable
+    private static Domain[] getDomains(InputChannels inputChannels, TupleDomain<Integer> tupleDomain)
+    {
+        if (tupleDomain.getDomains().isPresent()) {
+            Domain[] domains = new Domain[inputChannels.size()];
+            for (int i = 0; i < domains.length; i++) {
+                domains[i] = tupleDomain.getDomains().get().get(i);
+            }
+            return domains;
+        }
+        return null;
     }
 
     @Override
@@ -61,6 +80,10 @@ public class TupleDomainPageFilter
     @Override
     public SelectedPositions filter(ConnectorSession session, Page page)
     {
+        if (domains == null) {
+            return positionsRange(0, page.getPositionCount());
+        }
+
         if (selectedPositions.length < page.getPositionCount()) {
             selectedPositions = new boolean[page.getPositionCount()];
         }
@@ -74,17 +97,7 @@ public class TupleDomainPageFilter
 
     private boolean matches(Page page, int position)
     {
-        for (List<Integer> conjunction : filterChannels) {
-            if (matches(page, position, conjunction)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean matches(Page page, int position, List<Integer> channels)
-    {
-        for (int channel : channels) {
+        for (int channel : filterChannels) {
             if (!matches(page, position, channel)) {
                 return false;
             }
@@ -94,16 +107,11 @@ public class TupleDomainPageFilter
 
     private boolean matches(Page page, int position, int channel)
     {
-        Optional<Map<Integer, Domain>> domains = tupleDomain.getDomains();
-        if (!domains.isPresent()) {
-            return true;
-        }
-
-        Domain domain = domains.get().get(channel);
+        checkState(domains != null, "domains is null");
+        Domain domain = domains[channel];
         if (domain == null) {
             return true;
         }
-
         return domain.includesNullableValue(page.getBlock(channel), position);
     }
 }

@@ -102,7 +102,7 @@ public interface ValueSet
 
     boolean containsValue(Object value);
 
-    boolean ``;
+    boolean containsValue(Block block, int position);
 
     /**
      * @return value predicates for equatable Types (but not orderable)

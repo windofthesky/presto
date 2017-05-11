@@ -58,6 +58,7 @@ import com.facebook.presto.operator.TableScanOperator.TableScanOperatorFactory;
 import com.facebook.presto.operator.TaskOutputOperator.TaskOutputFactory;
 import com.facebook.presto.operator.TopNOperator.TopNOperatorFactory;
 import com.facebook.presto.operator.TopNRowNumberOperator;
+import com.facebook.presto.operator.TupleDomainSource;
 import com.facebook.presto.operator.ValuesOperator.ValuesOperatorFactory;
 import com.facebook.presto.operator.WindowFunctionDefinition;
 import com.facebook.presto.operator.WindowOperator.WindowOperatorFactory;
@@ -223,7 +224,6 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
@@ -1546,7 +1546,9 @@ public class LocalExecutionPlanner
             List<Integer> buildChannels = ImmutableList.copyOf(getChannelsForSymbols(buildSymbols, buildSource.getLayout()));
             Optional<Integer> buildHashChannel = buildHashSymbol.map(channelGetter(buildSource));
 
-            LookupSourceFactory lookupSourceFactory = createLookupSourceFactory(node, buildContext, buildSource, buildChannels, buildHashChannel, probeSource.getLayout(), context);
+            TupleDomainSource tupleDomainSource = new TupleDomainSource(buildContext.getDriverInstanceCount().orElse(1));
+
+            LookupSourceFactory lookupSourceFactory = createLookupSourceFactory(node, buildContext, buildSource, buildChannels, buildHashChannel, probeSource.getLayout(), context, tupleDomainSource);
 
             OperatorFactory operator = createLookupJoin(node, probeSource, probeSymbols, probeHashSymbol, lookupSourceFactory, context);
 
@@ -1557,7 +1559,7 @@ public class LocalExecutionPlanner
                 outputMappings.put(symbol, i);
             }
 
-            ListenableFuture<TupleDomain<Integer>> buildDomainFuture = immediateFuture(TupleDomain.all());
+            ListenableFuture<TupleDomain<Integer>> buildDomainFuture = tupleDomainSource.getDomainFuture();
             ListenableFuture<TupleDomain<Integer>> probeDomainFuture = transform(
                     buildDomainFuture,
                     domain -> remapChannels(domain, channelsMapping(probeChannels, probeHashChannel, buildChannels, buildHashChannel)));
@@ -1629,8 +1631,15 @@ public class LocalExecutionPlanner
                 List<Integer> buildChannels,
                 Optional<Integer> buildHashChannel,
                 Map<Symbol, Integer> probeLayout,
-                LocalExecutionPlanContext context)
+                LocalExecutionPlanContext context,
+                TupleDomainSource tupleDomainSource)
         {
+            // TODO
+            for (int i = 0; i < buildContext.getDriverInstanceCount().orElse(1); i++) {
+                tupleDomainSource.addDomain(TupleDomain.all());
+            }
+
+
             List<Symbol> buildOutputSymbols = node.getOutputSymbols().stream()
                     .filter(symbol -> node.getRight().getOutputSymbols().contains(symbol))
                     .collect(toImmutableList());

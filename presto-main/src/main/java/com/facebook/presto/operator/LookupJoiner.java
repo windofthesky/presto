@@ -35,6 +35,7 @@ public final class LookupJoiner
     private final boolean probeOnOuterSide;
 
     private LookupSource lookupSource;
+    private Page pendingInputPage;
     private JoinProbe probe;
     private final PageBuilder pageBuilder;
 
@@ -65,6 +66,10 @@ public final class LookupJoiner
             return false;
         }
 
+        if (pendingInputPage != null) {
+            return false;
+        }
+
         if (lookupSource == null) {
             lookupSource = tryGetFutureValue(lookupSourceFuture).orElse(null);
             if (lookupSource == null) {
@@ -88,7 +93,7 @@ public final class LookupJoiner
 
     public boolean isFinished()
     {
-        return finishing && probe == null && pageBuilder.isEmpty();
+        return finishing && probe == null && pageBuilder.isEmpty() && pendingInputPage == null;
     }
 
     public void addInput(Page page)
@@ -109,6 +114,11 @@ public final class LookupJoiner
     {
         if (lookupSource == null) {
             return null;
+        }
+
+        if (probe == null && pendingInputPage != null) {
+            addInput(pendingInputPage);
+            pendingInputPage = null;
         }
 
         // join probe page with the lookup source

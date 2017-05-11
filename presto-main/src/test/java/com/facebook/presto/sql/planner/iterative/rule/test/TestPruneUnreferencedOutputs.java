@@ -376,6 +376,13 @@ public class TestPruneUnreferencedOutputs
     }
 
     @Test
+    public void testIndexSource()
+            throws Exception
+    {
+        // TODO implement after testTableScan is working
+    }
+
+    @Test
     public void testProject()
             throws Exception
     {

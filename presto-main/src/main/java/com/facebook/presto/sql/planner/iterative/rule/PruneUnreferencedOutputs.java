@@ -14,6 +14,7 @@
 package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.sql.planner.DependencyExtractor;
 import com.facebook.presto.sql.planner.PartitioningScheme;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -25,13 +26,13 @@ import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
+import com.facebook.presto.sql.planner.plan.IndexSourceNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
-import com.facebook.presto.sql.planner.plan.UnnestNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -41,6 +42,7 @@ import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -165,6 +167,12 @@ public class PruneUnreferencedOutputs
         public ImmutableList<ImmutableSet<Symbol>> visitIndexJoin(IndexJoinNode node, Void context)
         {
             return requiredIndexJoinChildrenSymbols(node, ImmutableSet.copyOf(node.getOutputSymbols()));
+        }
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitIndexSource(IndexSourceNode node, Void context)
+        {
+            return ImmutableList.of();
         }
 
         @Override
@@ -324,6 +332,35 @@ public class PruneUnreferencedOutputs
             // IndexJoinNode doesn't support output symbols selection, so we need to insert projects over the sources
             ImmutableList<ImmutableSet<Symbol>> childrenInputs = requiredIndexJoinChildrenSymbols(node, requiredSymbols);
             return node.replaceChildren(zipLists(node.getSources(), childrenInputs, this::restrictSymbols));
+        }
+
+        @Override
+        public PlanNode visitIndexSource(IndexSourceNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            List<Symbol> newOutputSymbols = node.getOutputSymbols().stream()
+                    .filter(requiredSymbols::contains)
+                    .collect(toImmutableList());
+
+            Set<Symbol> newLookupSymbols = node.getLookupSymbols().stream()
+                    .filter(requiredSymbols::contains)
+                    .collect(toImmutableSet());
+
+            Map<Symbol, ColumnHandle> newAssignments = Maps.filterEntries(
+                    node.getAssignments(),
+                    entry -> requiredSymbols.contains(entry.getKey()) ||
+                            node.getEffectiveTupleDomain().getDomains()
+                                    .map(domains -> domains.containsKey(entry.getValue()))
+                                    .orElse(false));
+
+            return new IndexSourceNode(
+                    node.getId(),
+                    node.getIndexHandle(),
+                    node.getTableHandle(),
+                    node.getLayout(),
+                    newLookupSymbols,
+                    newOutputSymbols,
+                    newAssignments,
+                    node.getEffectiveTupleDomain());
         }
 
         @Override

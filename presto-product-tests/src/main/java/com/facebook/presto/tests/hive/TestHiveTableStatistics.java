@@ -240,7 +240,7 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 5.0, null, null));
     }
 
-    @Test
+    @Test(groups = {HIVE_CONNECTOR})
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypes()
     {
@@ -284,7 +284,7 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 1.0, null, null));
     }
 
-    @Test
+    @Test(groups = {HIVE_CONNECTOR})
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypesNoData()
     {
@@ -328,7 +328,7 @@ public class TestHiveTableStatistics
                 row(null, null, null, null, 0.0, null, null));
     }
 
-    @Test
+    @Test(groups = {HIVE_CONNECTOR})
     @Requires(AllTypesTable.class)
     public void testStatisticsForAllDataTypesOnlyNulls()
     {

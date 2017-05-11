@@ -365,8 +365,8 @@ public class MetastoreUtil
         if (columnStatistics.getStatsData().isSetLongStats()) {
             LongColumnStatsData longStatsData = columnStatistics.getStatsData().getLongStats();
             return new HiveColumnStatistics<>(
-                    Optional.of(longStatsData.getLowValue()),
-                    Optional.of(longStatsData.getHighValue()),
+                    longStatsData.isSetLowValue() ? Optional.of(longStatsData.getLowValue()) : Optional.empty(),
+                    longStatsData.isSetHighValue() ? Optional.of(longStatsData.getHighValue()) : Optional.empty(),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -377,8 +377,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDoubleStats()) {
             DoubleColumnStatsData doubleStatsData = columnStatistics.getStatsData().getDoubleStats();
             return new HiveColumnStatistics<>(
-                    Optional.of(doubleStatsData.getLowValue()),
-                    Optional.of(doubleStatsData.getHighValue()),
+                    doubleStatsData.isSetLowValue() ? Optional.of(doubleStatsData.getLowValue()) : Optional.empty(),
+                    doubleStatsData.isSetHighValue() ? Optional.of(doubleStatsData.getHighValue()) : Optional.empty(),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -389,8 +389,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDecimalStats()) {
             DecimalColumnStatsData decimalStatsData = columnStatistics.getStatsData().getDecimalStats();
             return new HiveColumnStatistics<>(
-                    fromMetastoreDecimal(decimalStatsData.getLowValue()),
-                    fromMetastoreDecimal(decimalStatsData.getHighValue()),
+                    decimalStatsData.isSetLowValue() ? fromMetastoreDecimal(decimalStatsData.getLowValue()) : Optional.empty(),
+                    decimalStatsData.isSetHighValue() ? fromMetastoreDecimal(decimalStatsData.getHighValue()) : Optional.empty(),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -413,8 +413,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDateStats()) {
             DateColumnStatsData dateStatsData = columnStatistics.getStatsData().getDateStats();
             return new HiveColumnStatistics<>(
-                    fromMetastoreDate(dateStatsData.getLowValue()),
-                    fromMetastoreDate(dateStatsData.getHighValue()),
+                    dateStatsData.isSetLowValue() ? fromMetastoreDate(dateStatsData.getLowValue()) : Optional.empty(),
+                    dateStatsData.isSetHighValue() ? fromMetastoreDate(dateStatsData.getHighValue()) : Optional.empty(),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),

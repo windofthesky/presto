@@ -46,6 +46,7 @@ import com.facebook.presto.sql.planner.plan.SampleNode;
 import com.facebook.presto.sql.planner.plan.TableFinishNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.TableWriterNode;
+import com.facebook.presto.sql.planner.plan.UnionNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.planner.plan.WindowNode;
 import com.facebook.presto.sql.tree.Expression;
@@ -53,6 +54,7 @@ import com.facebook.presto.sql.tree.FunctionCall;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ListMultimap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -347,6 +349,27 @@ public class PlanBuilder
         {
             return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs);
         }
+    }
+
+    public UnionNode union(List<? extends PlanNode> sources, ListMultimap<Symbol, Symbol> outputsToInputs, List<Symbol> outputs)
+    {
+        return new UnionNode(idAllocator.getNextId(), (List<PlanNode>) sources, outputsToInputs, outputs);
+    }
+
+    public UnionNode union(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
+    {
+        checkMappingsMatchesSources(mapping, sources);
+        ImmutableList<Symbol> outputs = ImmutableList.copyOf(mapping.keySet());
+        return new UnionNode(idAllocator.getNextId(), ImmutableList.copyOf(sources), mapping, outputs);
+    }
+
+    private void checkMappingsMatchesSources(ListMultimap<Symbol, Symbol> mapping, PlanNode... sources)
+    {
+        checkArgument(
+                mapping.keySet().size() == sources.length,
+                "Mapping keys size does not match length of sources: %s vs %s",
+                mapping.keySet().size(),
+                sources.length);
     }
 
     public Symbol symbol(String name, Type type)

@@ -22,6 +22,7 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
@@ -38,6 +39,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.Streams;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -191,6 +193,34 @@ public class PruneUnreferencedOutputs
         public ImmutableList<ImmutableSet<Symbol>> visitValues(ValuesNode node, Void context)
         {
             return ImmutableList.of();
+        }
+
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitAggregation(AggregationNode node, Void context)
+        {
+            /*
+            return ImmutableList.of(
+                ImmutableSet.<Symbol>builder()
+                        .addAll(node.getGroupingKeys())
+                        .addAll(node.getHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                        .addAll(node.getAssignments().values().stream()
+                                .flatMap(aggregation -> Streams.concat(
+                                        DependencyExtractor.extractUnique(aggregation.getCall()).stream(),
+                                        aggregation.getMask().map(Stream::of).orElse(Stream.empty())))
+                                .iterator())
+                        .build());
+                        */
+
+            return ImmutableList.of(
+                    Streams.concat(
+                            node.getGroupingKeys().stream(),
+                            node.getHashSymbol().map(Stream::of).orElse(Stream.empty()),
+                            node.getAssignments().values().stream()
+                                    .flatMap(aggregation -> Streams.concat(
+                                            DependencyExtractor.extractUnique(aggregation.getCall()).stream(),
+                                            aggregation.getMask().map(Stream::of).orElse(Stream.empty()))))
+                            .collect(toImmutableSet()));
         }
     }
 
@@ -404,6 +434,19 @@ public class PruneUnreferencedOutputs
                                     .map(row::get)
                                     .collect(toImmutableList()))
                             .collect(toImmutableList()));
+        }
+
+        @Override
+        public PlanNode visitAggregation(AggregationNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            return new AggregationNode(
+                    node.getId(),
+                    node.getSource(),
+                    Maps.filterKeys(node.getAssignments(), requiredSymbols::contains),
+                    node.getGroupingSets(),
+                    node.getStep(),
+                    node.getHashSymbol(),
+                    node.getGroupIdSymbol());
         }
     }
 

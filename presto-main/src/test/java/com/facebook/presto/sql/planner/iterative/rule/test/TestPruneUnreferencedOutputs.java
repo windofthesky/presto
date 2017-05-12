@@ -13,10 +13,12 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule.test;
 
+import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.TestingColumnHandle;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.rule.PruneUnreferencedOutputs;
+import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
@@ -36,6 +38,7 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggreg
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.equiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.exchange;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.functionCall;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoin;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoinEquiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.join;
@@ -447,5 +450,56 @@ public class TestPruneUnreferencedOutputs
                                 Assignments.of(p.symbol("y", BIGINT), expression("x")),
                                 p.values(p.symbol("x", BIGINT))))
                 .doesNotFire();
+    }
+
+    @Test
+    public void testAggregation()
+            throws Exception
+    {
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                {
+                    final Symbol input = p.symbol("input", BIGINT);
+                    final Symbol summation1 = p.symbol("summation1", BIGINT);
+                    final Symbol unusedSummation1 = p.symbol("unusedSummation1", BIGINT);
+                    final Symbol summation2 = p.symbol("summation2", BIGINT);
+                    final Symbol key1 = p.symbol("key1", BIGINT);
+                    final Symbol key2 = p.symbol("key2", BIGINT);
+                    final Symbol keyHash2 = p.symbol("keyHash2", BIGINT);
+                    final Symbol mask2 = p.symbol("mask2", BIGINT);
+                    return p.aggregation(aggregationBuilder2 -> aggregationBuilder2
+                            .addAggregation(summation2, expression("sum(summation1)"), ImmutableList.of(BIGINT), Optional.of(mask2))
+                            .groupingSets(ImmutableList.of(ImmutableList.of(key2)))
+                            .hashSymbol(keyHash2)
+                            .step(AggregationNode.Step.SINGLE)
+                            .source(
+                                    p.aggregation(aggregationBuilder -> aggregationBuilder
+                                            .addAggregation(unusedSummation1, expression("sum(input)"), ImmutableList.of(BIGINT))
+                                            .addAggregation(summation1, expression("sum(input)"), ImmutableList.of(BIGINT))
+                                            .addAggregation(key2, expression("avg(input)"), ImmutableList.of(BIGINT))
+                                            .addAggregation(keyHash2, expression("min(input)"), ImmutableList.of(BIGINT))
+                                            .addAggregation(mask2, expression("max(input)"), ImmutableList.of(BIGINT))
+                                            .groupingSets(ImmutableList.of(ImmutableList.of(key1)))
+                                            .step(AggregationNode.Step.SINGLE)
+                                            .source(p.values(key1, input)))));
+                })
+                .matches(
+                        aggregation(
+                                ImmutableList.of(ImmutableList.of("key2_")),
+                                ImmutableMap.of(Optional.of("summation2_"), functionCall("sum", ImmutableList.of("summation1_"))),
+                                ImmutableMap.of(),
+                                Optional.empty(),
+                                AggregationNode.Step.SINGLE,
+                                aggregation(
+                                        ImmutableList.of(ImmutableList.of("key1_")),
+                                        ImmutableMap.of(
+                                                Optional.of("summation1_"), functionCall("sum", ImmutableList.of("input_")),
+                                                Optional.of("key2_"), functionCall("avg", ImmutableList.of("input_")),
+                                                Optional.of("keyHash2_"), functionCall("min", ImmutableList.of("input_")),
+                                                Optional.of("mask2_"), functionCall("max", ImmutableList.of("input_"))),
+                                        ImmutableMap.of(),
+                                        Optional.empty(),
+                                        AggregationNode.Step.SINGLE,
+                                        values(ImmutableMap.of("key1_", 0, "input_", 1)))));
     }
 }

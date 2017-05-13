@@ -35,6 +35,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -209,8 +210,9 @@ public class HashBuilderOperator
     private final PagesIndex index;
 
     private final boolean spillEnabled;
-    private final DataSize memoryLimitBeforeSpill;
+    //    private final DataSize memoryLimitBeforeSpill;
     private final SingleStreamSpillerFactory singleStreamSpillerFactory;
+    private final Menago menago;
     private Optional<SingleStreamSpiller> spiller = Optional.empty();
     private ListenableFuture<?> spillInProgress = NOT_BLOCKED;
 
@@ -219,8 +221,50 @@ public class HashBuilderOperator
     private ListenableFuture<List<Page>> unspillFuture = immediateFuture(null);
     private SettableFuture<LookupSource> unspillingDone;
 
-    private boolean noMoreInput;
     private final HashCollisionsCounter hashCollisionsCounter;
+
+    private final SpilledLookupSourceHandle spilledLookupSourceHandle = new SpilledLookupSourceHandle();
+
+    private enum State
+    {
+        /**
+         * Operator accepts input
+         */
+        CONSUMING_INPUT,
+
+        /**
+         * Memory revoking occurred during {@link #CONSUMING_INPUT}. Operator accepts input and spills it
+         */
+        SPILLING_INPUT,
+
+        /**
+         * LookupSource has been built and passed on without any spill occurring
+         */
+        LOOKUP_SOURCE_BUILT,
+
+        /**
+         * Input has been finished and spilled
+         */
+        LOOKUP_SOURCE_SPILLED,
+
+        /**
+         * Spilled input is being unspilled
+         */
+        LOOKUP_SOURCE_UNSPILLING,
+
+        /**
+         * Spilled input has been unspilled, LookupSource built from it
+         */
+        // TODO consider merging this state with LOOKUP_SOURCE_BUILT
+        LOOKUP_SOURCE_UNSPILLED_AND_BUILT,
+
+        /**
+         * No longer needed
+         */
+        DISPOSED
+    }
+
+    private State state = State.CONSUMING_INPUT; // TODO state transitions
 
     public HashBuilderOperator(
             OperatorContext operatorContext,
@@ -233,7 +277,6 @@ public class HashBuilderOperator
             int expectedPositions,
             PagesIndex.Factory pagesIndexFactory,
             boolean spillEnabled,
-            DataSize memoryLimitBeforeSpill,
             SingleStreamSpillerFactory singleStreamSpillerFactory)
     {
         requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
@@ -253,7 +296,6 @@ public class HashBuilderOperator
         operatorContext.setInfoSupplier(hashCollisionsCounter);
 
         this.spillEnabled = spillEnabled;
-        this.memoryLimitBeforeSpill = memoryLimitBeforeSpill;
         this.singleStreamSpillerFactory = singleStreamSpillerFactory;
 
         unspillingRequested = SettableFuture.create();
@@ -276,70 +318,159 @@ public class HashBuilderOperator
     }
 
     @Override
+    public ListenableFuture<?> startMemoryRevoke()
+    {
+        if (spillEnabled && (state == State.CONSUMING_INPUT || state == State.LOOKUP_SOURCE_BUILT)) {
+            menago.markSpilled(partitionIndex, spilledLookupSourceHandle);
+            menago.drainCurrentJoinProbes();
+
+            /*
+             * Remove partition from PartitionedLookupSource or somehow otherwise make it consume ~0 memory.
+             *
+             * Alas, PartitionedLookupSourceFactory can returned plan (unpartitioned) LookupSource when there is
+             * only one HashBuilderOperator. In that case, spill still is useful (think: concurrent queries), but
+             * it's harder to "unplug" partition. Should PartitionedLookupSource be used in that case too?
+             */
+            // TODO how to unplug from already existing PartitionedLookupSource-s
+
+            lookupSourceFactory.setPartitionSpilledLookupSourceSupplier(partitionIndex, spilledLookupSourceHandle);
+
+            ListenableFuture<?> spillDone = spill();
+            return spillDone;
+        }
+
+        // Nothing to spill
+        return immediateFuture(null);
+    }
+
+    @Override
+    public void finishMemoryRevoke()
+    {
+        index.clear();
+        operatorContext.setMemoryReservation(index.getEstimatedSize().toBytes());
+        operatorContext.setRevocableMemoryReservation(0L);
+
+        switch (state) {
+            case CONSUMING_INPUT:
+                state = State.SPILLING_INPUT;
+                break;
+            case LOOKUP_SOURCE_BUILT:
+                state = State.LOOKUP_SOURCE_SPILLED;
+                break;
+            default:
+                throw new IllegalStateException("Bad state: " + state);
+        }
+    }
+
+    private ListenableFuture<?> spill()
+    {
+        checkState(!spiller.isPresent());
+        spiller = Optional.of(singleStreamSpillerFactory.create(index.getTypes(),
+                operatorContext.getSpillContext().newLocalSpillContext(),
+                operatorContext.getSystemMemoryContext().newLocalMemoryContext()));
+        return spiller.get().spill(index.getPages());
+    }
+
+    @Override
     public void finish()
     {
-        if (!noMoreInput) {
-            if (!spillInProgress.isDone()) {
-                // Not ready to handle finish() yet
-                return;
-            }
-
-            noMoreInput = true;
-
-            if (spiller.isPresent()) {
-                index.clear(); // already fully spilled
-                unspillingRequested = SettableFuture.create();
-                unspillingDone = SettableFuture.create();
-                unspillFuture = SettableFuture.create();
-                lookupSourceFactory.setPartitionSpilledLookupSourceSupplier(partitionIndex, this::unspill);
-
-                operatorContext.setMemoryReservation(index.getEstimatedSize().toBytes());
-                hashCollisionsCounter.recordHashCollision(0, 0);
-            }
-            else {
+        switch (state) {
+            case CONSUMING_INPUT: {
                 LookupSourceSupplier partition = index.createLookupSourceSupplier(operatorContext.getSession(), hashChannels, preComputedHashChannel, filterFunctionFactory, Optional.of(outputChannels));
                 lookupSourceFactory.setPartitionLookupSourceSupplier(partitionIndex, partition);
 
                 operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
                 hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
-            }
-        }
 
-        // TODO proper states?
-
-        if (unspillingRequested.isDone() && !unspillingDone.isDone()) {
-
-            if (!unspillingInititated) {
-                unspillingInititated = true;
-                checkState(spiller.isPresent());
-                unspillFuture = MoreFutures.toListenableFuture(spiller.get().getAllSpilledPages());
+                state = State.LOOKUP_SOURCE_BUILT;
+                return;
             }
 
-            // FIXME those names are hardly distinguishable
-            if (unspillFuture.isDone() && !unspillingDone.isDone()) {
-                List<Page> pages = MoreFutures.getFutureValue(unspillFuture);
+            case SPILLING_INPUT: {
+                verify(spiller.isPresent());
 
-                // TODO can I reuse this.index ??????
-                for (Page page : pages) {
-                    index.addPage(page);
+                if (!spillInProgress.isDone()) {
+                    // Not ready to handle finish() yet
+                    return;
                 }
 
-                LookupSourceSupplier partition = index.createLookupSourceSupplier(
-                        operatorContext.getSession(),
-                        hashChannels,
-                        preComputedHashChannel,
-                        filterFunctionFactory,
-                        Optional.of(outputChannels));
+                index.clear(); // already fully spilled
+                unspillingRequested = SettableFuture.create();
+                unspillingDone = SettableFuture.create();
+                unspillFuture = SettableFuture.create();
+                lookupSourceFactory.setPartitionSpilledLookupSourceSupplier(partitionIndex, spilledLookupSourceHandle);
 
-                operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
-                hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
+                operatorContext.setMemoryReservation(index.getEstimatedSize().toBytes());
+                hashCollisionsCounter.recordHashCollision(0, 0);
 
-                unspillingDone.set(partition.get());
+                state = State.LOOKUP_SOURCE_SPILLED;
+                return;
             }
+
+            case LOOKUP_SOURCE_BUILT:
+                return;
+
+            case LOOKUP_SOURCE_SPILLED: {
+                if (!unspillingRequested.isDone()) {
+                    return;
+                }
+                else {
+                    state = State.LOOKUP_SOURCE_UNSPILLING;
+                }
+            }
+
+            // fall-through
+
+            case LOOKUP_SOURCE_UNSPILLING: {
+                verify(!unspillingDone.isDone());
+
+                if (!unspillingInititated) {
+                    unspillingInititated = true;
+                    checkState(spiller.isPresent());
+                    unspillFuture = MoreFutures.toListenableFuture(spiller.get().getAllSpilledPages());
+                }
+
+                // FIXME those names are hardly distinguishable
+                if (unspillFuture.isDone()) {
+                    List<Page> pages = MoreFutures.getFutureValue(unspillFuture);
+
+                    // TODO can I reuse this.index ??????
+                    for (Page page : pages) {
+                        index.addPage(page);
+                    }
+
+                    LookupSourceSupplier partition = index.createLookupSourceSupplier(
+                            operatorContext.getSession(),
+                            hashChannels,
+                            preComputedHashChannel,
+                            filterFunctionFactory,
+                            Optional.of(outputChannels));
+
+                    operatorContext.setMemoryReservation(partition.get().getInMemorySizeInBytes());
+                    hashCollisionsCounter.recordHashCollision(partition.getHashCollisions(), partition.getExpectedHashCollisions());
+
+                    unspillingDone.set(partition.get());
+                    state = State.LOOKUP_SOURCE_UNSPILLED_AND_BUILT;
+                }
+                return;
+            }
+
+            case LOOKUP_SOURCE_UNSPILLED_AND_BUILT:
+                // TODO know when to dispose and do it
+                if (Boolean.FALSE) {
+                    return;
+                }
+                state = State.DISPOSED;
+
+                // fall-through
+
+            case DISPOSED:
+                return;
         }
     }
 
     /* @ThreadSafe */
+    // TODO this method is removed, replace appropriately
     private ListenableFuture<LookupSource> unspill()
     {
         checkState(!unspillingRequested.isDone(), "unspilling already requested");
@@ -350,15 +481,23 @@ public class HashBuilderOperator
     @Override
     public boolean isFinished()
     {
-        return noMoreInput
-                && unspillingDone.isDone()
+        return state == State.DISPOSED
                 && lookupSourceFactory.isDestroyed().isDone();
     }
 
     @Override
     public boolean needsInput()
     {
-        return !noMoreInput;
+        switch (state) {
+            case CONSUMING_INPUT:
+                return true;
+
+            case SPILLING_INPUT:
+                return spillInProgress.isDone();
+
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -366,13 +505,37 @@ public class HashBuilderOperator
     {
         // TODO if someone wanna say this method looks terribly, let's inform them proclaiming a truism is not something they could feel proud of
 
-        if (!spillInProgress.isDone()) {
-            return spillInProgress;
+        switch (state) {
+            case CONSUMING_INPUT:
+                return NOT_BLOCKED;
+
+            case SPILLING_INPUT:
+                return spillInProgress;
+
+            case LOOKUP_SOURCE_BUILT:
+                break;
+
+            case LOOKUP_SOURCE_SPILLED:
+                break;
+
+            case LOOKUP_SOURCE_UNSPILLING:
+                break;
+
+            case LOOKUP_SOURCE_UNSPILLED_AND_BUILT:
+                break;
+
+            case DISPOSED:
+                break;
         }
 
-        if (needsInput()) {
-            return NOT_BLOCKED;
-        }
+//
+//        if (!spillInProgress.isDone()) {
+//            return spillInProgress;
+//        }
+//
+//        if (needsInput()) {
+//            return NOT_BLOCKED;
+//        }
 
         if (!unspillingRequested.isDone()) {
             return unspillingRequested;
@@ -389,13 +552,9 @@ public class HashBuilderOperator
             return NOT_BLOCKED;
         }
 
+        // TODO why
         ListenableFuture<?> destroyed = lookupSourceFactory.isDestroyed();
-        if (destroyed.isDone()) {
-            return destroyed;
-        }
-        else {
-            return destroyed;
-        }
+        return destroyed;
     }
 
     @Override

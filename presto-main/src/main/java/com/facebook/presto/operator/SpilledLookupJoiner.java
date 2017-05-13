@@ -53,7 +53,7 @@ public class SpilledLookupJoiner
             return null;
         }
         Page probePage = probePages.next();
-        lookupJoiner.addInput(probePage);
+        lookupJoiner.addInput(probePage, spillingState);
 
         return lookupJoiner.getOutput();
     }

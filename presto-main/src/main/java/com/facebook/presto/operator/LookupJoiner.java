@@ -13,35 +13,64 @@
  */
 package com.facebook.presto.operator;
 
+import com.facebook.presto.operator.Menago.SpillingStateSnapshot;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PageBuilder;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spiller.SingleStreamSpiller;
+import com.facebook.presto.spiller.SingleStreamSpillerFactory;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
 import static java.util.Objects.requireNonNull;
 
+@ThreadSafe
 public final class LookupJoiner
         implements Closeable
 {
     private static final int MAX_POSITIONS_EVALUATED_PER_CALL = 10000;
 
+    private /*final*/ Menago menago;
+    private /*final*/ SingleStreamSpillerFactory singleStreamSpillerFactory;
     private final ListenableFuture<? extends LookupSource> lookupSourceFuture;
     private final JoinProbeFactory joinProbeFactory;
     private final boolean probeOnOuterSide;
 
+    @GuardedBy("this")
     private LookupSource lookupSource;
-    private Page pendingInputPage;
+
+    @GuardedBy("this")
+    private Optional<Page> rejectedInputPage;
+
+    @GuardedBy("this")
     private JoinProbe probe;
+
+    @GuardedBy("this")
+    private Optional<SingleStreamSpiller> outputSpiller;
+
+    @GuardedBy("this")
     private final PageBuilder pageBuilder;
 
+    @GuardedBy("this")
     private long joinPosition = -1;
-    private boolean finishing;
+
+    @GuardedBy("this")
     private boolean currentProbePositionProducedRow;
+
+    @GuardedBy("this")
+    private boolean finishing;
 
     public LookupJoiner(
             List<Type> types,
@@ -53,9 +82,10 @@ public final class LookupJoiner
         this.lookupSourceFuture = requireNonNull(lookupSourceFuture, "lookupSourceFuture is null");
         this.joinProbeFactory = requireNonNull(joinProbeFactory, "joinProbeFactory is null");
         this.probeOnOuterSide = probeOnOuterSide;
+//        this.spillingStateSnapshot = menago.getSpillingState();
     }
 
-    public boolean needsInput()
+    public synchronized boolean needsInput()
     {
         if (finishing) {
             return false;
@@ -66,7 +96,11 @@ public final class LookupJoiner
             return false;
         }
 
-        if (pendingInputPage != null) {
+//        if (rejectedInputPage != null) {
+//            return false;
+//        }
+
+        if (outputSpiller.isPresent()) {
             return false;
         }
 
@@ -81,44 +115,84 @@ public final class LookupJoiner
         return true;
     }
 
-    public ListenableFuture<?> isBlocked()
+    public /*synchronized*/ ListenableFuture<?> isBlocked()
     {
+//        if (!lookupSourceFuture.isDone()) {
+//            return lookupSourceFuture;
+//        }
+//        if (!outputSpillingFuture.isDone()) {
+//            return outputSpillingFuture;
+//        }
+//        return NOT_BLOCKED;
         return lookupSourceFuture;
     }
 
-    public void finish()
+    public synchronized void finish()
     {
         finishing = true;
     }
 
-    public boolean isFinished()
+    public synchronized boolean hasRejectedInputPage()
     {
-        return finishing && probe == null && pageBuilder.isEmpty() && pendingInputPage == null;
+        return rejectedInputPage.isPresent();
     }
 
-    public void addInput(Page page)
+    public synchronized Optional<Page> takeRejectedInputPage()
+    {
+        Optional<Page> rejectedInputPage = this.rejectedInputPage;
+        this.rejectedInputPage = Optional.empty();
+        return rejectedInputPage;
+    }
+
+    public synchronized boolean isFinished()
+    {
+        return finishing && !hasOutput() && !hasRejectedInputPage();
+    }
+
+    @GuardedBy("this")
+    private boolean hasOutput()
+    {
+        return probe != null || !pageBuilder.isEmpty();
+    }
+
+    public synchronized void addInput(Page page, SpillingStateSnapshot spillingState)
     {
         requireNonNull(page, "page is null");
         checkState(!finishing, "Operator is finishing");
         checkState(lookupSource != null, "Lookup source has not been built yet");
         checkState(probe == null, "Current page has not been completely processed yet");
+        checkState(rejectedInputPage == null, "There is a rejected input page that needs re-processing");
+
+        if (!menago.startJoinProbe(spillingState, this)) {
+            /*
+             * Spilling state has changed in the meantime, so `page` can contain positions that should be spilled
+             * before calling here. `page` will be returned back to LookupJoinOperator for re-processing.
+             */
+            rejectedInputPage = Optional.of(page);
+            return;
+        }
 
         // create probe
         probe = joinProbeFactory.createJoinProbe(lookupSource, page);
+//        probeSpillingState = spillingState;
 
         // initialize to invalid join position to force output code to advance the cursors
         joinPosition = -1;
     }
 
-    public Page getOutput()
+    public synchronized Page getOutput()
+    {
+//        if (!outputSpillingFuture.isDone()) {
+//            return null;
+//        }
+        return getOutput(finishing);
+    }
+
+    @GuardedBy("this")
+    private Page getOutput(boolean flush)
     {
         if (lookupSource == null) {
             return null;
-        }
-
-        if (probe == null && pendingInputPage != null) {
-            addInput(pendingInputPage);
-            pendingInputPage = null;
         }
 
         // join probe page with the lookup source
@@ -144,7 +218,7 @@ public final class LookupJoiner
         }
 
         // only flush full pages unless we are done
-        if (pageBuilder.isFull() || (finishing && !pageBuilder.isEmpty() && probe == null)) {
+        if (pageBuilder.isFull() || (flush && !pageBuilder.isEmpty() && probe == null)) {
             Page page = pageBuilder.build();
             pageBuilder.reset();
             return page;
@@ -153,14 +227,79 @@ public final class LookupJoiner
         return null;
     }
 
+    /**
+     * Called when a partition of a {@link LookupSource} needs to be spilled. For that exiting probes
+     */
+    public synchronized void notifySpillingStateChanged()
+    {
+//        requireNonNull(newSpillingState, "newSpillingState is null");
+
+        if (!hasOutput()) {
+            return;
+        }
+
+        ListenableFuture<?> outputSpillingFuture = getSpiller().spill(new AbstractIterator<Page>()
+        {
+            @Override
+            @SuppressWarnings("FieldAccessNotGuarded")
+            protected Page computeNext()
+            {
+                // getOutput() may return null even if there is data, thus we need loop
+                Page page = null;
+                while (probe != null && page == null) {
+                    page = getOutput(true);
+                }
+
+                if (page == null) {
+                    return endOfData();
+                }
+                return page;
+            }
+        });
+        try {
+            outputSpillingFuture.get();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted");
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException("Spilling failed", e);
+        }
+    }
+
+    @GuardedBy("this")
+    private SingleStreamSpiller getSpiller()
+    {
+        if (!outputSpiller.isPresent()) {
+            outputSpiller = Optional.of(createSpiller());
+        }
+        return outputSpiller.get();
+    }
+
+    private SingleStreamSpiller createSpiller()
+    {
+
+    }
+
     @Override
     public void close()
     {
-        probe = null;
-        pageBuilder.reset();
-        // closing lookup source is only here for index join
-        if (lookupSource != null) {
-            lookupSource.close();
+        Closer closer = Closer.create();
+        synchronized (this) {
+            closeJoinProbe();
+            pageBuilder.reset();
+
+            // closing lookup source is only here for index join
+            Optional.ofNullable(lookupSource).ifPresent(closer::register);
+            outputSpiller.ifPresent(closer::register);
+        }
+
+        try {
+            closer.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -171,6 +310,7 @@ public final class LookupJoiner
      *
      * @return true if all eligible rows have been produced; false otherwise (because pageBuilder became full)
      */
+    @GuardedBy("this")
     private boolean joinCurrentPosition(Counter lookupPositionsConsidered)
     {
         // while we have a position on lookup side to join against...
@@ -202,10 +342,11 @@ public final class LookupJoiner
     /**
      * @return whether there are more positions on probe side
      */
+    @GuardedBy("this")
     private boolean advanceProbePosition()
     {
         if (!probe.advanceNextPosition()) {
-            probe = null;
+            closeJoinProbe();
             return false;
         }
 
@@ -214,11 +355,18 @@ public final class LookupJoiner
         return true;
     }
 
+    @GuardedBy("this")
+    private void closeJoinProbe() {
+        probe = null;
+        menago.finishJoinProbe(this);
+    }
+
     /**
      * Produce a row for the current probe position, if it doesn't match any row on lookup side and this is an outer join.
      *
      * @return whether pageBuilder became full
      */
+    @GuardedBy("this")
     private boolean outerJoinCurrentPosition()
     {
         if (probeOnOuterSide && joinPosition < 0) {

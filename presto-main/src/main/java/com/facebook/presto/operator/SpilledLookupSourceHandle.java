@@ -31,8 +31,16 @@ final class SpilledLookupSourceHandle
     {
         SPILLED,
         UNSPILLING,
-        PRODUCED
+        PRODUCED,
+        DISPOSED
     }
+
+//    @GuardedBy("this")
+//    private StateMachine<State> state = new StateMachine<>(
+//            "SpilledLookupSourceHandle",
+//            directExecutor(),
+//            State.SPILLED,
+//            ImmutableList.of(State.DISPOSED));
 
     @GuardedBy("this")
     private State state = State.SPILLED;
@@ -42,11 +50,13 @@ final class SpilledLookupSourceHandle
     @GuardedBy("this")
     private Optional<SettableFuture<LookupSource>> unspilledLookupSource = Optional.of(SettableFuture.create());
 
+    private final SettableFuture<?> disposed = SettableFuture.create();
+
     public synchronized ListenableFuture<LookupSource> getLookupSource()
     {
         assertIn(State.SPILLED);
         unspillingRequested.set(null);
-        state = State.UNSPILLING;
+        setState(State.UNSPILLING);
         return unspilledLookupSource.get();
     }
 
@@ -57,12 +67,37 @@ final class SpilledLookupSourceHandle
         assertIn(State.UNSPILLING);
         unspilledLookupSource.get().set(lookupSource);
         unspilledLookupSource = Optional.empty(); // let the memory go
-        state = State.PRODUCED;
+        setState(State.PRODUCED);
     }
+
+    public synchronized void dispose()
+    {
+        disposed.set(null);
+        setState(State.DISPOSED);
+    }
+
+    private State getState()
+    {
+//        return state.get();
+        return state;
+    }
+
+//    public ListenableFuture<State> getStateChange(State currentState)
+//    {
+//        return this.state.getStateChange(currentState);
+//    }
 
     @GuardedBy("this")
     private void assertIn(State expectedState)
     {
-        checkState(state == expectedState, "Wrong state: expected %s, got %s", expectedState, state);
+        State currentState = getState();
+        checkState(currentState == expectedState, "Wrong state: expected %s, got %s", expectedState, currentState);
+    }
+
+    @GuardedBy("this")
+    private void setState(State newState)
+    {
+        //this.state.set(requireNonNull(newState, "newState is null"));
+        this.state = requireNonNull(newState, "newState is null");
     }
 }

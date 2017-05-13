@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.spiller;
 
+import com.facebook.presto.operator.Menago.SpillingStateSnapshot;
 import com.facebook.presto.spi.Page;
 import com.google.common.util.concurrent.ListenableFuture;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -32,7 +33,7 @@ public interface PartitioningSpiller
      * Partition page and enqueue partitioned pages to spill writers.
      * PartitioningSpillResult::isBlocked returns completed future when finished.
      */
-    PartitioningSpillResult partitionAndSpill(Page page);
+    PartitioningSpillResult partitionAndSpill(Page page, SpillingStateSnapshot spillingState);
 
     /**
      * Returns iterator of previously spilled Pages from given partition.

@@ -14,6 +14,7 @@
 package com.facebook.presto.operator;
 
 import com.facebook.presto.operator.LookupJoinOperators.JoinType;
+import com.facebook.presto.operator.Menago.SpillingStateSnapshot;
 import com.facebook.presto.operator.PartitionedConsumption.Partition;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.block.Block;
@@ -44,6 +45,8 @@ public class LookupJoinOperator
 
     private final List<Type> allTypes;
     private final List<Type> probeTypes;
+
+    private Menago menago;
     private final LookupSourceFactory lookupSourceFactory;
     private final JoinProbeFactory joinProbeFactory;
     private final Runnable onClose;
@@ -169,7 +172,7 @@ public class LookupJoinOperator
     @Override
     public boolean needsInput()
     {
-        return lookupJoiner.needsInput();
+        return lookupJoiner.needsInput() && !lookupJoiner.hasRejectedInputPage();
     }
 
     @Override
@@ -177,22 +180,23 @@ public class LookupJoinOperator
     {
         requireNonNull(page, "page is null");
 
-        if (lookupSourceFactory.hasSpilled()) {
-            page = spillAndMaskSpilledPositions(page);
+        SpillingStateSnapshot spillingState = menago.getSpillingState();
+        if (spillingState.hasSpilled()) {
+            page = spillAndMaskSpilledPositions(page, spillingState);
             if (page.getPositionCount() == 0) {
                 return;
             }
         }
 
-        lookupJoiner.addInput(page);
+        lookupJoiner.addInput(page, spillingState);
     }
 
-    private Page spillAndMaskSpilledPositions(Page page)
+    private Page spillAndMaskSpilledPositions(Page page, SpillingStateSnapshot spillingState)
     {
         ensureSpillerLoaded();
         checkState(spillInProgress.isDone(), "previous spill still in progress");
 
-        PartitioningSpiller.PartitioningSpillResult spillResult = spiller.get().partitionAndSpill(page);
+        PartitioningSpiller.PartitioningSpillResult spillResult = spiller.get().partitionAndSpill(page, spillingState);
 
         if (!spillResult.isBlocked().isDone()) {
             this.spillInProgress = spillResult.isBlocked();
@@ -223,6 +227,10 @@ public class LookupJoinOperator
     public Page getOutput()
     {
         if (!finishing || !lookupJoiner.isFinished()) {
+            if (lookupJoiner.needsInput()) {
+                lookupJoiner.takeRejectedInputPage().ifPresent(this::addInput);
+            }
+
             return lookupJoiner.getOutput();
         }
 

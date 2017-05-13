@@ -14,6 +14,7 @@
 package com.facebook.presto.spiller;
 
 import com.facebook.presto.memory.AggregatedMemoryContext;
+import com.facebook.presto.operator.Menago.SpillingStateSnapshot;
 import com.facebook.presto.operator.SpillContext;
 import com.facebook.presto.operator.exchange.LocalPartitionGenerator;
 import com.facebook.presto.spi.Page;
@@ -28,7 +29,6 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -42,7 +42,7 @@ public class GenericPartitioningSpiller
 {
     private final List<Type> types;
     private final int partitionsCount;
-    private final boolean[] doNotSpillPartitions;
+//    private final boolean[] doNotSpillPartitions;
     private final PageBuilder[] pageBuilders;
     private final LocalPartitionGenerator partitionGenerator;
     private final Supplier<SpillContext> spillContextSupplier;
@@ -54,7 +54,7 @@ public class GenericPartitioningSpiller
             List<Type> types,
             LocalPartitionGenerator partitionGenerator,
             int partitionsCount,
-            Set<Integer> doNotSpillPartitions,
+//            Set<Integer> doNotSpillPartitions,
             Supplier<SpillContext> spillContextSupplier,
             AggregatedMemoryContext memoryContext,
             SingleStreamSpillerFactory spillerFactory)
@@ -62,14 +62,14 @@ public class GenericPartitioningSpiller
         this.partitionsCount = partitionsCount;
         this.types = requireNonNull(types, "types is null");
         this.spillers = new SingleStreamSpiller[partitionsCount];
-        this.doNotSpillPartitions = new boolean[partitionsCount];
+//        this.doNotSpillPartitions = new boolean[partitionsCount];
         this.pageBuilders = new PageBuilder[partitionsCount];
         this.partitionGenerator = requireNonNull(partitionGenerator, "partitionGenerator is null");
         this.spillContextSupplier = requireNonNull(spillContextSupplier, "spillContextSupplier is null");
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
 
         for (int partition = 0; partition < partitionsCount; partition++) {
-            this.doNotSpillPartitions[partition] = doNotSpillPartitions.contains(partition);
+//            this.doNotSpillPartitions[partition] = doNotSpillPartitions.contains(partition);
             pageBuilders[partition] = new PageBuilder(types);
             spillers[partition] = spillerFactory.create(types, spillContextSupplier.get(), memoryContext.newLocalMemoryContext());
         }
@@ -85,23 +85,23 @@ public class GenericPartitioningSpiller
     }
 
     @Override
-    public synchronized PartitioningSpillResult partitionAndSpill(Page page)
+    public synchronized PartitioningSpillResult partitionAndSpill(Page page, SpillingStateSnapshot spillingState)
     {
         checkState(!readingStarted);
-        IntArrayList unspilledPositions = partitionPage(page);
+        IntArrayList unspilledPositions = partitionPage(page, spillingState);
         ListenableFuture<?> future = flush();
 
         return new PartitioningSpillResult(future, unspilledPositions);
     }
 
-    private synchronized IntArrayList partitionPage(Page page)
+    private synchronized IntArrayList partitionPage(Page page, SpillingStateSnapshot spillingState)
     {
         IntArrayList unspilledPositions = new IntArrayList();
 
         for (int position = 0; position < page.getPositionCount(); position++) {
             int partition = partitionGenerator.getPartition(position, page);
 
-            if (doNotSpillPartitions[partition]) {
+            if (!spillingState.isSpilled(partition)) {
                 unspilledPositions.add(position);
                 continue;
             }

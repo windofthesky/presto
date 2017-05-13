@@ -25,6 +25,7 @@ import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
@@ -419,6 +420,10 @@ public class Driver
             }
             else if (operator.getOperatorContext().isMemoryRevokingRequested()) {
                 ListenableFuture<?> future = operator.startMemoryRevoke();
+                future = Futures.transform(future, done -> {
+                    operator.finishMemoryRevoke();
+                    operator.getOperatorContext().resetMemoryRevokingRequested();
+                });
                 revokingOperators.put(operator, future);
                 checkOperatorFinishedRevoking(operator);
             }
@@ -432,8 +437,8 @@ public class Driver
         if (future.isDone()) {
             getFutureValue(future); // propagate exception if there was some
             revokingOperators.remove(operator);
-            operator.finishMemoryRevoke();
-            operator.getOperatorContext().resetMemoryRevokingRequested();
+//            operator.finishMemoryRevoke();
+//            operator.getOperatorContext().resetMemoryRevokingRequested();
         }
     }
 

@@ -252,7 +252,7 @@ public class JdbcTests
     public void testSessionProperties()
             throws SQLException
     {
-        final String distributedIndexJoin = "distributed_index_join";
+        final String distributedIndexJoin = "redistribute_writes";
 
         assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(TRUE.toString());
         setSessionProperty(connection, distributedIndexJoin, FALSE.toString());

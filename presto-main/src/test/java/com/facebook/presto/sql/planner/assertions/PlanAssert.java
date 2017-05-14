@@ -14,7 +14,6 @@
 package com.facebook.presto.sql.planner.assertions;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.iterative.Lookup;
@@ -26,7 +25,7 @@ public final class PlanAssert
 {
     private PlanAssert() {}
 
-    public static void assertPlan(Session session, Metadata metadata, Plan actual, Lookup lookup, PlanMatchPattern pattern)
+    public static void assertPlan(Session session, Metadata metadata, Lookup lookup, Plan actual, PlanMatchPattern pattern)
     {
         MatchResult matches = actual.getRoot().accept(new PlanMatchingVisitor(session, metadata, lookup, actual.getTypes()), pattern);
        if (!matches.isMatch()) {

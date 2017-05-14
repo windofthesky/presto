@@ -124,7 +124,7 @@ public class RuleAssert
         }
 
         executeInTransaction(queryRunner, session -> {
-            assertPlan(session, queryRunner.getMetadata(), new Plan(actual, types, lookup, session), lookup, pattern);
+            assertPlan(session, queryRunner.getMetadata(), lookup, new Plan(actual, types, lookup, session), pattern);
             return null;
         });
     }

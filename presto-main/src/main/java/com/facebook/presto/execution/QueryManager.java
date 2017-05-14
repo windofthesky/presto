@@ -16,7 +16,6 @@ package com.facebook.presto.execution;
 import com.facebook.presto.server.SessionSupplier;
 import com.facebook.presto.spi.QueryId;
 import com.facebook.presto.spi.resourceGroups.ResourceGroupId;
-import com.facebook.presto.sql.planner.Plan;
 import io.airlift.units.Duration;
 
 import java.util.List;
@@ -32,8 +31,6 @@ public interface QueryManager
     QueryInfo getQueryInfo(QueryId queryId);
 
     Optional<ResourceGroupId> getQueryResourceGroup(QueryId queryId);
-
-    Plan getQueryPlan(QueryId queryId);
 
     Optional<QueryState> getQueryState(QueryId queryId);
 

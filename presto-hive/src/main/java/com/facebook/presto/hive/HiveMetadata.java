@@ -15,7 +15,6 @@ package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.metastore.Column;
 import com.facebook.presto.hive.metastore.Database;
-import com.facebook.presto.hive.metastore.HiveColumnStatistics;
 import com.facebook.presto.hive.metastore.HivePrivilegeInfo;
 import com.facebook.presto.hive.metastore.HivePrivilegeInfo.HivePrivilege;
 import com.facebook.presto.hive.metastore.Partition;
@@ -52,7 +51,6 @@ import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.security.GrantInfo;
 import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.PrivilegeInfo;
-import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
@@ -80,19 +78,15 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.OptionalLong;
-import java.util.PrimitiveIterator;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 
 import static com.facebook.presto.hive.HiveColumnHandle.BUCKET_COLUMN_NAME;
 import static com.facebook.presto.hive.HiveColumnHandle.ColumnType.HIDDEN;
@@ -376,17 +370,6 @@ public class HiveMetadata
 
         tableStatistics.setRowCount(calculateRowsCount(partitionStatistics));
 
-        for (Map.Entry<String, ColumnHandle> columnEntry : tableColumns.entrySet()) {
-            String columnName = columnEntry.getKey();
-            HiveColumnHandle hiveColumnHandle = (HiveColumnHandle) columnEntry.getValue();
-            if (getColumnMetadata(session, tableHandle, hiveColumnHandle).isHidden()) {
-                continue;
-            }
-            ColumnStatistics.Builder columnStatistics = ColumnStatistics.builder();
-            columnStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
-            columnStatistics.setNullsCount(calculateNullsCount(partitionStatistics, columnName));
-            tableStatistics.setColumnStatistics(hiveColumnHandle, columnStatistics.build());
-        }
         return tableStatistics.build();
     }
 
@@ -406,78 +389,6 @@ public class HiveMetadata
             return Estimate.unknownValue();
         }
         return new Estimate(1.0 * knownPartitionRowCountsSum / partitionsWithStatsCount * allPartitionsCount);
-    }
-
-    private Estimate calculateDistinctValuesCount(Map<String, PartitionStatistics> statisticsByPartitionName, String column)
-    {
-        return summarizePartitionStatistics(
-                statisticsByPartitionName.values(),
-                column,
-                columnStatistics -> {
-                    if (columnStatistics.getDistinctValuesCount().isPresent()) {
-                        return OptionalDouble.of(columnStatistics.getDistinctValuesCount().getAsLong());
-                    }
-                    else {
-                        return OptionalDouble.empty();
-                    }
-                },
-                DoubleStream::max);
-    }
-
-    private Estimate calculateNullsCount(Map<String, PartitionStatistics> statisticsByPartitionName, String column)
-    {
-        return summarizePartitionStatistics(
-                statisticsByPartitionName.values(),
-                column,
-                columnStatistics -> {
-                    if (columnStatistics.getNullsCount().isPresent()) {
-                        return OptionalDouble.of(columnStatistics.getNullsCount().getAsLong());
-                    }
-                    else {
-                        return OptionalDouble.empty();
-                    }
-                },
-                nullsCountStream -> {
-                    double totalNullsCount = 0;
-                    long partitionsWithStatisticsCount = 0;
-                    for (PrimitiveIterator.OfDouble nullsCountIterator = nullsCountStream.iterator(); nullsCountIterator.hasNext(); ) {
-                        double nullsCount = nullsCountIterator.nextDouble();
-                        totalNullsCount += nullsCount;
-                        partitionsWithStatisticsCount++;
-                    }
-
-                    if (partitionsWithStatisticsCount == 0) {
-                        return OptionalDouble.empty();
-                    }
-                    else {
-                        int allPartitionsCount = statisticsByPartitionName.size();
-                        return OptionalDouble.of(allPartitionsCount / partitionsWithStatisticsCount * totalNullsCount);
-                    }
-                });
-    }
-
-    private Estimate summarizePartitionStatistics(
-            Collection<PartitionStatistics> partitionStatistics,
-            String column,
-            Function<HiveColumnStatistics, OptionalDouble> valueExtractFunction,
-            Function<DoubleStream, OptionalDouble> valueAggregateFunction)
-    {
-        DoubleStream intermediateStream = partitionStatistics.stream()
-                .map(PartitionStatistics::getColumnStatistics)
-                .filter(stats -> stats.containsKey(column))
-                .map(stats -> stats.get(column))
-                .map(valueExtractFunction)
-                .filter(OptionalDouble::isPresent)
-                .mapToDouble(OptionalDouble::getAsDouble);
-
-        OptionalDouble statisticsValue = valueAggregateFunction.apply(intermediateStream);
-
-        if (statisticsValue.isPresent()) {
-            return new Estimate(statisticsValue.getAsDouble());
-        }
-        else {
-            return Estimate.unknownValue();
-        }
     }
 
     private Map<String, ColumnHandle> getTableColumnNamesToHandlesMap(List<HivePartition> partitions, ConnectorSession session)
@@ -502,10 +413,10 @@ public class HiveMetadata
         SchemaTableName tableName = getTableName(hivePartitions);
 
         if (unpartitioned) {
-            return ImmutableMap.of(HivePartition.UNPARTITIONED_ID, getTableStatistics(tableName, tableColumns));
+            return ImmutableMap.of(HivePartition.UNPARTITIONED_ID, getTableStatistics(tableName));
         }
         else {
-            return getPartitionsStatistics(tableName, hivePartitions, tableColumns);
+            return getPartitionsStatistics(tableName, hivePartitions);
         }
     }
 
@@ -516,50 +427,40 @@ public class HiveMetadata
         return Iterables.getOnlyElement(tableNames);
     }
 
-    private PartitionStatistics getTableStatistics(SchemaTableName schemaTableName, Set<String> tableColumns)
+    private PartitionStatistics getTableStatistics(SchemaTableName schemaTableName)
     {
         String databaseName = schemaTableName.getSchemaName();
         String tableName = schemaTableName.getTableName();
         Table table = metastore.getTable(databaseName, tableName)
                 .orElseThrow(() -> new IllegalArgumentException(format("Could not get metadata for table %s.%s", databaseName, tableName)));
 
-        Map<String, HiveColumnStatistics> tableColumnStatistics = metastore.getTableColumnStatistics(databaseName, tableName, tableColumns).orElse(ImmutableMap.of());
-
-        return readStatisticsFromParameters(table.getParameters(), tableColumnStatistics);
+        return readStatisticsFromParameters(table.getParameters());
     }
 
-    private Map<String, PartitionStatistics> getPartitionsStatistics(SchemaTableName schemaTableName, List<HivePartition> hivePartitions, Set<String> tableColumns)
+    private Map<String, PartitionStatistics> getPartitionsStatistics(SchemaTableName schemaTableName, List<HivePartition> hivePartitions)
     {
         String databaseName = schemaTableName.getSchemaName();
         String tableName = schemaTableName.getTableName();
 
         ImmutableMap.Builder<String, PartitionStatistics> resultMap = ImmutableMap.builder();
-
-        List<String> partitionNames = hivePartitions.stream().map(HivePartition::getPartitionId).collect(Collectors.toList());
-        Map<String, Map<String, HiveColumnStatistics>> partitionColumnStatisticsMap =
-                metastore.getPartitionColumnStatistics(databaseName, tableName, new HashSet<>(partitionNames), tableColumns)
-                        .orElse(ImmutableMap.of());
-
-        Map<String, Optional<Partition>> partitionsByNames = metastore.getPartitionsByNames(databaseName, tableName, partitionNames);
-        for (String partitionName : partitionNames) {
-            Map<String, String> partitionParameters = partitionsByNames.get(partitionName)
-                    .map(Partition::getParameters)
-                    .orElseThrow(() -> new IllegalArgumentException(format("Could not get metadata for partition %s.%s.%s", databaseName, tableName, partitionName)));
-            Map<String, HiveColumnStatistics> partitionColumnStatistics = partitionColumnStatisticsMap.getOrDefault(partitionName, ImmutableMap.of());
-            resultMap.put(partitionName, readStatisticsFromParameters(partitionParameters, partitionColumnStatistics));
+        for (HivePartition hivePartition : hivePartitions) {
+            String partitionId = hivePartition.getPartitionId();
+            Partition partition = metastore
+                    .getPartition(databaseName, tableName, toPartitionValues(partitionId))
+                    .orElseThrow(() -> new IllegalArgumentException(format("Could not get metadata for partition %s.%s.%s", databaseName, tableName, partitionId)));
+            resultMap.put(partitionId, readStatisticsFromParameters(partition.getParameters()));
         }
-
         return resultMap.build();
     }
 
-    private PartitionStatistics readStatisticsFromParameters(Map<String, String> parameters, Map<String, HiveColumnStatistics> columnStatistics)
+    private PartitionStatistics readStatisticsFromParameters(Map<String, String> parameters)
     {
         boolean columnStatsAcurate = Boolean.valueOf(Optional.ofNullable(parameters.get("COLUMN_STATS_ACCURATE")).orElse("false"));
         OptionalLong numFiles = convertStringParameter(parameters.get("numFiles"));
         OptionalLong numRows = convertStringParameter(parameters.get("numRows"));
         OptionalLong rawDataSize = convertStringParameter(parameters.get("rawDataSize"));
         OptionalLong totalSize = convertStringParameter(parameters.get("totalSize"));
-        return new PartitionStatistics(columnStatsAcurate, numFiles, numRows, rawDataSize, totalSize, columnStatistics);
+        return new PartitionStatistics(columnStatsAcurate, numFiles, numRows, rawDataSize, totalSize);
     }
 
     private OptionalLong convertStringParameter(@Nullable String parameterValue)

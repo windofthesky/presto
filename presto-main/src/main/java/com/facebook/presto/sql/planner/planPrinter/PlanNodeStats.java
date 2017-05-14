@@ -29,7 +29,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toMap;
 
-public class PlanNodeStats
+class PlanNodeStats
 {
     private final PlanNodeId planNodeId;
 

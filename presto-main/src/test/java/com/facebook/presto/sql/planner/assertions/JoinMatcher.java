@@ -14,7 +14,6 @@
 package com.facebook.presto.sql.planner.assertions;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCost;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -57,7 +56,7 @@ final class JoinMatcher
     }
 
     @Override
-    public MatchResult detailMatches(PlanNode node, PlanNodeCost cost, Session session, Metadata metadata, SymbolAliases symbolAliases)
+    public MatchResult detailMatches(PlanNode node, Session session, Metadata metadata, SymbolAliases symbolAliases)
     {
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
 
@@ -88,8 +87,8 @@ final class JoinMatcher
         Set<JoinNode.EquiJoinClause> actual = ImmutableSet.copyOf(joinNode.getCriteria());
         Set<JoinNode.EquiJoinClause> expected =
                 equiCriteria.stream()
-                        .map(maker -> maker.getExpectedValue(symbolAliases))
-                        .collect(toImmutableSet());
+                .map(maker -> maker.getExpectedValue(symbolAliases))
+                .collect(toImmutableSet());
 
         return new MatchResult(expected.equals(actual));
     }

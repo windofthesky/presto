@@ -33,7 +33,6 @@ public final class StatementRewrite
             new DescribeInputRewrite(),
             new DescribeOutputRewrite(),
             new ShowQueriesRewrite(),
-            new ShowStatsRewrite(),
             new ExplainRewrite());
 
     private StatementRewrite() {}

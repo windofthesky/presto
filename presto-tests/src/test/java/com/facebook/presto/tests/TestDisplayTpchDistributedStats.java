@@ -29,7 +29,6 @@ import static com.facebook.presto.tests.statistics.MetricComparison.Result.DIFFE
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.MATCH;
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.NO_BASELINE;
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.NO_ESTIMATE;
-import static com.facebook.presto.tests.statistics.MetricComparisonStrategies.defaultTolerance;
 import static com.facebook.presto.tests.tpch.TpchQueryRunner.createQueryRunnerWithoutCatalogs;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -87,7 +86,7 @@ public class TestDisplayTpchDistributedStats
 
         Map<Metric, Map<MetricComparison.Result, List<MetricComparison>>> metricSummaries =
                 comparisons.stream()
-                        .collect(groupingBy(MetricComparison::getMetric, groupingBy((metricComparison) -> metricComparison.result(defaultTolerance()))));
+                        .collect(groupingBy(MetricComparison::getMetric, groupingBy(MetricComparison::result)));
 
         metricSummaries.forEach((metricName, resultSummaries) -> {
             int resultsCount = resultSummaries.values()

@@ -19,7 +19,6 @@ import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.facebook.presto.spi.predicate.TupleDomain;
 import com.google.common.collect.ImmutableList;
 import io.airlift.tpch.TpchColumn;
 import io.airlift.tpch.TpchColumnType;
@@ -27,7 +26,6 @@ import io.airlift.tpch.TpchEntity;
 import io.airlift.tpch.TpchTable;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.facebook.presto.tpch.TpchRecordSet.createTpchRecordSet;
 import static io.airlift.tpch.TpchColumnTypes.IDENTIFIER;
@@ -44,7 +42,7 @@ public class TpchRecordSetProvider
 
         TpchTable<?> tpchTable = TpchTable.getTable(tableName);
 
-        return getRecordSet(tpchTable, columns, tpchSplit.getTableHandle().getScaleFactor(), tpchSplit.getPartNumber(), tpchSplit.getTotalParts(), tpchSplit.getPredicate());
+        return getRecordSet(tpchTable, columns, tpchSplit.getTableHandle().getScaleFactor(), tpchSplit.getPartNumber(), tpchSplit.getTotalParts());
     }
 
     public <E extends TpchEntity> RecordSet getRecordSet(
@@ -52,8 +50,7 @@ public class TpchRecordSetProvider
             List<? extends ColumnHandle> columns,
             double scaleFactor,
             int partNumber,
-            int totalParts,
-            Optional<TupleDomain<ColumnHandle>> predicate)
+            int totalParts)
     {
         ImmutableList.Builder<TpchColumn<E>> builder = ImmutableList.builder();
         for (ColumnHandle column : columns) {
@@ -66,7 +63,7 @@ public class TpchRecordSetProvider
             }
         }
 
-        return createTpchRecordSet(table, builder.build(), scaleFactor, partNumber + 1, totalParts, predicate);
+        return createTpchRecordSet(table, builder.build(), scaleFactor, partNumber + 1, totalParts);
     }
 
     private static class RowNumberTpchColumn<E extends TpchEntity>
@@ -75,7 +72,7 @@ public class TpchRecordSetProvider
         @Override
         public String getColumnName()
         {
-            return TpchMetadata.ROW_NUMBER_COLUMN_NAME;
+            throw new UnsupportedOperationException();
         }
 
         @Override

@@ -13,15 +13,10 @@
  */
 package com.facebook.presto.tpch;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
-import com.facebook.presto.spi.predicate.NullableValue;
-import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.tpch.TpchColumn;
@@ -31,24 +26,18 @@ import io.airlift.tpch.TpchTable;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Predicate;
 
-import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.tpch.TpchMetadata.getPrestoType;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.transform;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 
 public class TpchRecordSet<E extends TpchEntity>
         implements RecordSet
 {
     public static <E extends TpchEntity> TpchRecordSet<E> createTpchRecordSet(TpchTable<E> table, double scaleFactor)
     {
-        return createTpchRecordSet(table, table.getColumns(), scaleFactor, 1, 1, Optional.empty());
+        return createTpchRecordSet(table, table.getColumns(), scaleFactor, 1, 1);
     }
 
     public static <E extends TpchEntity> TpchRecordSet<E> createTpchRecordSet(
@@ -56,19 +45,16 @@ public class TpchRecordSet<E extends TpchEntity>
             Iterable<TpchColumn<E>> columns,
             double scaleFactor,
             int part,
-            int partCount,
-            Optional<TupleDomain<ColumnHandle>> predicate)
+            int partCount)
     {
-        return new TpchRecordSet<>(table.createGenerator(scaleFactor, part, partCount), columns, predicate);
+        return new TpchRecordSet<>(table.createGenerator(scaleFactor, part, partCount), columns);
     }
 
     private final Iterable<E> table;
     private final List<TpchColumn<E>> columns;
     private final List<Type> columnTypes;
-    private final List<TpchColumnHandle> columnHandles;
-    private final Optional<Predicate<Map<ColumnHandle, NullableValue>>> predicate;
 
-    public TpchRecordSet(Iterable<E> table, Iterable<TpchColumn<E>> columns, Optional<TupleDomain<ColumnHandle>> predicate)
+    public TpchRecordSet(Iterable<E> table, Iterable<TpchColumn<E>> columns)
     {
         requireNonNull(table, "readerSupplier is null");
 
@@ -76,16 +62,6 @@ public class TpchRecordSet<E extends TpchEntity>
         this.columns = ImmutableList.copyOf(columns);
 
         this.columnTypes = ImmutableList.copyOf(transform(columns, column -> getPrestoType(column.getType())));
-
-        columnHandles = this.columns.stream()
-                .map(column -> new TpchColumnHandle(column.getColumnName(), getPrestoType(column.getType())))
-                .collect(toList());
-        this.predicate = predicate.map(TpchRecordSet::convertToPredicate);
-    }
-
-    static Predicate<Map<ColumnHandle, NullableValue>> convertToPredicate(TupleDomain<ColumnHandle> tupleDomain)
-    {
-        return bindings -> tupleDomain.contains(TupleDomain.fromFixedValues(bindings));
     }
 
     @Override
@@ -141,16 +117,14 @@ public class TpchRecordSet<E extends TpchEntity>
         @Override
         public boolean advanceNextPosition()
         {
-            while (!closed && rows.hasNext()) {
-                row = rows.next();
-                if (rowMatchesPredicate()) {
-                    return true;
-                }
+            if (closed || !rows.hasNext()) {
+                closed = true;
+                row = null;
+                return false;
             }
 
-            closed = true;
-            row = null;
-            return false;
+            row = rows.next();
+            return true;
         }
 
         @Override
@@ -204,40 +178,6 @@ public class TpchRecordSet<E extends TpchEntity>
         {
             row = null;
             closed = true;
-        }
-
-        private boolean rowMatchesPredicate()
-        {
-            if (!predicate.isPresent()) {
-                return true;
-            }
-            return predicate.get().test(rowMap());
-        }
-
-        private Map<ColumnHandle, NullableValue> rowMap()
-        {
-            ImmutableMap.Builder<ColumnHandle, NullableValue> builder = ImmutableMap.builder();
-            for (int field = 0; field < columnHandles.size(); ++field) {
-                Type type = columnTypes.get(field);
-                builder.put(columnHandles.get(field), NullableValue.of(type, getPrestoObject(field, type)));
-            }
-            return builder.build();
-        }
-
-        private Object getPrestoObject(int field, Type type)
-        {
-            if (type.getJavaType() == long.class) {
-                return getLong(field);
-            }
-            else if (type.getJavaType() == double.class) {
-                return getDouble(field);
-            }
-            else if (type.getJavaType() == Slice.class) {
-                return getSlice(field);
-            }
-            else {
-                throw new PrestoException(NOT_SUPPORTED, format("Unsupported column type %s", type.getDisplayName()));
-            }
         }
 
         private TpchColumn<E> getTpchColumn(int field)

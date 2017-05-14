@@ -14,7 +14,6 @@
 package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Plan;
@@ -41,7 +40,6 @@ public class RuleAssert
 {
     private final Metadata metadata;
     private Session session;
-    private final CostCalculator costCalculator;
     private final Rule rule;
 
     private final PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
@@ -49,10 +47,9 @@ public class RuleAssert
     private Map<Symbol, Type> symbols;
     private PlanNode plan;
 
-    public RuleAssert(Metadata metadata, CostCalculator costCalculator, Session session, Rule rule)
+    public RuleAssert(Metadata metadata, Session session, Rule rule)
     {
         this.metadata = metadata;
-        this.costCalculator = costCalculator;
         this.session = session;
         this.rule = rule;
     }
@@ -89,7 +86,7 @@ public class RuleAssert
             fail(String.format(
                     "Expected %s to not fire for:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, symbolAllocator.getTypes(), metadata, costCalculator, session, 2)));
+                    PlanPrinter.textLogicalPlan(plan, symbolAllocator.getTypes(), metadata, session, 2)));
         }
     }
 
@@ -107,7 +104,7 @@ public class RuleAssert
             fail(String.format(
                     "%s did not fire for:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, types, metadata, costCalculator, session, 2)));
+                    PlanPrinter.textLogicalPlan(plan, types, metadata, session, 2)));
         }
 
         PlanNode actual = result.get();
@@ -116,7 +113,7 @@ public class RuleAssert
             fail(String.format(
                     "%s: rule fired but return the original plan:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, types, metadata, costCalculator, session, 2)));
+                    PlanPrinter.textLogicalPlan(plan, types, metadata, session, 2)));
         }
 
         if (!ImmutableSet.copyOf(plan.getOutputSymbols()).equals(ImmutableSet.copyOf(actual.getOutputSymbols()))) {
@@ -129,6 +126,6 @@ public class RuleAssert
                     actual.getOutputSymbols()));
         }
 
-        assertPlan(session, metadata, new Plan(actual, types), costCalculator, lookup, pattern);
+        assertPlan(session, metadata, new Plan(actual, types), lookup, pattern);
     }
 }

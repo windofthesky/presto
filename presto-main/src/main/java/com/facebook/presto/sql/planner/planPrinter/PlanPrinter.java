@@ -14,7 +14,6 @@
 package com.facebook.presto.sql.planner.planPrinter;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.StageStats;
 import com.facebook.presto.metadata.Metadata;
@@ -131,17 +130,16 @@ public class PlanPrinter
     private final Metadata metadata;
     private final Optional<Map<PlanNodeId, PlanNodeStats>> stats;
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session sesion)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session sesion)
     {
-        this(plan, types, metadata, costCalculator, sesion, 0);
+        this(plan, types, metadata, sesion, 0);
     }
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, int indent)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session session, int indent)
     {
         requireNonNull(plan, "plan is null");
         requireNonNull(types, "types is null");
         requireNonNull(metadata, "metadata is null");
-        requireNonNull(costCalculator, "costCalculator is null");
 
         this.metadata = metadata;
         this.stats = Optional.empty();
@@ -150,12 +148,11 @@ public class PlanPrinter
         plan.accept(visitor, indent);
     }
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
     {
         requireNonNull(plan, "plan is null");
         requireNonNull(types, "types is null");
         requireNonNull(metadata, "metadata is null");
-        requireNonNull(costCalculator, "costCalculator is null");
 
         this.metadata = metadata;
         this.stats = Optional.of(stats);
@@ -170,22 +167,22 @@ public class PlanPrinter
         return output.toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session session)
     {
-        return new PlanPrinter(plan, types, metadata, costCalculator, session).toString();
+        return new PlanPrinter(plan, types, metadata, session).toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, int indent)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session session, int indent)
     {
-        return new PlanPrinter(plan, types, metadata, costCalculator, session, indent).toString();
+        return new PlanPrinter(plan, types, metadata, session, indent).toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
     {
-        return new PlanPrinter(plan, types, metadata, costCalculator, session, stats, indent).toString();
+        return new PlanPrinter(plan, types, metadata, session, stats, indent).toString();
     }
 
-    public static String textDistributedPlan(StageInfo outputStageInfo, Metadata metadata, CostCalculator costCalculator, Session session)
+    public static String textDistributedPlan(StageInfo outputStageInfo, Metadata metadata, Session session)
     {
         StringBuilder builder = new StringBuilder();
         List<StageInfo> allStages = outputStageInfo.getSubStages().stream()
@@ -193,23 +190,23 @@ public class PlanPrinter
                 .collect(toImmutableList());
         for (StageInfo stageInfo : allStages) {
             Map<PlanNodeId, PlanNodeStats> aggregatedStats = aggregatePlanNodeStats(stageInfo);
-            builder.append(formatFragment(metadata, costCalculator, session, stageInfo.getPlan(), Optional.of(stageInfo.getStageStats()), Optional.of(aggregatedStats)));
+            builder.append(formatFragment(metadata, session, stageInfo.getPlan(), Optional.of(stageInfo.getStageStats()), Optional.of(aggregatedStats)));
         }
 
         return builder.toString();
     }
 
-    public static String textDistributedPlan(SubPlan plan, Metadata metadata, CostCalculator costCalculator, Session session)
+    public static String textDistributedPlan(SubPlan plan, Metadata metadata, Session session)
     {
         StringBuilder builder = new StringBuilder();
         for (PlanFragment fragment : plan.getAllFragments()) {
-            builder.append(formatFragment(metadata, costCalculator, session, fragment, Optional.empty(), Optional.empty()));
+            builder.append(formatFragment(metadata, session, fragment, Optional.empty(), Optional.empty()));
         }
 
         return builder.toString();
     }
 
-    private static String formatFragment(Metadata metadata, CostCalculator costCalculator, Session session, PlanFragment fragment, Optional<StageStats> stageStats, Optional<Map<PlanNodeId, PlanNodeStats>> planNodeStats)
+    private static String formatFragment(Metadata metadata, Session session, PlanFragment fragment, Optional<StageStats> stageStats, Optional<Map<PlanNodeId, PlanNodeStats>> planNodeStats)
     {
         StringBuilder builder = new StringBuilder();
         builder.append(format("Fragment %s [%s]\n",
@@ -250,11 +247,11 @@ public class PlanPrinter
                 formatHash(partitioningScheme.getHashColumn())));
 
         if (stageStats.isPresent()) {
-            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, costCalculator, session, planNodeStats.get(), 1))
+            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, session, planNodeStats.get(), 1))
                     .append("\n");
         }
         else {
-            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, costCalculator, session, 1))
+            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, session, 1))
                     .append("\n");
         }
 

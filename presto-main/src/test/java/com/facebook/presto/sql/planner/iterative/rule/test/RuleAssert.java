@@ -14,9 +14,6 @@
 package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.CostCalculator;
-import com.facebook.presto.cost.PlanNodeCost;
-import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -24,11 +21,10 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.Lookup;
-import com.facebook.presto.sql.planner.iterative.Memo;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
-import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.facebook.presto.sql.planner.planPrinter.PlanPrinter;
+import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.Map;
@@ -41,22 +37,22 @@ import static org.testng.Assert.fail;
 
 public class RuleAssert
 {
-    private final Metadata metadata;
     private Session session;
-    private final CostCalculator costCalculator;
     private final Rule rule;
 
     private final PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
+    private final Lookup lookup;
+    private final LocalQueryRunner queryRunner;
 
     private Map<Symbol, Type> symbols;
     private PlanNode plan;
 
-    public RuleAssert(Metadata metadata, CostCalculator costCalculator, Session session, Rule rule)
+    public RuleAssert(LocalQueryRunner queryRunner, Lookup lookup, Rule rule)
     {
-        this.metadata = metadata;
-        this.costCalculator = costCalculator;
-        this.session = session;
+        this.queryRunner = queryRunner;
+        this.session = queryRunner.getDefaultSession();
         this.rule = rule;
+        this.lookup = lookup;
     }
 
     public RuleAssert setSystemProperty(String key, String value)
@@ -76,7 +72,7 @@ public class RuleAssert
     {
         checkArgument(plan == null, "plan has already been set");
 
-        PlanBuilder builder = new PlanBuilder(idAllocator, metadata);
+        PlanBuilder builder = new PlanBuilder(idAllocator, queryRunner.getMetadata());
         plan = planProvider.apply(builder);
         symbols = builder.getSymbols();
         return this;
@@ -85,31 +81,27 @@ public class RuleAssert
     public void doesNotFire()
     {
         SymbolAllocator symbolAllocator = new SymbolAllocator(symbols);
-        Optional<PlanNode> result = rule.apply(plan, x -> x, idAllocator, symbolAllocator, session);
+        Optional<PlanNode> result = executeInTransaction(queryRunner, session -> rule.apply(plan, lookup, idAllocator, symbolAllocator, session));
 
         if (result.isPresent()) {
             fail(String.format(
                     "Expected %s to not fire for:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, symbolAllocator.getTypes(), metadata, costCalculator, session, 2)));
+                    executeInTransaction(queryRunner, session -> PlanPrinter.textLogicalPlan(plan, symbolAllocator.getTypes(), queryRunner.getMetadata(), lookup, session, 2))));
         }
     }
 
     public void matches(PlanMatchPattern pattern)
     {
         SymbolAllocator symbolAllocator = new SymbolAllocator(symbols);
-
-        Memo memo = new Memo(idAllocator, plan);
-        Lookup lookup = Lookup.from(memo::resolve);
-
-        Optional<PlanNode> result = rule.apply(memo.getNode(memo.getRootGroup()), lookup, idAllocator, symbolAllocator, session);
+        Optional<PlanNode> result = executeInTransaction(queryRunner, session -> rule.apply(plan, lookup, idAllocator, symbolAllocator, session));
         Map<Symbol, Type> types = symbolAllocator.getTypes();
 
         if (!result.isPresent()) {
             fail(String.format(
                     "%s did not fire for:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, types, metadata, costCalculator, session, 2)));
+                    executeInTransaction(queryRunner, session -> PlanPrinter.textLogicalPlan(plan, types, queryRunner.getMetadata(), lookup, session, 2))));
         }
 
         PlanNode actual = result.get();
@@ -118,7 +110,7 @@ public class RuleAssert
             fail(String.format(
                     "%s: rule fired but return the original plan:\n%s",
                     rule.getClass().getName(),
-                    PlanPrinter.textLogicalPlan(plan, types, metadata, costCalculator, session, 2)));
+                    executeInTransaction(queryRunner, session -> PlanPrinter.textLogicalPlan(plan, types, queryRunner.getMetadata(), lookup, session, 2))));
         }
 
         if (!ImmutableSet.copyOf(plan.getOutputSymbols()).equals(ImmutableSet.copyOf(actual.getOutputSymbols()))) {
@@ -131,7 +123,18 @@ public class RuleAssert
                     actual.getOutputSymbols()));
         }
 
-        Map<PlanNodeId, PlanNodeCost> planNodeCosts = costCalculator.calculateCostForPlan(session, types, actual);
-        assertPlan(session, metadata, new Plan(actual, types, planNodeCosts), costCalculator, lookup, pattern);
+        executeInTransaction(queryRunner, session -> {
+            assertPlan(session, queryRunner.getMetadata(), lookup, new Plan(actual, types, lookup, session), pattern);
+            return null;
+        });
+    }
+
+    private <T> T executeInTransaction(LocalQueryRunner queryRunner, Function<Session, T> transactionFunction)
+    {
+        return queryRunner.inTransaction(session, session ->
+        {
+            session.getCatalog().ifPresent(catalog -> queryRunner.getMetadata().getCatalogHandle(session, catalog));
+            return transactionFunction.apply(session);
+        });
     }
 }

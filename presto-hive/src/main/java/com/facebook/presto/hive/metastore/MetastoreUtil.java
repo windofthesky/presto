@@ -23,7 +23,6 @@ import org.apache.hadoop.hive.metastore.ProtectMode;
 import org.apache.hadoop.hive.metastore.api.BinaryColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.BooleanColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
-import org.apache.hadoop.hive.metastore.api.Date;
 import org.apache.hadoop.hive.metastore.api.DateColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.Decimal;
 import org.apache.hadoop.hive.metastore.api.DecimalColumnStatsData;
@@ -40,7 +39,6 @@ import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -365,8 +363,8 @@ public class MetastoreUtil
         if (columnStatistics.getStatsData().isSetLongStats()) {
             LongColumnStatsData longStatsData = columnStatistics.getStatsData().getLongStats();
             return new HiveColumnStatistics<>(
-                    longStatsData.isSetLowValue() ? Optional.of(longStatsData.getLowValue()) : Optional.empty(),
-                    longStatsData.isSetHighValue() ? Optional.of(longStatsData.getHighValue()) : Optional.empty(),
+                    Optional.of(longStatsData.getLowValue()),
+                    Optional.of(longStatsData.getHighValue()),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -377,8 +375,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDoubleStats()) {
             DoubleColumnStatsData doubleStatsData = columnStatistics.getStatsData().getDoubleStats();
             return new HiveColumnStatistics<>(
-                    doubleStatsData.isSetLowValue() ? Optional.of(doubleStatsData.getLowValue()) : Optional.empty(),
-                    doubleStatsData.isSetHighValue() ? Optional.of(doubleStatsData.getHighValue()) : Optional.empty(),
+                    Optional.of(doubleStatsData.getLowValue()),
+                    Optional.of(doubleStatsData.getHighValue()),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -389,8 +387,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDecimalStats()) {
             DecimalColumnStatsData decimalStatsData = columnStatistics.getStatsData().getDecimalStats();
             return new HiveColumnStatistics<>(
-                    decimalStatsData.isSetLowValue() ? fromMetastoreDecimal(decimalStatsData.getLowValue()) : Optional.empty(),
-                    decimalStatsData.isSetHighValue() ? fromMetastoreDecimal(decimalStatsData.getHighValue()) : Optional.empty(),
+                    fromMetastoreDecimal(decimalStatsData.getLowValue()),
+                    fromMetastoreDecimal(decimalStatsData.getHighValue()),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -413,8 +411,8 @@ public class MetastoreUtil
         else if (columnStatistics.getStatsData().isSetDateStats()) {
             DateColumnStatsData dateStatsData = columnStatistics.getStatsData().getDateStats();
             return new HiveColumnStatistics<>(
-                    dateStatsData.isSetLowValue() ? fromMetastoreDate(dateStatsData.getLowValue()) : Optional.empty(),
-                    dateStatsData.isSetHighValue() ? fromMetastoreDate(dateStatsData.getHighValue()) : Optional.empty(),
+                    Optional.ofNullable(dateStatsData.getLowValue()),
+                    Optional.ofNullable(dateStatsData.getHighValue()),
                     OptionalLong.empty(),
                     OptionalDouble.empty(),
                     OptionalLong.empty(),
@@ -449,14 +447,6 @@ public class MetastoreUtil
         else {
             throw new PrestoException(HIVE_INVALID_METADATA, "Invalid column statistics data: " + columnStatistics);
         }
-    }
-
-    private static Optional<LocalDate> fromMetastoreDate(Date date)
-    {
-        if (date == null) {
-            return Optional.empty();
-        }
-        return Optional.of(LocalDate.ofEpochDay(date.getDaysSinceEpoch()));
     }
 
     private static Optional<BigDecimal> fromMetastoreDecimal(@Nullable Decimal decimal)

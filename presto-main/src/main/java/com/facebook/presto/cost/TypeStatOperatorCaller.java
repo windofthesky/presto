@@ -53,4 +53,8 @@ public class TypeStatOperatorCaller
         ScalarFunctionImplementation castImplementation = functionRegistry.getScalarFunctionImplementation(castSignature);
         return (Slice) ExpressionInterpreter.invoke(session, castImplementation, singletonList(object));
     }
+
+    public double translateToDouble(Object object) {
+        return (double) object; //fixme
+    }
 }

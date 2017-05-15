@@ -39,6 +39,11 @@ public final class Estimate
         return new Estimate(0);
     }
 
+    public static final Estimate of(double value)
+    {
+        return new Estimate(value);
+    }
+
     public Estimate(double value)
     {
         this.value = value;
@@ -52,6 +57,11 @@ public final class Estimate
     public double getValue()
     {
         return value;
+    }
+
+    public double valueOrDefault(double defaultValue)
+    {
+        return isValueUnknown() ? defaultValue : value;
     }
 
     public Estimate map(Function<Double, Double> mappingFunction)
@@ -70,6 +80,30 @@ public final class Estimate
             return unknownValue();
         }
         return new Estimate(value + other.getValue());
+    }
+
+    public Estimate subtract(Estimate other)
+    {
+        if (isValueUnknown() || other.isValueUnknown()) {
+            return unknownValue();
+        }
+        return new Estimate(value - other.getValue());
+    }
+
+    public Estimate divide(Estimate other)
+    {
+        if (isValueUnknown() || other.isValueUnknown()) {
+            return unknownValue();
+        }
+        return new Estimate(value / other.getValue());
+    }
+
+    public Estimate multiply(Estimate other)
+    {
+        if (isValueUnknown() || other.isValueUnknown()) {
+            return unknownValue();
+        }
+        return new Estimate(value * other.getValue());
     }
 
     @Override

@@ -29,6 +29,7 @@ import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.IndexSourceNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
+import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanVisitor;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
@@ -122,6 +123,16 @@ public class PruneUnreferencedOutputs
                         .filter(indexUsable::contains)
                         .collect(toImmutableSet())
         );
+    }
+
+    private static ImmutableSet<Symbol> requiredMarkDistinctSourceSymbols(MarkDistinctNode node, ImmutableSet<Symbol> requiredOutputs)
+    {
+        return ImmutableSet.<Symbol>builder()
+                .addAll(requiredOutputs.stream()
+                        .filter(symbol -> !symbol.equals(node.getMarkerSymbol())).iterator())
+                .addAll(node.getDistinctSymbols())
+                .addAll(node.getHashSymbol().map(Stream::of).orElse(Stream.empty()).iterator())
+                .build();
     }
 
     private static class RequiredInputSymbols
@@ -222,6 +233,12 @@ public class PruneUnreferencedOutputs
                                             aggregation.getMask().map(Stream::of).orElse(Stream.empty()))))
                             .collect(toImmutableSet()));
         }
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitMarkDistinct(MarkDistinctNode node, Void context)
+        {
+            return ImmutableList.of(requiredMarkDistinctSourceSymbols(node, ImmutableSet.copyOf(node.getOutputSymbols())));
+        }
     }
 
     private static class RestrictOutputSymbols
@@ -298,15 +315,6 @@ public class PruneUnreferencedOutputs
         }
 
         // TODO: replace with Streams.zip in guava 22
-        /*
-        // Alternative implementation, whose use of List.get could result in quadratic runtime
-        private static <A, B, R> ImmutableList<R> zipLists(List<A> listA, List<B> listB, BiFunction<A, B, R> mapping)
-        {
-            return IntStream.range(0, Integer.min(listA.size(), listB.size()))
-                    .mapToObj(i -> mapping.apply(listA.get(i), listB.get(i)))
-                    .collect(toImmutableList());
-        }
-        */
         private static <A, B, R> ImmutableList<R> zipLists(List<A> listA, List<B> listB, BiFunction<A, B, R> mapping)
         {
             Iterator<A> iteratorA = listA.iterator();
@@ -349,6 +357,10 @@ public class PruneUnreferencedOutputs
         @Override
         public PlanNode visitSemiJoin(SemiJoinNode node, ImmutableSet<Symbol> requiredSymbols)
         {
+            if (!requiredSymbols.contains(node.getSemiJoinOutput())) {
+                return restrictSymbols(node.getSource(), requiredSymbols);
+            }
+
             // SemiJoinNode doesn't support output symbols selection, so we need to insert a project over the source
             ImmutableSet<Symbol> requiredSourceSymbols = requiredSemiJoinSourceSymbols(node, requiredSymbols);
 
@@ -447,6 +459,20 @@ public class PruneUnreferencedOutputs
                     node.getStep(),
                     node.getHashSymbol(),
                     node.getGroupIdSymbol());
+        }
+
+        @Override
+        public PlanNode visitMarkDistinct(MarkDistinctNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            if (!requiredSymbols.contains(node.getMarkerSymbol())) {
+                return restrictSymbols(node.getSource(), requiredSymbols);
+            }
+
+            // MarkDistinctNode doesn't support output symbols selection, so we need to insert a project over the source
+            ImmutableSet<Symbol> requiredSourceSymbols = requiredMarkDistinctSourceSymbols(node, requiredSymbols);
+
+            PlanNode newSourceNode = restrictSymbols(node.getSource(), requiredSourceSymbols);
+            return node.replaceChildren(ImmutableList.of(newSourceNode));
         }
     }
 

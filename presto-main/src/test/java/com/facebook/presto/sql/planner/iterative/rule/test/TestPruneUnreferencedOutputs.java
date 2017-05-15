@@ -253,7 +253,7 @@ public class TestPruneUnreferencedOutputs
                 .on(p -> {
                     JoinSymbols symbols = new JoinSymbols(p);
                     return p.project(
-                            Assignments.of(),
+                            Assignments.identity(symbols.semiJoinOutput),
                             p.semiJoin(
                                     p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
                                     p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
@@ -265,7 +265,7 @@ public class TestPruneUnreferencedOutputs
                 })
                 .matches(
                         strictProject(
-                                ImmutableMap.of(),
+                                ImmutableMap.of("semiJoinOutput_", PlanMatchPattern.expression("semiJoinOutput_")),
                                 semiJoin(
                                         "leftKey_",
                                         "rightKey_",
@@ -281,7 +281,28 @@ public class TestPruneUnreferencedOutputs
                 .on(p -> {
                     JoinSymbols symbols = new JoinSymbols(p);
                     return p.project(
-                            Assignments.of(),
+                            Assignments.identity(symbols.leftKey),
+                            p.semiJoin(
+                                    p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
+                                    p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
+                                    symbols.leftKey,
+                                    symbols.rightKey,
+                                    symbols.semiJoinOutput,
+                                    Optional.of(symbols.leftKeyHash),
+                                    Optional.of(symbols.rightKeyHash)));
+                })
+                .matches(
+                        strictProject(
+                                ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
+                                strictProject(
+                                        ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
+                                        values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)))));
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p -> {
+                    JoinSymbols symbols = new JoinSymbols(p);
+                    return p.project(
+                            Assignments.identity(symbols.semiJoinOutput),
                             p.semiJoin(
                                     p.values(symbols.leftKey, symbols.leftKeyHash),
                                     p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
@@ -312,6 +333,8 @@ public class TestPruneUnreferencedOutputs
                                 "semiJoinOutput_",
                                 values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)),
                                 values(ImmutableMap.of("rightKey_", 0, "rightKeyHash_", 1))));
+
+        // TODO test the case of dropping the semiJoin entirely when its output is not required
     }
 
     @Test
@@ -501,5 +524,45 @@ public class TestPruneUnreferencedOutputs
                                         Optional.empty(),
                                         AggregationNode.Step.SINGLE,
                                         values(ImmutableMap.of("key1_", 0, "input_", 1)))));
+    }
+
+    @Test
+    public void testMarkDistinct()
+            throws Exception
+    {
+        /*
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                {
+                    final Symbol input = p.symbol("input", BIGINT);
+                    final Symbol summation1 = p.symbol("summation1", BIGINT);
+                    final Symbol unusedSummation1 = p.symbol("unusedSummation1", BIGINT);
+                    final Symbol summation2 = p.symbol("summation2", BIGINT);
+                    final Symbol key1 = p.symbol("key1", BIGINT);
+                    final Symbol key2 = p.symbol("key2", BIGINT);
+                    final Symbol keyHash2 = p.symbol("keyHash2", BIGINT);
+                    final Symbol mask2 = p.symbol("mask2", BIGINT);
+                    return p.markDistinct(
+                    */
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p -> {
+                    JoinSymbols symbols = new JoinSymbols(p);
+                    return p.project(
+                            Assignments.identity(symbols.leftKey),
+                            p.semiJoin(
+                                    p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
+                                    p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
+                                    symbols.leftKey,
+                                    symbols.rightKey,
+                                    symbols.semiJoinOutput,
+                                    Optional.of(symbols.leftKeyHash),
+                                    Optional.of(symbols.rightKeyHash)));
+                })
+                .matches(
+                        strictProject(
+                                ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
+                                strictProject(
+                                        ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
+                                        values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)))));
     }
 }

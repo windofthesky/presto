@@ -408,7 +408,6 @@ public class PruneUnreferencedOutputs
         @Override
         public PlanNode visitProject(ProjectNode node, ImmutableSet<Symbol> requiredSymbols)
         {
-            // TODO: notice if the projection is now a noop, and return its source instead?
             return new ProjectNode(
                     node.getId(),
                     node.getSource(),
@@ -495,8 +494,6 @@ public class PruneUnreferencedOutputs
             }
             newChildListBuilder.add(childRef);
         }
-
-        // TODO: notice if node is now a noop projection, and return its source instead?
 
         if (!areChildrenModified) {
             return Optional.empty();

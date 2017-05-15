@@ -20,12 +20,14 @@ import com.teradata.tempto.RequirementsProvider;
 import com.teradata.tempto.Requires;
 import com.teradata.tempto.configuration.Configuration;
 import com.teradata.tempto.fulfillment.table.MutableTableRequirement;
+import com.teradata.tempto.fulfillment.table.hive.HiveTableDefinition;
+import com.teradata.tempto.fulfillment.table.hive.InlineDataSource;
 import com.teradata.tempto.query.QueryExecutor;
 import org.testng.annotations.Test;
 
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
 import static com.facebook.presto.tests.TestGroups.SKIP_ON_CDH;
-import static com.facebook.presto.tests.hive.AllAnalyzableTypesTableDefinitions.ALL_ANALYZABLE_HIVE_TYPES_TEXTFILE;
+import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.ALL_HIVE_SIMPLE_TYPES_TEXTFILE;
 import static com.facebook.presto.tests.hive.HiveTableDefinitions.NATION_PARTITIONED_BY_REGIONKEY;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
 import static com.teradata.tempto.assertions.QueryAssert.anyOf;
@@ -62,6 +64,14 @@ public class TestHiveTableStatistics
     private static final String ALL_TYPES_TABLE_NAME = "all_types";
     private static final String EMPTY_ALL_TYPES_TABLE_NAME = "empty_all_types";
 
+    private static final HiveTableDefinition ALL_TYPES_TABLE = HiveTableDefinition.like(ALL_HIVE_SIMPLE_TYPES_TEXTFILE)
+            .setDataSource(InlineDataSource.createStringDataSource(
+                    "all_analyzable_types",
+                    "",
+                    "121|32761|2147483641|9223372036854775801|123.341|234.561|344.671|345.671|2015-05-10 12:15:31.123456|2015-05-09|ela ma kota|ela ma kot|ela ma    |false|cGllcyBiaW5hcm55|\n" +
+                            "127|32767|2147483647|9223372036854775807|123.345|234.567|345.678|345.678|2015-05-10 12:15:35.123456|2015-05-10|ala ma kota|ala ma kot|ala ma    |true|a290IGJpbmFybnk=|\n"))
+            .build();
+
     private static final class AllTypesTable
             implements RequirementsProvider
     {
@@ -69,8 +79,8 @@ public class TestHiveTableStatistics
         public Requirement getRequirements(Configuration configuration)
         {
             return Requirements.compose(
-                    mutableTable(ALL_ANALYZABLE_HIVE_TYPES_TEXTFILE, ALL_TYPES_TABLE_NAME, MutableTableRequirement.State.LOADED),
-                    mutableTable(ALL_ANALYZABLE_HIVE_TYPES_TEXTFILE, EMPTY_ALL_TYPES_TABLE_NAME, MutableTableRequirement.State.CREATED));
+                    mutableTable(ALL_TYPES_TABLE, ALL_TYPES_TABLE_NAME, MutableTableRequirement.State.LOADED),
+                    mutableTable(ALL_TYPES_TABLE, EMPTY_ALL_TYPES_TABLE_NAME, MutableTableRequirement.State.CREATED));
         }
     }
 

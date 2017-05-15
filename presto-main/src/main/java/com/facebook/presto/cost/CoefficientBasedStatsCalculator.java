@@ -253,6 +253,7 @@ public class CoefficientBasedStatsCalculator
             @Override
             protected PlanNodeStatsEstimate visitComparisonExpression(ComparisonExpression node, Void context)
             {
+                // FIXME left and right might not be exactly SymbolReference and Literal
                 if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof SymbolReference) {
                     return comparisonSymbolToSymbolStats(
                             Symbol.from(node.getLeft()),
@@ -262,14 +263,14 @@ public class CoefficientBasedStatsCalculator
                 else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
                     return comparisonSymbolToLiteralStats(
                             Symbol.from(node.getLeft()),
-                            (Literal) node.getRight(), // FIXME, it can be something else than literal!
+                            (Literal) node.getRight(),
                             node.getType()
                     );
                 }
                 else if (node.getLeft() instanceof Literal && node.getRight() instanceof SymbolReference) {
                     return comparisonSymbolToLiteralStats(
                             Symbol.from(node.getRight()),
-                            (Literal) node.getLeft(), // FIXME, it can be something else than literal!
+                            (Literal) node.getLeft(),
                             node.getType().flip()
                     );
                 }
@@ -281,59 +282,90 @@ public class CoefficientBasedStatsCalculator
 
             private PlanNodeStatsEstimate comparisonSymbolToLiteralStats(Symbol left, Literal right, ComparisonExpressionType type)
             {
-                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
                 Object literalValue = LiteralInterpreter.evaluate(metadata, session.toConnectorSession(), right);
-                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
-                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
-                    // TODO unknownLowHighStats(left, right, type);
-                    return null;
-                }
-                Object leftLow = leftStats.getLowValue().get();
-                Object leftHigh = leftStats.getHighValue().get();
-
                 switch (type) {
-                    case EQUAL: {
-                        double filterRate = 0;
-                        if (operatorCaller.callBetweenOperator(literalValue, leftLow, leftHigh)) {
-                            filterRate = (1 - leftStats.getNullsFraction().getValue()) / leftStats.getDistinctValuesCount().getValue();
-                        }
-
-                        RangeColumnStatistics newColumnStats = leftStats.builderFrom()
-                                .setNullsFraction(zeroValue())
-                                .setDistinctValuesCount(new Estimate(1))
-                                .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue()))
-                                .setLowValue(Optional.of(literalValue))
-                                .setHighValue(Optional.of(literalValue)).build();
-
-                        return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
-                    }
-                    case NOT_EQUAL: {
-                        if (!operatorCaller.callBetweenOperator(literalValue, leftLow, leftHigh)) {
-                            return input;
-                        }
-
-                        double distinctValuesCount = leftStats.getDistinctValuesCount().getValue();
-                        double filterRate = ((distinctValuesCount - 1) / distinctValuesCount) * (1 - leftStats.getNullsFraction().getValue());
-
-                        RangeColumnStatistics newColumnStats = leftStats.builderFrom()
-                                .setNullsFraction(zeroValue())
-                                .setDistinctValuesCount(new Estimate(leftStats.getDistinctValuesCount().getValue() - 1))
-                                .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue())).build();
-
-                        return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
-                    }
+                    case EQUAL:
+                        return symbolToLiteralEquality(left, literalValue);
+                    case NOT_EQUAL:
+                        return symbolToLiteralNonEquality(left, literalValue);
                     case LESS_THAN:
-                        break;
                     case LESS_THAN_OR_EQUAL:
-                        break;
+                        return symbolToLiteralLessThan(left, literalValue);
                     case GREATER_THAN:
-                        break;
                     case GREATER_THAN_OR_EQUAL:
                         break;
                     case IS_DISTINCT_FROM:
                         break;
                 }
                 return null;
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralLessThan(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
+                    // TODO unknownLowHighStats(left, right, type);
+                    return input;
+                }
+
+                if (operatorCaller.callComparisonOperator(ComparisonExpressionType.LESS_THAN, literalValue, leftStats.getLowValue())) {
+                    return input; // FIXME return empty set stats
+                }
+
+                if (operatorCaller.callComparisonOperator(ComparisonExpressionType.GREATER_THAN_OR_EQUAL, literalValue, leftStats.getHighValue())) {
+                    return input;
+                }
+
+                return input; // FIXME between case
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralNonEquality(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
+                    // TODO unknownLowHighStats(left, right, type);
+                    return input;
+                }
+
+                if (!operatorCaller.callBetweenOperator(literalValue, leftStats.getLowValue().get(), leftStats.getHighValue().get())) {
+                    return input;
+                }
+
+                double distinctValuesCount = leftStats.getDistinctValuesCount().getValue();
+                double filterRate = ((distinctValuesCount - 1) / distinctValuesCount) * (1 - leftStats.getNullsFraction().getValue());
+
+                RangeColumnStatistics newColumnStats = leftStats.builderFrom()
+                        .setNullsFraction(zeroValue())
+                        .setDistinctValuesCount(new Estimate(leftStats.getDistinctValuesCount().getValue() - 1))
+                        .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue())).build();
+
+                return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralEquality(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
+                    // TODO unknownLowHighStats(left, right, type);
+                    return input;
+                }
+
+                double filterRate = 0;
+                if (operatorCaller.callBetweenOperator(literalValue, leftStats.getLowValue().get(), leftStats.getHighValue().get())) {
+                    filterRate = (1 - leftStats.getNullsFraction().getValue()) / leftStats.getDistinctValuesCount().getValue();
+                }
+
+                RangeColumnStatistics newColumnStats = leftStats.builderFrom()
+                        .setNullsFraction(zeroValue())
+                        .setDistinctValuesCount(new Estimate(1))
+                        .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue()))
+                        .setLowValue(Optional.of(literalValue))
+                        .setHighValue(Optional.of(literalValue)).build();
+
+                return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
             }
 
             private PlanNodeStatsEstimate filterStatsByFactor(double filterRate)

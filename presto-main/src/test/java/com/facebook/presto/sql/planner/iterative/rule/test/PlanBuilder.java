@@ -40,6 +40,7 @@ import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
+import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
@@ -109,6 +110,11 @@ public class PlanBuilder
     public ProjectNode project(Assignments assignments, PlanNode source)
     {
         return new ProjectNode(idAllocator.getNextId(), source, assignments);
+    }
+
+    public MarkDistinctNode markDistinct(Symbol markerSymbol, List<Symbol> distinctSymbols, Optional<Symbol> hashSymbol, PlanNode source)
+    {
+        return new MarkDistinctNode(idAllocator.getNextId(), source, markerSymbol, distinctSymbols, hashSymbol);
     }
 
     public FilterNode filter(Expression predicate, PlanNode source)
@@ -287,13 +293,13 @@ public class PlanBuilder
     }
 
     public SemiJoinNode semiJoin(
-            PlanNode source,
-            PlanNode filteringSource,
             Symbol sourceJoinSymbol,
             Symbol filteringSourceJoinSymbol,
             Symbol semiJoinOutput,
             Optional<Symbol> sourceHashSymbol,
-            Optional<Symbol> filteringSourceHashSymbol)
+            Optional<Symbol> filteringSourceHashSymbol,
+            PlanNode source,
+            PlanNode filteringSource)
     {
         return new SemiJoinNode(
                 idAllocator.getNextId(),

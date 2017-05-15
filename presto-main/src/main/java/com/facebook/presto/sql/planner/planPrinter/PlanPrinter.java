@@ -14,8 +14,8 @@
 package com.facebook.presto.sql.planner.planPrinter;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.cost.PlanNodeCostEstimate;
-import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.cost.CostCalculator;
+import com.facebook.presto.cost.PlanNodeCost;
 import com.facebook.presto.execution.StageInfo;
 import com.facebook.presto.execution.StageStats;
 import com.facebook.presto.metadata.Metadata;
@@ -40,7 +40,6 @@ import com.facebook.presto.sql.planner.PlanFragment;
 import com.facebook.presto.sql.planner.SubPlan;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.GroupReference;
-import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
 import com.facebook.presto.sql.planner.plan.AssignUniqueId;
@@ -113,6 +112,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.facebook.presto.cost.PlanNodeCost.UNKNOWN_COST;
 import static com.facebook.presto.execution.StageInfo.getAllStages;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.facebook.presto.sql.planner.DomainUtils.simplifyDomain;
@@ -135,36 +135,38 @@ public class PlanPrinter
     private final Metadata metadata;
     private final Optional<Map<PlanNodeId, PlanNodeStats>> stats;
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session sesion)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session sesion)
     {
-        this(plan, types, metadata, lookup, sesion, 0);
+        this(plan, types, metadata, costCalculator, sesion, 0);
     }
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session session, int indent)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, int indent)
     {
         requireNonNull(plan, "plan is null");
         requireNonNull(types, "types is null");
         requireNonNull(metadata, "metadata is null");
-        requireNonNull(lookup, "lookup is null");
+        requireNonNull(costCalculator, "costCalculator is null");
 
         this.metadata = metadata;
         this.stats = Optional.empty();
 
-        Visitor visitor = new Visitor(types, lookup, session);
+        Map<PlanNodeId, PlanNodeCost> costs = costCalculator.calculateCostForPlan(session, types, plan);
+        Visitor visitor = new Visitor(types, costs, session);
         plan.accept(visitor, indent);
     }
 
-    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
+    private PlanPrinter(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
     {
         requireNonNull(plan, "plan is null");
         requireNonNull(types, "types is null");
         requireNonNull(metadata, "metadata is null");
-        requireNonNull(lookup, "costCalculator is null");
+        requireNonNull(costCalculator, "costCalculator is null");
 
         this.metadata = metadata;
         this.stats = Optional.of(stats);
 
-        Visitor visitor = new Visitor(types, lookup, session);
+        Map<PlanNodeId, PlanNodeCost> costs = costCalculator.calculateCostForPlan(session, types, plan);
+        Visitor visitor = new Visitor(types, costs, session);
         plan.accept(visitor, indent);
     }
 
@@ -174,22 +176,22 @@ public class PlanPrinter
         return output.toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session session)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session)
     {
-        return new PlanPrinter(plan, types, metadata, lookup, session).toString();
+        return new PlanPrinter(plan, types, metadata, costCalculator, session).toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session session, int indent)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, int indent)
     {
-        return new PlanPrinter(plan, types, metadata, lookup, session, indent).toString();
+        return new PlanPrinter(plan, types, metadata, costCalculator, session, indent).toString();
     }
 
-    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, Lookup lookup, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
+    public static String textLogicalPlan(PlanNode plan, Map<Symbol, Type> types, Metadata metadata, CostCalculator costCalculator, Session session, Map<PlanNodeId, PlanNodeStats> stats, int indent)
     {
-        return new PlanPrinter(plan, types, metadata, lookup, session, stats, indent).toString();
+        return new PlanPrinter(plan, types, metadata, costCalculator, session, stats, indent).toString();
     }
 
-    public static String textDistributedPlan(StageInfo outputStageInfo, Metadata metadata, Lookup lookup, Session session)
+    public static String textDistributedPlan(StageInfo outputStageInfo, Metadata metadata, CostCalculator costCalculator, Session session)
     {
         StringBuilder builder = new StringBuilder();
         List<StageInfo> allStages = outputStageInfo.getSubStages().stream()
@@ -197,23 +199,23 @@ public class PlanPrinter
                 .collect(toImmutableList());
         for (StageInfo stageInfo : allStages) {
             Map<PlanNodeId, PlanNodeStats> aggregatedStats = aggregatePlanNodeStats(stageInfo);
-            builder.append(formatFragment(metadata, lookup, session, stageInfo.getPlan(), Optional.of(stageInfo.getStageStats()), Optional.of(aggregatedStats)));
+            builder.append(formatFragment(metadata, costCalculator, session, stageInfo.getPlan(), Optional.of(stageInfo.getStageStats()), Optional.of(aggregatedStats)));
         }
 
         return builder.toString();
     }
 
-    public static String textDistributedPlan(SubPlan plan, Metadata metadata, Lookup lookup, Session session)
+    public static String textDistributedPlan(SubPlan plan, Metadata metadata, CostCalculator costCalculator, Session session)
     {
         StringBuilder builder = new StringBuilder();
         for (PlanFragment fragment : plan.getAllFragments()) {
-            builder.append(formatFragment(metadata, lookup, session, fragment, Optional.empty(), Optional.empty()));
+            builder.append(formatFragment(metadata, costCalculator, session, fragment, Optional.empty(), Optional.empty()));
         }
 
         return builder.toString();
     }
 
-    private static String formatFragment(Metadata metadata, Lookup lookup, Session session, PlanFragment fragment, Optional<StageStats> stageStats, Optional<Map<PlanNodeId, PlanNodeStats>> planNodeStats)
+    private static String formatFragment(Metadata metadata, CostCalculator costCalculator, Session session, PlanFragment fragment, Optional<StageStats> stageStats, Optional<Map<PlanNodeId, PlanNodeStats>> planNodeStats)
     {
         StringBuilder builder = new StringBuilder();
         builder.append(format("Fragment %s [%s]\n",
@@ -254,11 +256,11 @@ public class PlanPrinter
                 formatHash(partitioningScheme.getHashColumn())));
 
         if (stageStats.isPresent()) {
-            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, lookup, session, planNodeStats.get(), 1))
+            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, costCalculator, session, planNodeStats.get(), 1))
                     .append("\n");
         }
         else {
-            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, lookup, session, 1))
+            builder.append(textLogicalPlan(fragment.getRoot(), fragment.getSymbols(), metadata, costCalculator, session, 1))
                     .append("\n");
         }
 
@@ -453,14 +455,14 @@ public class PlanPrinter
             extends PlanVisitor<Integer, Void>
     {
         private final Map<Symbol, Type> types;
-        private final Lookup lookup;
+        private final Map<PlanNodeId, PlanNodeCost> costs;
         private final Session session;
 
         @SuppressWarnings("AssignmentToCollectionOrArrayFieldFromParameter")
-        public Visitor(Map<Symbol, Type> types, Lookup lookup, Session session)
+        public Visitor(Map<Symbol, Type> types, Map<PlanNodeId, PlanNodeCost> costs, Session session)
         {
             this.types = types;
-            this.lookup = lookup;
+            this.costs = costs;
             this.session = session;
         }
 
@@ -1232,26 +1234,13 @@ public class PlanPrinter
 
         private String formatCost(PlanNode node)
         {
-            PlanNodeStatsEstimate stats = lookup.getStats(session, types, node);
-            PlanNodeCostEstimate cost = lookup.getCumulativeCost(session, types, node);
-            Estimate outputRowCount = stats.getOutputRowCount();
-            return String.format("{rows: %s, bytes: %s, cpu: %s, memory: %s, network: %s}",
+            PlanNodeCost cost = costs.getOrDefault(node.getId(), UNKNOWN_COST);
+            Estimate outputRowCount = cost.getOutputRowCount();
+            Estimate outputSizeInBytes = cost.getOutputSizeInBytes();
+            return String.format("{rows: %s, bytes: %s}",
                     outputRowCount.isValueUnknown() ? "?" : String.valueOf((long) outputRowCount.getValue()),
-                    formatEstimateAsDataSize(stats.getOutputSizeInBytes()),
-                    formatEstimate(cost.getCpuCost()),
-                    formatEstimateAsDataSize(cost.getMemoryCost()),
-                    formatEstimate(cost.getNetworkCost()));
+                    outputSizeInBytes.isValueUnknown() ? "?" : succinctBytes((long) outputSizeInBytes.getValue()));
         }
-    }
-
-    private static String formatEstimate(Estimate value)
-    {
-        return value.isValueUnknown() ? "?" : String.valueOf(value.getValue());
-    }
-
-    private static String formatEstimateAsDataSize(Estimate value)
-    {
-        return value.isValueUnknown() ? "?" : succinctBytes((long) value.getValue()).toString();
     }
 
     private static String formatHash(Optional<Symbol>... hashes)

@@ -157,7 +157,8 @@ public class ClusterMemoryManager
         long totalBytes = 0;
         for (QueryExecution query : queries) {
             long bytes = query.getTotalMemoryReservation();
-            long queryMemoryLimit = getQueryMaxMemory(query.getSession()).toBytes();
+            DataSize sessionMaxQueryMemory = getQueryMaxMemory(query.getSession());
+            long queryMemoryLimit = Math.min(maxQueryMemory.toBytes(), sessionMaxQueryMemory.toBytes());
             totalBytes += bytes;
             if (resourceOvercommit(query.getSession()) && outOfMemory) {
                 // If a query has requested resource overcommit, only kill it if the cluster has run out of memory

@@ -208,16 +208,12 @@ public class PlanBuilder
                         symbol -> symbol,
                         symbol -> new TestingColumnHandle(symbol.getName())));
 
-        TableHandle tableHandle = new TableHandle(new ConnectorId("testConnector"), new TestingTableHandle());
-        return tableScan(tableHandle, symbols, assignments);
-    }
-
-    public TableScanNode tableScan(TableHandle tableHandle, List<Symbol> symbols, Map<Symbol, ColumnHandle> assignments)
-    {
         Expression originalConstraint = null;
         return new TableScanNode(
                 idAllocator.getNextId(),
-                tableHandle,
+                new TableHandle(
+                        new ConnectorId("testConnector"),
+                        new TestingTableHandle()),
                 symbols,
                 assignments,
                 Optional.empty(),

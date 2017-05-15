@@ -54,7 +54,6 @@ import com.facebook.presto.spi.security.Privilege;
 import com.facebook.presto.spi.security.PrivilegeInfo;
 import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
-import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
@@ -375,8 +374,7 @@ public class HiveMetadata
 
         TableStatistics.Builder tableStatistics = TableStatistics.builder();
 
-        Estimate rowCount = calculateRowsCount(partitionStatistics);
-        tableStatistics.setRowCount(rowCount);
+        tableStatistics.setRowCount(calculateRowsCount(partitionStatistics));
 
         for (Map.Entry<String, ColumnHandle> columnEntry : tableColumns.entrySet()) {
             String columnName = columnEntry.getKey();
@@ -385,16 +383,14 @@ public class HiveMetadata
                 continue;
             }
             ColumnStatistics.Builder columnStatistics = ColumnStatistics.builder();
-            RangeColumnStatistics.Builder rangeStatistics = RangeColumnStatistics.builder();
             if (hiveColumnHandle.isPartitionKey()) {
-                rangeStatistics.setDistinctValuesCount(countDistinctPartitionKeys(hiveColumnHandle, hivePartitions));
-                rangeStatistics.setNullsFraction(calculateNullsFractionForPartitioningKey(hiveColumnHandle, hivePartitions, partitionStatistics));
+                columnStatistics.setDistinctValuesCount(countDistinctPartitionKeys(hiveColumnHandle, hivePartitions));
+                columnStatistics.setNullsCount(calculateNullsCountForPartitioningKey(hiveColumnHandle, hivePartitions, partitionStatistics));
             }
             else {
-                rangeStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
-                rangeStatistics.setNullsFraction(calculateNullsFraction(partitionStatistics, columnName, rowCount));
+                columnStatistics.setDistinctValuesCount(calculateDistinctValuesCount(partitionStatistics, columnName));
+                columnStatistics.setNullsCount(calculateNullsCount(partitionStatistics, columnName));
             }
-            columnStatistics.addRange(rangeStatistics.build());
             tableStatistics.setColumnStatistics(hiveColumnHandle, columnStatistics.build());
         }
         return tableStatistics.build();
@@ -434,9 +430,9 @@ public class HiveMetadata
                 DoubleStream::max);
     }
 
-    private Estimate calculateNullsFraction(Map<String, PartitionStatistics> statisticsByPartitionName, String column, Estimate totalRowsCount)
+    private Estimate calculateNullsCount(Map<String, PartitionStatistics> statisticsByPartitionName, String column)
     {
-        Estimate totalNullsCount = summarizePartitionStatistics(
+        return summarizePartitionStatistics(
                 statisticsByPartitionName.values(),
                 column,
                 columnStatistics -> {
@@ -448,10 +444,11 @@ public class HiveMetadata
                     }
                 },
                 nullsCountStream -> {
-                    double nullsCount = 0;
+                    double totalNullsCount = 0;
                     long partitionsWithStatisticsCount = 0;
                     for (PrimitiveIterator.OfDouble nullsCountIterator = nullsCountStream.iterator(); nullsCountIterator.hasNext(); ) {
-                        nullsCount += nullsCountIterator.nextDouble();
+                        double nullsCount = nullsCountIterator.nextDouble();
+                        totalNullsCount += nullsCount;
                         partitionsWithStatisticsCount++;
                     }
 
@@ -460,17 +457,9 @@ public class HiveMetadata
                     }
                     else {
                         int allPartitionsCount = statisticsByPartitionName.size();
-                        return OptionalDouble.of(allPartitionsCount / partitionsWithStatisticsCount * nullsCount);
+                        return OptionalDouble.of(allPartitionsCount / partitionsWithStatisticsCount * totalNullsCount);
                     }
                 });
-
-        if (totalNullsCount.isValueUnknown() || totalRowsCount.isValueUnknown()) {
-            return Estimate.unknownValue();
-        }
-        if (totalRowsCount.getValue() == 0.0) {
-            return new Estimate(0.0);
-        }
-        return new Estimate(totalNullsCount.getValue() / totalRowsCount.getValue());
     }
 
     private Estimate countDistinctPartitionKeys(HiveColumnHandle partitionColumn, List<HivePartition> partitions)
@@ -482,7 +471,7 @@ public class HiveMetadata
                 .count());
     }
 
-    private Estimate calculateNullsFractionForPartitioningKey(HiveColumnHandle partitionColumn, List<HivePartition> partitions, Map<String, PartitionStatistics> partitionStatistics)
+    private Estimate calculateNullsCountForPartitioningKey(HiveColumnHandle partitionColumn, List<HivePartition> partitions, Map<String, PartitionStatistics> partitionStatistics)
     {
         OptionalDouble rowsPerPartition = partitionStatistics.values().stream()
                 .map(PartitionStatistics::getRowCount)
@@ -494,13 +483,11 @@ public class HiveMetadata
             return Estimate.unknownValue();
         }
 
-        double estimatedTotalRowsCount = rowsPerPartition.getAsDouble() * partitions.size();
-        double estimatedNullsCount = partitions.stream()
+        return new Estimate(partitions.stream()
                 .filter(partition -> partition.getKeys().get(partitionColumn).isNull())
                 .map(HivePartition::getPartitionId)
                 .mapToLong(partitionId -> partitionStatistics.get(partitionId).getRowCount().orElse((long) rowsPerPartition.getAsDouble()))
-                .sum();
-        return new Estimate(estimatedNullsCount / estimatedTotalRowsCount);
+                .sum());
     }
 
     private Estimate summarizePartitionStatistics(

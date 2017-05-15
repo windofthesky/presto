@@ -35,7 +35,6 @@ import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.airlift.units.DataSize.succinctBytes;
 import static java.lang.String.format;
 
 public final class SystemSessionProperties
@@ -192,11 +191,7 @@ public final class SystemSessionProperties
                         DataSize.class,
                         memoryManagerConfig.getMaxQueryMemory(),
                         true,
-                        value -> {
-                            long sessionValue = DataSize.valueOf((String) value).toBytes();
-                            long configValue = memoryManagerConfig.getMaxQueryMemory().toBytes();
-                            return succinctBytes(Math.min(configValue, sessionValue));
-                        },
+                        value -> DataSize.valueOf((String) value),
                         DataSize::toString),
                 booleanSessionProperty(
                         RESOURCE_OVERCOMMIT,

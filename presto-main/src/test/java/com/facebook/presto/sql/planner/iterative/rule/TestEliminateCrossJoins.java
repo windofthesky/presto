@@ -35,7 +35,7 @@ public class TestEliminateCrossJoins
 {
     private final RuleTester tester = new RuleTester();
 
-    @Test(enabled = false)
+    @Test
     public void testEliminateCrossJoin()
     {
         tester.assertThat(new EliminateCrossJoins())
@@ -56,7 +56,7 @@ public class TestEliminateCrossJoins
                 );
     }
 
-    @Test(enabled = false)
+    @Test
     public void testRetainOutgoingGroupReferences()
     {
         tester.assertThat(new EliminateCrossJoins())
@@ -75,7 +75,7 @@ public class TestEliminateCrossJoins
                 );
     }
 
-    @Test(enabled = false)
+    @Test
     public void testDoNotReorderOuterJoin()
     {
         tester.assertThat(new EliminateCrossJoins())

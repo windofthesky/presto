@@ -14,6 +14,7 @@
 package com.facebook.presto.sql.planner.iterative.rule.test;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.testing.LocalQueryRunner;
@@ -28,13 +29,16 @@ import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 public class RuleTester
         implements Closeable
 {
+    public static final String CATALOG_ID = "local";
+    public static final ConnectorId CONNECTOR_ID = new ConnectorId(CATALOG_ID);
+
     private final Lookup lookup;
     private final LocalQueryRunner queryRunner;
 
     public RuleTester()
     {
         Session session = testSessionBuilder()
-                .setCatalog("local")
+                .setCatalog(CATALOG_ID)
                 .setSchema("tiny")
                 .setSystemProperty("task_concurrency", "1") // these tests don't handle exchanges from local parallel
                 .build();

@@ -14,12 +14,10 @@
 package com.facebook.presto.sql.rewrite;
 
 import com.facebook.presto.Session;
-import com.facebook.presto.metadata.FunctionRegistry;
+import com.facebook.presto.cost.TypeStatOperatorCaller;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.metadata.QualifiedObjectName;
-import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.metadata.TableHandle;
-import com.facebook.presto.operator.scalar.ScalarFunctionImplementation;
 import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.Constraint;
@@ -29,12 +27,10 @@ import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.sql.QueryUtil;
 import com.facebook.presto.sql.analyzer.QueryExplainer;
 import com.facebook.presto.sql.analyzer.SemanticException;
 import com.facebook.presto.sql.parser.SqlParser;
-import com.facebook.presto.sql.planner.ExpressionInterpreter;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.tree.AllColumns;
@@ -64,7 +60,6 @@ import com.facebook.presto.sql.tree.Table;
 import com.facebook.presto.sql.tree.TableSubquery;
 import com.facebook.presto.sql.tree.Values;
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +77,6 @@ import static com.facebook.presto.sql.analyzer.SemanticErrorCode.NOT_SUPPORTED;
 import static com.facebook.presto.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
@@ -343,11 +337,9 @@ public class ShowStatsRewrite
             if (!value.isPresent()) {
                 return new Cast(new NullLiteral(), VARCHAR);
             }
-            FunctionRegistry functionRegistry = metadata.getFunctionRegistry();
-            Signature castSignature = functionRegistry.getCoercion(valueType, VarcharType.createUnboundedVarcharType());
-            ScalarFunctionImplementation castImplementation = functionRegistry.getScalarFunctionImplementation(castSignature);
-            Slice varcharValue = (Slice) ExpressionInterpreter.invoke(session.toConnectorSession(), castImplementation, singletonList(value.get()));
-            return new StringLiteral(varcharValue.toStringUtf8());
+
+            TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(valueType, metadata.getFunctionRegistry(), session.toConnectorSession());
+            return new StringLiteral(operatorCaller.castToVarchar(value.get()).toStringUtf8());
         }
 
         private static Expression createTableStatsRow(List<String> columnNames, TableStatistics tableStatistics)

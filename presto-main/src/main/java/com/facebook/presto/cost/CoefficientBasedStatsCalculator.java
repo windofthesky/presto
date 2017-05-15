@@ -25,6 +25,7 @@ import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.DomainTranslator;
+import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.EnforceSingleRowNode;
@@ -42,11 +43,9 @@ import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
+import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.GenericLiteral;
 import com.facebook.presto.sql.tree.Literal;
-import com.facebook.presto.sql.tree.LongLiteral;
-import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableMap;
 
@@ -55,7 +54,6 @@ import javax.inject.Inject;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
@@ -127,7 +125,7 @@ public class CoefficientBasedStatsCalculator
             sourceCosts.get(0).getOutputRowCount();
 
             Expression expr = node.getPredicate();
-            return getOnlyElement(new ExpressionVisitor().process(expr, sourceCosts));
+            return new FilterExpressionStatsCalculatingVisitor(getOnlyElement(sourceCosts)).process(expr);
         }
 
         @Override
@@ -242,100 +240,113 @@ public class CoefficientBasedStatsCalculator
             }
             return limitCost.build();
         }
-    }
 
-    private class ExpressionVisitor
-            extends AstVisitor<List<PlanNodeStatsEstimate>, List<PlanNodeStatsEstimate>>
-    {
-        protected List<PlanNodeStatsEstimate> visitComparisonExpression(ComparisonExpression node, List<PlanNodeStatsEstimate> context)
+
+        private class FilterExpressionStatsCalculatingVisitor
+                extends AstVisitor<PlanNodeStatsEstimate, Void>
         {
-            if (!(node.getLeft() instanceof SymbolReference)) {
-                return context;
+            PlanNodeStatsEstimate input;
+            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input) {
+                this.input = input;
             }
-            Symbol left = Symbol.from(node.getLeft());
-            switch (node.getType()) {
-                case EQUAL:
-                    if ((node.getRight() instanceof GenericLiteral || node.getRight() instanceof LongLiteral) && node.getLeft() instanceof SymbolReference) { // FIXME other types of literals
-                        LongLiteral literal;
-                        if (node.getRight() instanceof GenericLiteral) {
-                            literal = new LongLiteral(((GenericLiteral) node.getRight()).getValue());
+
+            @Override
+            protected PlanNodeStatsEstimate visitComparisonExpression(ComparisonExpression node, Void context)
+            {
+                if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof SymbolReference) {
+                    return comparisonSymbolToSymbolStats(
+                            Symbol.from(node.getLeft()),
+                            Symbol.from(node.getRight()),
+                            node.getType());
+                }
+                else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
+                    return comparisonSymbolToLiteralStats(
+                            Symbol.from(node.getLeft()),
+                            (Literal) node.getRight(), // FIXME, it can be something else than literal!
+                            node.getType()
+                    );
+                }
+                else if (node.getLeft() instanceof Literal && node.getRight() instanceof SymbolReference) {
+                    return comparisonSymbolToLiteralStats(
+                            Symbol.from(node.getRight()),
+                            (Literal) node.getLeft(), // FIXME, it can be something else than literal!
+                            node.getType().flip()
+                    );
+                }
+                else {
+                    // It should be collapsed already?
+                    return input;
+                }
+            }
+
+            private PlanNodeStatsEstimate comparisonSymbolToLiteralStats(Symbol left, Literal right, ComparisonExpressionType type)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                Object literalValue = LiteralInterpreter.evaluate(metadata, session.toConnectorSession(), right);
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
+                    // TODO unknownLowHighStats(left, right, type);
+                    return null;
+                }
+                Object leftLow = leftStats.getLowValue().get();
+                Object leftHigh = leftStats.getHighValue().get();
+
+                switch (type) {
+                    case EQUAL: {
+                        double filterRate = 0;
+                        if (operatorCaller.callBetweenOperator(literalValue, leftLow, leftHigh)) {
+                            filterRate = (1 - leftStats.getNullsFraction().getValue()) / leftStats.getDistinctValuesCount().getValue();
                         }
-                        else {
-                            literal = (LongLiteral) node.getRight();
-                        }
-                        return context.stream().map(statsEstimate ->
-                        {
-                            if (statsEstimate.containsSymbolStats(left)) {
-                                RangeColumnStatistics columnStats = statsEstimate.getOnlyRangeStats(left);
 
-                                if (!columnStats.getHighValue().isPresent() || !columnStats.getLowValue().isPresent()) {
-                                    return statsEstimate;
-                                }
+                        RangeColumnStatistics newColumnStats = leftStats.builderFrom()
+                                .setNullsFraction(zeroValue())
+                                .setDistinctValuesCount(new Estimate(1))
+                                .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue()))
+                                .setLowValue(Optional.of(literalValue))
+                                .setHighValue(Optional.of(literalValue)).build();
 
-                                boolean isInRange = literal.getValue() >= (Long) columnStats.getLowValue().get() && literal.getValue() <= (Long) columnStats.getHighValue().get();
-                                double oldRowCount =  statsEstimate.getOutputRowCount().getValue();
-                                double newRowCount = 0;
-                                if (isInRange) {
-                                    newRowCount = oldRowCount * (1 - columnStats.getNullsFraction().getValue()) / columnStats.getDistinctValuesCount().getValue();
-                                }
-                                double filterRate = newRowCount/oldRowCount;
-
-                                final RangeColumnStatistics newColumnStats = columnStats.builderFrom()
-                                        .setNullsFraction(zeroValue())
-                                        .setDistinctValuesCount(new Estimate(isInRange ? 1 : 0))
-                                        .setDataSize(new Estimate(filterRate * columnStats.getDataSize().getValue()))
-                                        .setLowValue(Optional.of(literal.getValue()))
-                                        .setHighValue(Optional.of(literal.getValue())).build();
-
-                                return statsEstimate
-                                        .mapSymbolColumnStatistics(left, input -> newColumnStats)
-                                        .mapOutputRowCount(size -> size * filterRate)
-                                        .mapOutputSizeInBytes(size -> size * filterRate);
-                            }
-                            return statsEstimate;
-                        }).collect(Collectors.toList());
+                        return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
                     }
-                    break;
-                case NOT_EQUAL:
-                    break;
-                case LESS_THAN:
-                    break;
-                case LESS_THAN_OR_EQUAL:
-                    break;
-                case GREATER_THAN:
-                    break;
-                case GREATER_THAN_OR_EQUAL:
-                    break;
-                case IS_DISTINCT_FROM:
-                    break;
+                    case NOT_EQUAL: {
+                        if (!operatorCaller.callBetweenOperator(literalValue, leftLow, leftHigh)) {
+                            return input;
+                        }
+
+                        double distinctValuesCount = leftStats.getDistinctValuesCount().getValue();
+                        double filterRate = ((distinctValuesCount - 1) / distinctValuesCount) * (1 - leftStats.getNullsFraction().getValue());
+
+                        RangeColumnStatistics newColumnStats = leftStats.builderFrom()
+                                .setNullsFraction(zeroValue())
+                                .setDistinctValuesCount(new Estimate(leftStats.getDistinctValuesCount().getValue() - 1))
+                                .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue())).build();
+
+                        return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
+                    }
+                    case LESS_THAN:
+                        break;
+                    case LESS_THAN_OR_EQUAL:
+                        break;
+                    case GREATER_THAN:
+                        break;
+                    case GREATER_THAN_OR_EQUAL:
+                        break;
+                    case IS_DISTINCT_FROM:
+                        break;
+                }
+                return null;
             }
-            return context;
-        }
-    }
 
-    private class IsKnownSymbolReference extends AstVisitor<List<PlanNodeStatsEstimate>, Boolean>
-    {
-        protected Boolean visitNode(Node node, List<PlanNodeStatsEstimate> context)
-        {
-            return false;
-        }
+            private PlanNodeStatsEstimate filterStatsByFactor(double filterRate)
+            {
+                return input
+                        .mapOutputRowCount(size -> size * filterRate)
+                        .mapOutputSizeInBytes(size -> size * filterRate);
+            }
 
-        protected Boolean visitSymbolReference(SymbolReference node, List<PlanNodeStatsEstimate> context)
-        {
-            return context.stream().anyMatch(stats -> stats.containsSymbolStats(Symbol.from(node)));
-        }
-    }
-
-    private class IsLiteral extends AstVisitor<Void, Boolean>
-    {
-        protected Boolean visitNode(Node node, List<PlanNodeStatsEstimate> context)
-        {
-            return false;
-        }
-
-        protected Boolean visitLiteral(Literal node, List<PlanNodeStatsEstimate> context)
-        {
-            return false;
+            private PlanNodeStatsEstimate comparisonSymbolToSymbolStats(Symbol left, Symbol right, ComparisonExpressionType type)
+            {
+                return null;
+            }
         }
     }
 }

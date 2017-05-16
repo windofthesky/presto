@@ -53,11 +53,13 @@ import com.google.common.collect.ImmutableMap;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
+import static com.google.common.collect.Iterables.getOnlyElement;
 
 /**
  * Simple implementation of StatsCalculator. It make many arbitrary decisions (e.g filtering selectivity, join matching).
@@ -123,10 +125,8 @@ public class CoefficientBasedStatsCalculator
         @Override
         public PlanNodeStatsEstimate visitFilter(FilterNode node, Void context)
         {
-            sourceCosts.get(0).getOutputRowCount();
-
             Expression expr = node.getPredicate();
-            return new FilterExpressionStatsCalculatingVisitor(getOnlyElement(sourceCosts)).process(expr);
+            return new FilterExpressionStatsCalculatingVisitor(lookupStats(node)).process(expr);
         }
 
         @Override
@@ -141,30 +141,50 @@ public class CoefficientBasedStatsCalculator
             PlanNodeStatsEstimate leftStats = lookupStats(node.getLeft());
             PlanNodeStatsEstimate rightStats = lookupStats(node.getRight());
 
-            PlanNodeStatsEstimate.Builder joinCost = PlanNodeStatsEstimate.builder();
-            if (!leftStats.getOutputRowCount().isValueUnknown() && !rightStats.getOutputRowCount().isValueUnknown()) {
-                double rowCount = Math.max(leftStats.getOutputRowCount().getValue(), rightStats.getOutputRowCount().getValue()) * JOIN_MATCHING_COEFFICIENT;
-                joinCost.setOutputRowCount(new Estimate(rowCount));
+            if (node.getCriteria().size() == 1) {
+                // FIXME, more complex criteria
+                JoinNode.EquiJoinClause joinClause = getOnlyElement(node.getCriteria());
+                Expression comparison = new ComparisonExpression(ComparisonExpressionType.EQUAL, joinClause.getLeft().toSymbolReference(), joinClause.getRight().toSymbolReference());
+                PlanNodeStatsEstimate mergedInputCosts = crossJoinStats(leftStats, rightStats);
+                return new FilterExpressionStatsCalculatingVisitor(mergedInputCosts).process(comparison);
             }
+
+            PlanNodeStatsEstimate.Builder joinCost = PlanNodeStatsEstimate.builder();
             return joinCost.build();
+        }
+
+        public PlanNodeStatsEstimate crossJoinStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)
+        {
+            ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+            symbolsStatsBuilder.putAll(left.getSymbolStatistics()).putAll(right.getSymbolStatistics());
+
+            PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+            return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                    .setOutputRowCount(left.getOutputRowCount().multiply(right.getOutputRowCount()))
+                    .setOutputSizeInBytes(left.getOutputSizeInBytes().multiply(right.getOutputRowCount())) // FIXME it shouldn't be order (left, right) dependent
+                    .build();
         }
 
         @Override
         public PlanNodeStatsEstimate visitExchange(ExchangeNode node, Void context)
         {
-            Estimate rowCount = new Estimate(0);
-            for (int i = 0; i < node.getSources().size(); i++) {
-                PlanNodeStatsEstimate childCost = lookupStats(node.getSources().get(i));
-                if (childCost.getOutputRowCount().isValueUnknown()) {
-                    rowCount = Estimate.unknownValue();
-                }
-                else {
-                    rowCount = rowCount.map(value -> value + childCost.getOutputRowCount().getValue());
-                }
+            PlanNodeStatsEstimate estimateSum = lookupStats(node.getSources().get(0));
+            for (int i = 1; i < node.getSources().size(); i++) {
+                estimateSum = sumStats(estimateSum, lookupStats(node.getSources().get(1)));
             }
 
-            return PlanNodeStatsEstimate.builder()
-                    .setOutputRowCount(rowCount)
+            return estimateSum;
+        }
+
+        public PlanNodeStatsEstimate sumStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)
+        {
+            ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+            symbolsStatsBuilder.putAll(left.getSymbolStatistics()).putAll(right.getSymbolStatistics()); // This may not count all information
+
+            PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+            return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                    .setOutputRowCount(left.getOutputRowCount().add(right.getOutputRowCount()))
+                    .setOutputSizeInBytes(left.getOutputSizeInBytes().add(right.getOutputSizeInBytes())) // FIXME it shouldn't be order (left, right) dependent
                     .build();
         }
 
@@ -259,7 +279,8 @@ public class CoefficientBasedStatsCalculator
                     return comparisonSymbolToSymbolStats(
                             Symbol.from(node.getLeft()),
                             Symbol.from(node.getRight()),
-                            node.getType());
+                            node.getType()
+                    );
                 }
                 else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
                     return comparisonSymbolToLiteralStats(
@@ -298,7 +319,7 @@ public class CoefficientBasedStatsCalculator
                     case IS_DISTINCT_FROM:
                         break;
                 }
-                return input; //fixme
+                return filterStatsByFactor(0.5); //fixme
             }
 
             private PlanNodeStatsEstimate symbolToLiteralGreaterThan(Symbol left, Object literalValue)
@@ -390,19 +411,22 @@ public class CoefficientBasedStatsCalculator
                     case GREATER_THAN_OR_EQUAL:
                     case IS_DISTINCT_FROM:
                 }
-                return input; //fixme
+                return filterStatsByFactor(0.5); //fixme
             }
 
             private PlanNodeStatsEstimate symbolToSymbolEquality(Symbol left, Symbol right)
             {
+                if (!input.containsSymbolStats(left) || !input.containsSymbolStats(right)) {
+                    return filterStatsByFactor(0.5); //fixme
+                }
                 RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
                 RangeColumnStatistics rightStats = input.getOnlyRangeStats(right);
 
                 Estimate maxDistinctValues = Estimate.max(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
                 Estimate minDistinctValues = Estimate.min(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
 
-                double filterRate = input.getOutputRowCount()
-                        .divide(maxDistinctValues)
+                double filterRate =
+                        Estimate.of(1.0).divide(maxDistinctValues)
                         .multiply(Estimate.of(1.0).subtract(leftStats.getNullsFraction()))
                         .multiply(Estimate.of(1.0).subtract(rightStats.getNullsFraction())).getValue();
 

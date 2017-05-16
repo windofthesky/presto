@@ -262,12 +262,13 @@ public class CoefficientBasedStatsCalculator
             return limitCost.build();
         }
 
-
         private class FilterExpressionStatsCalculatingVisitor
                 extends AstVisitor<PlanNodeStatsEstimate, Void>
         {
             PlanNodeStatsEstimate input;
-            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input) {
+
+            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input)
+            {
                 this.input = input;
             }
 

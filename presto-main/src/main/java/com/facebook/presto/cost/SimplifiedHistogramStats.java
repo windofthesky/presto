@@ -117,7 +117,10 @@ public class SimplifiedHistogramStats
 
         private SimplifedHistogramStatsBuilder() {}
 
-        public static SimplifedHistogramStatsBuilder aSimplifedHistogramStats() { return new SimplifedHistogramStatsBuilder();}
+        public static SimplifedHistogramStatsBuilder aSimplifedHistogramStats()
+        {
+            return new SimplifedHistogramStatsBuilder();
+        }
 
         public SimplifedHistogramStatsBuilder withRange(StatsHistogramRange range)
         {

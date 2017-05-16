@@ -56,10 +56,6 @@ public class MarkDistinctMatcher
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
         MarkDistinctNode markDistinctNode = (MarkDistinctNode) node;
 
-        if (hashSymbol.isPresent() != markDistinctNode.getHashSymbol().isPresent()) {
-            return NO_MATCH;
-        }
-
         if (!markDistinctNode.getHashSymbol().map(Symbol::getName)
                 .equals(hashSymbol.map(alias -> symbolAliases.get(alias).getName())))
         {

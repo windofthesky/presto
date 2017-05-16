@@ -30,13 +30,25 @@ public class SimplifiedHistogramStats
     private final Estimate dataSize;
     private final Estimate nullsFraction;
     private final Estimate distinctValuesCount;
+    private final Estimate filteredPercent; // HACK!
 
-    private SimplifiedHistogramStats(StatsHistogramRange range, Estimate dataSize, Estimate nullsFraction, Estimate distinctValuesCount)
+    private SimplifiedHistogramStats(StatsHistogramRange range, Estimate dataSize, Estimate nullsFraction, Estimate distinctValuesCount, Estimate filteredPercent)
     {
         this.range = range;
         this.dataSize = dataSize;
         this.nullsFraction = nullsFraction;
         this.distinctValuesCount = distinctValuesCount;
+        this.filteredPercent = filteredPercent;
+    }
+
+    public RangeColumnStatistics toRangeColumnStatistics()
+    {
+        return RangeColumnStatistics.builder().setHighValue(range.getHigh())
+                .setLowValue(range.getLow())
+                .setNullsFraction(nullsFraction)
+                .setDistinctValuesCount(distinctValuesCount)
+                .setDataSize(dataSize)
+                .build();
     }
 
     public static SimplifiedHistogramStats of(List<RangeColumnStatistics> rangeColumnStatistics, TypeStatOperatorCaller operatorCaller)
@@ -46,7 +58,8 @@ public class SimplifiedHistogramStats
                 new StatsHistogramRange(stats.getLowValue(), stats.getHighValue(), operatorCaller, Optional.empty()),
                 stats.getDataSize(),
                 stats.getNullsFraction(),
-                stats.getDistinctValuesCount());
+                stats.getDistinctValuesCount(),
+                Estimate.unknownValue());
         newStats.range.setStatsParent(Optional.of(newStats));
         return newStats;
     }
@@ -61,15 +74,16 @@ public class SimplifiedHistogramStats
         return range.getHigh();
     }
 
-    public SimplifiedHistogramStats intersect(SimplifiedHistogramStats other)
+    public SimplifiedHistogramStats intersect(StatsHistogramRange other)
     {
-        StatsHistogramRange newRange = range.intersect(other.range);
+        StatsHistogramRange newRange = range.intersect(other);
         Estimate percentOfDataLeft = range.overlapPartOf(newRange);
 
         return aSimplifedHistogramStats().withRange(newRange)
                 .withDataSize(dataSize.multiply(percentOfDataLeft))
                 .withNullsFraction(Estimate.zeroValue())
-                .withDistinctValuesCount(Estimate.of(17.0))
+                .withDistinctValuesCount(distinctValuesCount.multiply(percentOfDataLeft)) // FIXME nulls not counted!
+                .withFilteredPercent(percentOfDataLeft)
                 .build();
     }
 
@@ -83,12 +97,23 @@ public class SimplifiedHistogramStats
         return nullsFraction;
     }
 
+    public Estimate getFilteredPercent()
+    {
+        return filteredPercent;
+    }
+
+    public StatsHistogramRange getRange()
+    {
+        return range;
+    }
+
     public static final class SimplifedHistogramStatsBuilder
     {
         private StatsHistogramRange range;
         private Estimate dataSize;
         private Estimate nullsFraction;
         private Estimate distinctValuesCount;
+        private Estimate filteredPercent; //FIXME HACK!
 
         private SimplifedHistogramStatsBuilder() {}
 
@@ -118,10 +143,16 @@ public class SimplifiedHistogramStats
             return this;
         }
 
+        public SimplifedHistogramStatsBuilder withFilteredPercent(Estimate filtered) // HACK!
+        {
+            this.filteredPercent = filtered;
+            return this;
+        }
+
         public SimplifiedHistogramStats build()
         {
             SimplifiedHistogramStats simplifiedHistogramStats = new SimplifiedHistogramStats(
-                   range, dataSize, nullsFraction, distinctValuesCount);
+                   range, dataSize, nullsFraction, distinctValuesCount, filteredPercent);
             simplifiedHistogramStats.range.setStatsParent(Optional.of(simplifiedHistogramStats));
             return simplifiedHistogramStats;
         }

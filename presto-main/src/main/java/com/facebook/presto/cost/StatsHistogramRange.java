@@ -148,10 +148,10 @@ public class StatsHistogramRange
         if (!rightBound.isPresent()) {
             rightBound = high;
         }
-        double leftValue = operatorCaller.translateToDouble(leftBound);
-        double rightValue = operatorCaller.translateToDouble(rightBound);
-        double leftBase = operatorCaller.translateToDouble(high.get());
-        double rightBase = operatorCaller.translateToDouble(low.get());
+        double leftValue = operatorCaller.translateToDouble(leftBound.get());
+        double rightValue = operatorCaller.translateToDouble(rightBound.get());
+        double leftBase = operatorCaller.translateToDouble(low.get());
+        double rightBase = operatorCaller.translateToDouble(high.get());
 
         if (leftValue > rightValue) {
             return Estimate.zeroValue();

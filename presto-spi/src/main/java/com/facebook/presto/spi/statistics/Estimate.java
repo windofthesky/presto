@@ -106,6 +106,20 @@ public final class Estimate
         return new Estimate(value * other.getValue());
     }
 
+    public static Estimate max(Estimate left, Estimate right) {
+        if (left.isValueUnknown() || right.isValueUnknown()) {
+            return unknownValue();
+        }
+        return Estimate.of(Math.max(left.getValue(), right.getValue()));
+    }
+
+    public static Estimate min(Estimate left, Estimate right) {
+        if (left.isValueUnknown() || right.isValueUnknown()) {
+            return unknownValue();
+        }
+        return Estimate.of(Math.min(left.getValue(), right.getValue()));
+    }
+
     @Override
     public String toString()
     {

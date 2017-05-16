@@ -148,29 +148,48 @@ public class CoefficientBasedStatsCalculator
 
             PlanNodeStatsEstimate.Builder joinCost = PlanNodeStatsEstimate.builder();
             if (!leftCost.getOutputRowCount().isValueUnknown() && !rightCost.getOutputRowCount().isValueUnknown()) {
-                double rowCount = Math.max(leftCost.getOutputRowCount().getValue(), rightCost.getOutputRowCount().getValue()) * JOIN_MATCHING_COEFFICIENT;
-                joinCost.setOutputRowCount(new Estimate(rowCount));
+                JoinNode.EquiJoinClause joinClause = getOnlyElement(node.getCriteria());
+                Expression comparison = new ComparisonExpression(ComparisonExpressionType.EQUAL, joinClause.getLeft().toSymbolReference(), joinClause.getRight().toSymbolReference());
+                PlanNodeStatsEstimate mergedInputCosts = crossJoinStats(leftCost, rightCost);
+                return new FilterExpressionStatsCalculatingVisitor(mergedInputCosts).process(comparison);
             }
             return joinCost.build();
+        }
+
+        public PlanNodeStatsEstimate crossJoinStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)
+        {
+            ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+            symbolsStatsBuilder.putAll(left.getSymbolStatistics()).putAll(right.getSymbolStatistics());
+
+            PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+            return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                    .setOutputRowCount(left.getOutputRowCount().multiply(right.getOutputRowCount()))
+                    .setOutputSizeInBytes(left.getOutputSizeInBytes().multiply(right.getOutputRowCount())) // FIXME it shouldn't be order (left, right) dependent
+                    .build();
         }
 
         @Override
         public PlanNodeStatsEstimate visitExchange(ExchangeNode node, List<PlanNodeStatsEstimate> sourceCosts)
         {
-            Estimate rowCount = new Estimate(0);
+            checkArgument(sourceCosts.size() >= 1);
             checkSourceCostsCount(sourceCosts, node.getSources().size());
-            for (int i = 0; i < node.getSources().size(); i++) {
-                PlanNodeStatsEstimate childCost = sourceCosts.get(i);
-                if (childCost.getOutputRowCount().isValueUnknown()) {
-                    rowCount = Estimate.unknownValue();
-                }
-                else {
-                    rowCount = rowCount.map(value -> value + childCost.getOutputRowCount().getValue());
-                }
+            PlanNodeStatsEstimate estimateSum = sourceCosts.get(0);
+            for (int i = 1; i < node.getSources().size(); i++) {
+                estimateSum = sumStats(estimateSum, sourceCosts.get(i));
             }
 
-            return PlanNodeStatsEstimate.builder()
-                    .setOutputRowCount(rowCount)
+            return estimateSum;
+        }
+
+        public PlanNodeStatsEstimate sumStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)
+        {
+            ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+            symbolsStatsBuilder.putAll(left.getSymbolStatistics()).putAll(right.getSymbolStatistics()); // This may not count all information
+
+            PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+            return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                    .setOutputRowCount(left.getOutputRowCount().add(right.getOutputRowCount()))
+                    .setOutputSizeInBytes(left.getOutputSizeInBytes().add(right.getOutputSizeInBytes())) // FIXME it shouldn't be order (left, right) dependent
                     .build();
         }
 
@@ -271,7 +290,8 @@ public class CoefficientBasedStatsCalculator
                     return comparisonSymbolToSymbolStats(
                             Symbol.from(node.getLeft()),
                             Symbol.from(node.getRight()),
-                            node.getType());
+                            node.getType()
+                    );
                 }
                 else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
                     return comparisonSymbolToLiteralStats(
@@ -310,7 +330,7 @@ public class CoefficientBasedStatsCalculator
                     case IS_DISTINCT_FROM:
                         break;
                 }
-                return input; //fixme
+                return filterStatsByFactor(0.5); //fixme
             }
 
             private PlanNodeStatsEstimate symbolToLiteralGreaterThan(Symbol left, Object literalValue)
@@ -402,19 +422,22 @@ public class CoefficientBasedStatsCalculator
                     case GREATER_THAN_OR_EQUAL:
                     case IS_DISTINCT_FROM:
                 }
-                return input; //fixme
+                return filterStatsByFactor(0.5); //fixme
             }
 
             private PlanNodeStatsEstimate symbolToSymbolEquality(Symbol left, Symbol right)
             {
+                if (!input.containsSymbolStats(left) || !input.containsSymbolStats(right)) {
+                    return filterStatsByFactor(0.5); //fixme
+                }
                 RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
                 RangeColumnStatistics rightStats = input.getOnlyRangeStats(right);
 
                 Estimate maxDistinctValues = Estimate.max(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
                 Estimate minDistinctValues = Estimate.min(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
 
-                double filterRate = input.getOutputRowCount()
-                        .divide(maxDistinctValues)
+                double filterRate =
+                        Estimate.of(1.0).divide(maxDistinctValues)
                         .multiply(Estimate.of(1.0).subtract(leftStats.getNullsFraction()))
                         .multiply(Estimate.of(1.0).subtract(rightStats.getNullsFraction())).getValue();
 

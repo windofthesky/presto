@@ -534,44 +534,40 @@ public class TestPruneUnreferencedOutputs
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p ->
                 {
-                    final Symbol key = p.symbol("key", BIGINT);
+                    final Symbol keyA = p.symbol("keyA", BIGINT);
+                    final Symbol keyB = p.symbol("keyB", BIGINT);
                     final Symbol keyHash = p.symbol("keyHash", BIGINT);
                     final Symbol marker = p.symbol("marker", BIGINT);
                     final Symbol unused = p.symbol("unused", BIGINT);
                     return p.project(
                             Assignments.identity(marker),
-                            p.markDistinct(marker, ImmutableList.of(key), Optional.of(keyHash), p.values(key, keyHash, unused)));
-                })
-                .matches(
-                        project(
-                                ImmutableMap.of("marker_", PlanMatchPattern.expression("marker_")),
-                                markDistinct("marker_", ImmutableList.of("key_"), Optional.of("keyHash_"),
-                                        project(
-                                                ImmutableMap.of(
-                                                        "key_", PlanMatchPattern.expression("key_"),
-                                                        "keyHash_", PlanMatchPattern.expression("keyHash_")),
-                                                values(ImmutableMap.of("key_", 0, "keyHash_", 1, "unused_", 2))))));
-        /*
-        tester.assertThat(new PruneUnreferencedOutputs())
-                .on(p -> {
-                    JoinSymbols symbols = new JoinSymbols(p);
-                    return p.project(
-                            Assignments.identity(symbols.leftKey),
-                            p.markDistinct(
-                                    p.values(symbols.leftKey, symbols.leftKeyHash, symbols.leftValue),
-                                    p.values(symbols.rightKey, symbols.rightKeyHash, symbols.rightValue),
-                                    symbols.leftKey,
-                                    symbols.rightKey,
-                                    symbols.semiJoinOutput,
-                                    Optional.of(symbols.leftKeyHash),
-                                    Optional.of(symbols.rightKeyHash)));
+                            p.markDistinct(marker, ImmutableList.of(keyA, keyB), Optional.of(keyHash), p.values(keyA, keyB, keyHash, unused)));
                 })
                 .matches(
                         strictProject(
-                                ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
+                                ImmutableMap.of("marker_", PlanMatchPattern.expression("marker_")),
+                                markDistinct("marker_", ImmutableList.of("keyA_", "keyB_"), Optional.of("keyHash_"),
+                                        strictProject(
+                                                ImmutableMap.of(
+                                                        "keyA_", PlanMatchPattern.expression("keyA_"),
+                                                        "keyB_", PlanMatchPattern.expression("keyB_"),
+                                                        "keyHash_", PlanMatchPattern.expression("keyHash_")),
+                                                values(ImmutableMap.of("keyA_", 0, "keyB_", 1, "keyHash_", 2, "unused_", 3))))));
+
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                {
+                    final Symbol marker = p.symbol("marker", BIGINT);
+                    final Symbol unused = p.symbol("unused", BIGINT);
+                    return p.project(
+                            Assignments.of(),
+                            p.markDistinct(marker, ImmutableList.of(), Optional.empty(), p.values(unused)));
+                })
+                .matches(
+                        strictProject(
+                                ImmutableMap.of(),
                                 strictProject(
-                                        ImmutableMap.of("leftKey_", PlanMatchPattern.expression("leftKey_")),
-                                        values(ImmutableMap.of("leftKey_", 0, "leftKeyHash_", 1, "leftValue_", 2)))));
-                                        */
+                                        ImmutableMap.of(),
+                                        values(ImmutableMap.of("unused_", 0)))));
     }
 }

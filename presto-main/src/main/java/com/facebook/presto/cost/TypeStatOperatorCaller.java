@@ -55,6 +55,9 @@ public class TypeStatOperatorCaller
     }
 
     public double translateToDouble(Object object) {
+        if (object instanceof Long) {
+            return (double)(long) object;
+        }
         return (double) object; //fixme
     }
 }

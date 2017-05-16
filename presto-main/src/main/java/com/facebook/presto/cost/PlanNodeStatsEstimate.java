@@ -35,9 +35,9 @@ public class PlanNodeStatsEstimate
 
     private final Estimate outputRowCount;
     private final Estimate outputSizeInBytes;
-    private final Map<Symbol, SimplifiedHistogramStats> symbolStatistics;
+    private final Map<Symbol, ColumnStatistics> symbolStatistics;
 
-    private PlanNodeStatsEstimate(Estimate outputRowCount, Estimate outputSizeInBytes, Map<Symbol, SimplifiedHistogramStats> symbolStatistics)
+    private PlanNodeStatsEstimate(Estimate outputRowCount, Estimate outputSizeInBytes, Map<Symbol, ColumnStatistics> symbolStatistics)
     {
         this.outputRowCount = requireNonNull(outputRowCount, "outputRowCount can not be null");
         this.outputSizeInBytes = requireNonNull(outputSizeInBytes, "outputSizeInBytes can not be null");
@@ -133,7 +133,7 @@ public class PlanNodeStatsEstimate
     {
         private Estimate outputRowCount = unknownValue();
         private Estimate outputSizeInBytes = unknownValue();
-        private Map<Symbol, SimplifiedHistogramStats> symbolStatistics = new HashMap<>();
+        private Map<Symbol, ColumnStatistics> symbolStatistics = new HashMap<>();
 
         public Builder setOutputRowCount(Estimate outputRowCount)
         {
@@ -147,7 +147,7 @@ public class PlanNodeStatsEstimate
             return this;
         }
 
-        public Builder setSymbolStatistics(Map<Symbol, SimplifiedHistogramStats> symbolStatistics)
+        public Builder setSymbolStatistics(Map<Symbol, ColumnStatistics> symbolStatistics)
         {
             this.symbolStatistics = symbolStatistics;
             return this;

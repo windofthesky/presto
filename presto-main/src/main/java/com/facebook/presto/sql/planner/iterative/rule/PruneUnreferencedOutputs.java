@@ -26,6 +26,7 @@ import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
+import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.IndexSourceNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
@@ -101,6 +102,7 @@ public class PruneUnreferencedOutputs
                 .build();
     }
 
+    // TODO for the non-output-symbol-selecting nodes, don't factor the required symbols this way, and instead just default to obviously requiring all the source symbols.
     private static ImmutableList<ImmutableSet<Symbol>> requiredIndexJoinChildrenSymbols(IndexJoinNode node, ImmutableSet<Symbol> requiredOutputs)
     {
         ImmutableSet<Symbol> probeUsable = ImmutableSet.<Symbol>builder()
@@ -138,6 +140,13 @@ public class PruneUnreferencedOutputs
     private static class RequiredInputSymbols
             extends PlanVisitor<Void, ImmutableList<ImmutableSet<Symbol>>>
     {
+        private static ImmutableList<ImmutableSet<Symbol>> allChildSymbols(PlanNode node)
+        {
+            return node.getSources().stream()
+                    .map(source -> ImmutableSet.copyOf(source.getOutputSymbols()))
+                    .collect(toImmutableList());
+        }
+
         @Override
         public ImmutableList<ImmutableSet<Symbol>> visitPlan(PlanNode node, Void context)
         {
@@ -238,6 +247,12 @@ public class PruneUnreferencedOutputs
         public ImmutableList<ImmutableSet<Symbol>> visitMarkDistinct(MarkDistinctNode node, Void context)
         {
             return ImmutableList.of(requiredMarkDistinctSourceSymbols(node, ImmutableSet.copyOf(node.getOutputSymbols())));
+        }
+
+        @Override
+        public ImmutableList<ImmutableSet<Symbol>> visitFilter(FilterNode node, Void context)
+        {
+            return allChildSymbols(node);
         }
     }
 
@@ -469,6 +484,19 @@ public class PruneUnreferencedOutputs
 
             // MarkDistinctNode doesn't support output symbols selection, so we need to insert a project over the source
             ImmutableSet<Symbol> requiredSourceSymbols = requiredMarkDistinctSourceSymbols(node, requiredSymbols);
+
+            PlanNode newSourceNode = restrictSymbols(node.getSource(), requiredSourceSymbols);
+            return node.replaceChildren(ImmutableList.of(newSourceNode));
+        }
+
+        @Override
+        public PlanNode visitFilter(FilterNode node, ImmutableSet<Symbol> requiredSymbols)
+        {
+            // FilterNode doesn't support output symbols selection, so we need to insert a project over the source
+            ImmutableSet<Symbol> requiredSourceSymbols = Streams.concat(
+                    DependencyExtractor.extractUnique(node).stream(),
+                    requiredSymbols.stream()
+            ).collect(toImmutableSet());
 
             PlanNode newSourceNode = restrictSymbols(node.getSource(), requiredSourceSymbols);
             return node.replaceChildren(ImmutableList.of(newSourceNode));

@@ -38,6 +38,7 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.aggreg
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.equiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.exchange;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.filter;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.functionCall;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoin;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoinEquiJoinClause;
@@ -569,5 +570,30 @@ public class TestPruneUnreferencedOutputs
                                 strictProject(
                                         ImmutableMap.of(),
                                         values(ImmutableMap.of("unused_", 0)))));
+    }
+
+    @Test
+    public void testFilter()
+            throws Exception
+    {
+        tester.assertThat(new PruneUnreferencedOutputs())
+                .on(p ->
+                {
+                    final Symbol key = p.symbol("key", BIGINT);
+                    final Symbol unused = p.symbol("unused", BIGINT);
+                    return p.project(
+                            Assignments.of(),
+                            p.filter(
+                                    expression("key > 10"),
+                                    p.values(key, unused)));
+                })
+                .matches(
+                        strictProject(
+                                ImmutableMap.of(),
+                                filter(
+                                        "key_ > 10",
+                                        strictProject(
+                                                ImmutableMap.of("key_", PlanMatchPattern.expression("key_")),
+                                                values(ImmutableMap.of("key_", 0, "unused_", 1))))));
     }
 }

@@ -387,7 +387,7 @@ public class AddLocalExchanges
         {
             checkArgument(node.getScope() != LOCAL, "AddLocalExchanges can not process a plan containing a local exchange");
             // this node changes the input organization completely, so we do not pass through parent preferences
-            if (node.getOrderingScheme().isPresent()) {
+            if (node.isOrderSensitive() || node.getOrderingScheme().isPresent()) {
                 return planAndEnforceChildren(
                         node,
                         singleStream().withOrderSensitivity(),
@@ -425,6 +425,7 @@ public class AddLocalExchanges
                         new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
                         sources,
                         inputLayouts,
+                        false,
                         Optional.empty());
                 return deriveProperties(exchangeNode, inputProperties);
             }
@@ -441,6 +442,7 @@ public class AddLocalExchanges
                                 Optional.empty()),
                         sources,
                         inputLayouts,
+                        false,
                         Optional.empty());
                 return deriveProperties(exchangeNode, inputProperties);
             }
@@ -453,6 +455,7 @@ public class AddLocalExchanges
                     new PartitioningScheme(Partitioning.create(FIXED_ARBITRARY_DISTRIBUTION, ImmutableList.of()), node.getOutputSymbols()),
                     sources,
                     inputLayouts,
+                    false,
                     Optional.empty());
             ExchangeNode exchangeNode = result;
 

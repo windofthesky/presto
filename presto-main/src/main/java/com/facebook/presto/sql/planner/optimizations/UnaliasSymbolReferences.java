@@ -282,7 +282,7 @@ public class UnaliasSymbolReferences
 
             Optional<OrderingScheme> orderingScheme = node.getOrderingScheme().map(this::canonicalize);
 
-            return new ExchangeNode(node.getId(), node.getType(), node.getScope(), partitioningScheme, sources, inputs, orderingScheme);
+            return new ExchangeNode(node.getId(), node.getType(), node.getScope(), partitioningScheme, sources, inputs, node.isOrderSensitive(), orderingScheme);
         }
 
         private void mapExchangeNodeSymbols(ExchangeNode node)
@@ -338,6 +338,7 @@ public class UnaliasSymbolReferences
                     node.getId(),
                     node.getSourceFragmentIds(),
                     canonicalizeAndDistinct(node.getOutputSymbols()),
+                    node.isOrderSensitive(),
                     node.getOrderingScheme().map(this::canonicalize));
         }
 

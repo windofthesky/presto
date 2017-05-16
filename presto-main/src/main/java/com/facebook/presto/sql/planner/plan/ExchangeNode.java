@@ -64,6 +64,7 @@ public class ExchangeNode
     private final List<List<Symbol>> inputs;
 
     private final Optional<OrderingScheme> orderingScheme;
+    private final boolean orderSensitive;
 
     @JsonCreator
     public ExchangeNode(
@@ -73,6 +74,7 @@ public class ExchangeNode
             @JsonProperty("partitioningScheme") PartitioningScheme partitioningScheme,
             @JsonProperty("sources") List<PlanNode> sources,
             @JsonProperty("inputs") List<List<Symbol>> inputs,
+            @JsonProperty("orderSensitive") boolean orderSensitive,
             @JsonProperty("orderingScheme") Optional<OrderingScheme> orderingScheme)
     {
         super(id);
@@ -104,6 +106,7 @@ public class ExchangeNode
         this.partitioningScheme = partitioningScheme;
         this.inputs = ImmutableList.copyOf(inputs);
         this.orderingScheme = orderingScheme;
+        this.orderSensitive = orderSensitive;
     }
 
     public static ExchangeNode partitionedExchange(PlanNodeId id, Scope scope, PlanNode child, List<Symbol> partitioningColumns, Optional<Symbol> hashColumns)
@@ -136,7 +139,8 @@ public class ExchangeNode
                 scope,
                 partitioningScheme,
                 ImmutableList.of(child),
-                ImmutableList.of(partitioningScheme.getOutputLayout()).asList(),
+                ImmutableList.of(partitioningScheme.getOutputLayout()),
+                false,
                 Optional.empty());
     }
 
@@ -149,6 +153,7 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(FIXED_BROADCAST_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
+                false,
                 Optional.empty());
     }
 
@@ -161,6 +166,7 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
+                false,
                 Optional.empty());
     }
 
@@ -182,7 +188,21 @@ public class ExchangeNode
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
                 ImmutableList.of(child),
                 ImmutableList.of(child.getOutputSymbols()),
+                true,
                 Optional.of(orderingScheme));
+    }
+
+    public static ExchangeNode gatheringOrderSensitiveExchange(PlanNodeId id, Scope scope, PlanNode child)
+    {
+        return new ExchangeNode(
+                id,
+                ExchangeNode.Type.GATHER,
+                scope,
+                new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), child.getOutputSymbols()),
+                ImmutableList.of(child),
+                ImmutableList.of(child.getOutputSymbols()),
+                true,
+                Optional.empty());
     }
 
     @JsonProperty
@@ -228,6 +248,12 @@ public class ExchangeNode
         return inputs;
     }
 
+    @JsonProperty
+    public boolean isOrderSensitive()
+    {
+        return orderSensitive;
+    }
+
     @Override
     public <R, C> R accept(PlanVisitor<R, C> visitor, C context)
     {
@@ -237,6 +263,6 @@ public class ExchangeNode
     @Override
     public PlanNode replaceChildren(List<PlanNode> newChildren)
     {
-        return new ExchangeNode(getId(), type, scope, partitioningScheme, newChildren, inputs, orderingScheme);
+        return new ExchangeNode(getId(), type, scope, partitioningScheme, newChildren, inputs, orderSensitive, orderingScheme);
     }
 }

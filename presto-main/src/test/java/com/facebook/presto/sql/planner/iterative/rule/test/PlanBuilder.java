@@ -351,7 +351,7 @@ public class PlanBuilder
 
         protected ExchangeNode build()
         {
-            return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs, Optional.empty());
+            return new ExchangeNode(idAllocator.getNextId(), type, scope, partitioningScheme, sources, inputs, false, Optional.empty());
         }
     }
 

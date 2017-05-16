@@ -42,6 +42,7 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.functi
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoin;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.indexJoinEquiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.join;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.markDistinct;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.project;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.semiJoin;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictProject;
@@ -530,20 +531,26 @@ public class TestPruneUnreferencedOutputs
     public void testMarkDistinct()
             throws Exception
     {
-        /*
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p ->
                 {
-                    final Symbol input = p.symbol("input", BIGINT);
-                    final Symbol summation1 = p.symbol("summation1", BIGINT);
-                    final Symbol unusedSummation1 = p.symbol("unusedSummation1", BIGINT);
-                    final Symbol summation2 = p.symbol("summation2", BIGINT);
-                    final Symbol key1 = p.symbol("key1", BIGINT);
-                    final Symbol key2 = p.symbol("key2", BIGINT);
-                    final Symbol keyHash2 = p.symbol("keyHash2", BIGINT);
-                    final Symbol mask2 = p.symbol("mask2", BIGINT);
-                    return p.markDistinct(
-                    */
+                    final Symbol key = p.symbol("key", BIGINT);
+                    final Symbol keyHash = p.symbol("keyHash", BIGINT);
+                    final Symbol marker = p.symbol("marker", BIGINT);
+                    final Symbol unused = p.symbol("unused", BIGINT);
+                    return p.project(
+                            Assignments.identity(marker),
+                            p.markDistinct(marker, ImmutableList.of(key), Optional.of(keyHash), p.values(key, keyHash, unused)));
+                })
+                .matches(
+                        project(
+                                ImmutableMap.of("marker_", PlanMatchPattern.expression("marker_")),
+                                markDistinct("marker_", ImmutableList.of("key_"), Optional.of("keyHash_"),
+                                        project(
+                                                ImmutableMap.of(
+                                                        "key_", PlanMatchPattern.expression("key_"),
+                                                        "keyHash_", PlanMatchPattern.expression("keyHash_")),
+                                                values(ImmutableMap.of("key_", 0, "keyHash_", 1, "unused_", 2))))));
         /*
         tester.assertThat(new PruneUnreferencedOutputs())
                 .on(p -> {

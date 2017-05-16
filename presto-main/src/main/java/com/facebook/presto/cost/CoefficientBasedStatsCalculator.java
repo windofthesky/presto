@@ -275,12 +275,13 @@ public class CoefficientBasedStatsCalculator
             checkArgument(sourceCosts.size() == expectedCount, "expected %s source costs, but found %s", sourceCosts.size(), expectedCount);
         }
 
-
         private class FilterExpressionStatsCalculatingVisitor
                 extends AstVisitor<PlanNodeStatsEstimate, Void>
         {
             PlanNodeStatsEstimate input;
-            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input) {
+
+            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input)
+            {
                 this.input = input;
             }
 

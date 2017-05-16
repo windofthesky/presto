@@ -78,11 +78,13 @@ public class PlanNodeStatsEstimate
                 }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))).build();
     }
 
-    public RangeColumnStatistics getOnlyRangeStats(Symbol symbol) {
+    public RangeColumnStatistics getOnlyRangeStats(Symbol symbol)
+    {
         return symbolStatistics.get(symbol).getOnlyRangeColumnStatistics();
     }
 
-    public boolean containsSymbolStats(Symbol symbol) {
+    public boolean containsSymbolStats(Symbol symbol)
+    {
         return symbolStatistics.containsKey(symbol);
     }
 
@@ -124,7 +126,7 @@ public class PlanNodeStatsEstimate
                 .setSymbolStatistics(other.getSymbolStatistics());
     }
 
-    public Map<Symbol,ColumnStatistics> getSymbolStatistics()
+    public Map<Symbol, ColumnStatistics> getSymbolStatistics()
     {
         return symbolStatistics;
     }

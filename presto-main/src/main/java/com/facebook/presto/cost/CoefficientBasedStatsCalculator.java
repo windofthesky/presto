@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
+import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
 import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -207,6 +208,15 @@ public class CoefficientBasedStatsCalculator
             for (Map.Entry<Symbol, ColumnHandle> entry : node.getAssignments().entrySet()) {
                 Symbol symbol = entry.getKey();
                 ColumnStatistics statistics = tableStatistics.getColumnStatistics().get(entry.getValue());
+                if (statistics == null) {
+                    statistics = ColumnStatistics.builder().addRange(
+                                    RangeColumnStatistics.builder()
+                                            .setDataSize(unknownValue())
+                                            .setDistinctValuesCount(unknownValue())
+                                            .setNullsFraction(unknownValue())
+                                            .setHighValue(Optional.empty())
+                                            .setLowValue(Optional.empty()).build()).build();
+                }
                 outputSymbolStats.put(symbol, statistics);
             }
 

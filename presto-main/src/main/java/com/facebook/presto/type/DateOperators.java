@@ -101,13 +101,6 @@ public final class DateOperators
     }
 
     @ScalarOperator(CAST)
-    @SqlType(StandardTypes.DOUBLE)
-    public static double castToDouble(ConnectorSession session, @SqlType(StandardTypes.DATE) long value)
-    {
-        return value;
-    }
-
-    @ScalarOperator(CAST)
     @SqlType(StandardTypes.TIMESTAMP)
     public static long castToTimestamp(ConnectorSession session, @SqlType(StandardTypes.DATE) long value)
     {

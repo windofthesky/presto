@@ -47,6 +47,7 @@ import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -293,31 +294,33 @@ public class CoefficientBasedStatsCalculator
                         return symbolToLiteralLessThan(left, literalValue);
                     case GREATER_THAN:
                     case GREATER_THAN_OR_EQUAL:
-                        break;
+                        return symbolToLiteralGreaterThan(left, literalValue);
                     case IS_DISTINCT_FROM:
                         break;
                 }
-                return null;
+                return input; //fixme
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralGreaterThan(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.empty(), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
             }
 
             private PlanNodeStatsEstimate symbolToLiteralLessThan(Symbol left, Object literalValue)
             {
                 TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
                 RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
-                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
-                    // TODO unknownLowHighStats(left, right, type);
-                    return input;
-                }
 
-                if (operatorCaller.callComparisonOperator(ComparisonExpressionType.LESS_THAN, literalValue, leftStats.getLowValue())) {
-                    return input; // FIXME return empty set stats
-                }
-
-                if (operatorCaller.callComparisonOperator(ComparisonExpressionType.GREATER_THAN_OR_EQUAL, literalValue, leftStats.getHighValue())) {
-                    return input;
-                }
-
-                return input; // FIXME between case
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.empty(), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
             }
 
             private PlanNodeStatsEstimate symbolToLiteralNonEquality(Symbol left, Object literalValue)
@@ -377,7 +380,38 @@ public class CoefficientBasedStatsCalculator
 
             private PlanNodeStatsEstimate comparisonSymbolToSymbolStats(Symbol left, Symbol right, ComparisonExpressionType type)
             {
-                return null;
+                switch (type) {
+                    case EQUAL:
+                        return symbolToSymbolEquality(left, right);
+                    case NOT_EQUAL:
+                    case LESS_THAN:
+                    case LESS_THAN_OR_EQUAL:
+                    case GREATER_THAN:
+                    case GREATER_THAN_OR_EQUAL:
+                    case IS_DISTINCT_FROM:
+                }
+                return input; //fixme
+            }
+
+            private PlanNodeStatsEstimate symbolToSymbolEquality(Symbol left, Symbol right)
+            {
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                RangeColumnStatistics rightStats = input.getOnlyRangeStats(right);
+
+                Estimate maxDistinctValues = Estimate.max(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
+                Estimate minDistinctValues = Estimate.min(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
+
+                double filterRate = input.getOutputRowCount()
+                        .divide(maxDistinctValues)
+                        .multiply(Estimate.of(1.0).subtract(leftStats.getNullsFraction()))
+                        .multiply(Estimate.of(1.0).subtract(rightStats.getNullsFraction())).getValue();
+
+                RangeColumnStatistics newRightStats = rightStats.builderFrom().setNullsFraction(zeroValue()).setDistinctValuesCount(minDistinctValues).build();
+                RangeColumnStatistics newLeftStats = leftStats.builderFrom().setNullsFraction(zeroValue()).setDistinctValuesCount(minDistinctValues).build();
+
+                return filterStatsByFactor(filterRate)
+                        .mapSymbolColumnStatistics(left, x -> newLeftStats)
+                        .mapSymbolColumnStatistics(right, x -> newRightStats);
             }
         }
     }

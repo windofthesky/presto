@@ -1,6 +1,5 @@
 package com.facebook.presto.cost;
 
-import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.sql.planner.Symbol;
 
@@ -17,9 +16,10 @@ public class PlanNodeStatsEstimateCollector
 
     }
 
-    public static OutputPlanNodeStatsEstimateCollector basedOn(PlanNodeStatsEstimate base)
+    public static PlanNodeStatsEstimateCollector basedOn(PlanNodeStatsEstimate base)
     {
-        this.outputRowCount = base.getOutputRowCount();
+        //this.outputRowCount = base.getOutputRowCount();
+        return null;
     }
 
     public PlanNodeStatsEstimateCollector filterDataPercent(double percent)
@@ -59,6 +59,6 @@ public class PlanNodeStatsEstimateCollector
 
     public PlanNodeStatsEstimate collect()
     {
-
+        return null;
     }
 }

@@ -166,7 +166,11 @@ public final class PlanMatchPattern
             Optional<String> hashSymbol,
             PlanMatchPattern source)
     {
-        return node(MarkDistinctNode.class, source).with(new MarkDistinctMatcher(markerSymbol, distinctSymbols, hashSymbol));
+        return node(MarkDistinctNode.class, source).with(new MarkDistinctMatcher(
+                new SymbolAlias(markerSymbol),
+                toSymbolAliases(distinctSymbols),
+                hashSymbol.map(SymbolAlias::new)
+        ));
     }
 
     public static PlanMatchPattern window(

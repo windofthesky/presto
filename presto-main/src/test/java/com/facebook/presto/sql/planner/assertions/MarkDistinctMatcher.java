@@ -15,10 +15,9 @@ package com.facebook.presto.sql.planner.assertions;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
-import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
-import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,21 +26,22 @@ import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static java.util.Objects.requireNonNull;
 
 public class MarkDistinctMatcher
         implements Matcher
 {
-    private final String markerSymbol;
-    private final List<String> distinctSymbols;
-    private final Optional<String> hashSymbol;
+    private final PlanTestSymbol markerSymbol;
+    private final List<PlanTestSymbol> distinctSymbols;
+    private final Optional<PlanTestSymbol> hashSymbol;
 
 
-    public MarkDistinctMatcher(String markerSymbol, List<String> distinctSymbols, Optional<String> hashSymbol)
+    public MarkDistinctMatcher(PlanTestSymbol markerSymbol, List<PlanTestSymbol> distinctSymbols, Optional<PlanTestSymbol> hashSymbol)
     {
-        this.markerSymbol = markerSymbol;
-        this.distinctSymbols = distinctSymbols;
-        this.hashSymbol = hashSymbol;
+        this.markerSymbol = requireNonNull(markerSymbol, "markerSymbol is null");
+        this.distinctSymbols = requireNonNull(distinctSymbols, "distinctSymbols is null");
+        this.hashSymbol = requireNonNull(hashSymbol, "hashSymbol is null");
     }
 
     @Override
@@ -56,19 +56,18 @@ public class MarkDistinctMatcher
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
         MarkDistinctNode markDistinctNode = (MarkDistinctNode) node;
 
-        if (!markDistinctNode.getHashSymbol().map(Symbol::getName)
-                .equals(hashSymbol.map(alias -> symbolAliases.get(alias).getName())))
+        if (!markDistinctNode.getHashSymbol().equals(hashSymbol.map(alias -> alias.toSymbol(symbolAliases))))
         {
             return NO_MATCH;
         }
 
-        if (!markDistinctNode.getDistinctSymbols().stream().map(Symbol::getName).collect(toImmutableList())
-                .equals(distinctSymbols.stream().map(alias -> symbolAliases.get(alias).getName()).collect(toImmutableList())))
+        if (!ImmutableSet.copyOf(markDistinctNode.getDistinctSymbols())
+                .equals(distinctSymbols.stream().map(alias -> alias.toSymbol(symbolAliases)).collect(toImmutableSet())))
         {
             return NO_MATCH;
         }
 
-        return match(markerSymbol, new SymbolReference(markDistinctNode.getMarkerSymbol().getName()));
+        return match(markerSymbol.toString(), markDistinctNode.getMarkerSymbol().toSymbolReference());
     }
 
     @Override

@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.operator;
 
-import com.facebook.presto.SystemSessionProperties;
 import com.facebook.presto.memory.LocalMemoryContext;
 import com.facebook.presto.metadata.Split;
 import com.facebook.presto.spi.ColumnHandle;
@@ -25,7 +24,6 @@ import com.facebook.presto.spi.RecordPageSource;
 import com.facebook.presto.spi.UpdatablePageSource;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.split.PageSourceProvider;
-import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -39,6 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
+import static com.facebook.presto.SystemSessionProperties.getProcessingOptimization;
 import static com.facebook.presto.sql.analyzer.FeaturesConfig.ProcessingOptimization.COLUMNAR;
 import static com.facebook.presto.sql.analyzer.FeaturesConfig.ProcessingOptimization.COLUMNAR_DICTIONARY;
 import static com.facebook.presto.sql.analyzer.FeaturesConfig.ProcessingOptimization.DISABLED;
@@ -94,20 +93,9 @@ public class ScanFilterAndProjectOperator
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
         this.pageSourceMemoryContext = operatorContext.getSystemMemoryContext().newLocalMemoryContext();
         this.pageBuilderMemoryContext = operatorContext.getSystemMemoryContext().newLocalMemoryContext();
-        this.processingOptimization = getProcessingOptimization(operatorContext, pageProcessor.isFiltering());
+        this.processingOptimization = getProcessingOptimization(operatorContext.getSession());
 
         this.pageBuilder = new PageBuilder(getTypes());
-    }
-
-    private String getProcessingOptimization(OperatorContext operatorContext, boolean hasFilter)
-    {
-        String processingOptimization = SystemSessionProperties.getProcessingOptimization(operatorContext.getSession());
-        if (!hasFilter && processingOptimization.equals(FeaturesConfig.ProcessingOptimization.DISABLED)) {
-            return FeaturesConfig.ProcessingOptimization.COLUMNAR;
-        }
-        else {
-            return processingOptimization;
-        }
     }
 
     @Override

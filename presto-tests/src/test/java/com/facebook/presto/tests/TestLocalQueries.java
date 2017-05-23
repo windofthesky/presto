@@ -30,6 +30,7 @@ import static com.facebook.presto.testing.TestingSession.TESTING_CATALOG;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static com.facebook.presto.testing.assertions.Assert.assertEquals;
 import static com.facebook.presto.tpch.TpchMetadata.TINY_SCHEMA_NAME;
+import static com.facebook.presto.type.UnknownType.UNKNOWN;
 
 public class TestLocalQueries
         extends AbstractTestQueries
@@ -72,8 +73,15 @@ public class TestLocalQueries
         // FIXME Add tests for more complex scenario with more stats
         MaterializedResult result = computeActual("SHOW STATS FOR nation");
 
-        MaterializedResult expectedStatistics = resultBuilder(getSession(), VARCHAR, DOUBLE, VARCHAR, VARCHAR)
-                .row(null, 25.0, null, null)
+        MaterializedResult expectedStatistics =
+                resultBuilder(getSession(), VARCHAR, UNKNOWN, DOUBLE, UNKNOWN, DOUBLE, VARCHAR, VARCHAR)
+                .row("regionkey", null, 5.0, null, null, "0", "4")
+                .row("name", null, 25.0, null, null, "ALGERIA", "VIETNAM")
+                .row("comment", null, 25.0, null, null,
+                        " haggle. carefully final deposits detect slyly agai",
+                        "y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be")
+                .row("nationkey", null, 25.0, null, null, "0", "24")
+                .row(null, null, null, null, 25.0, null, null)
                 .build();
 
         assertEquals(result, expectedStatistics);

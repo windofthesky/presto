@@ -174,6 +174,9 @@ public final class CachePageSourceProvider
         {
             sourcePageSource.close();
             cachePageSink.finish();
+            //result of .finish() can not be ignored, must be passed to the
+            //coordinator and there to the cache's metadata
+            //finishInsert() method
         }
 
         private static Page getColumns(Page page, List<Integer> columnIndexes)

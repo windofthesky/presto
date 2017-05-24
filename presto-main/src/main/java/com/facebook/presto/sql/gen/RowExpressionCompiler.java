@@ -19,6 +19,7 @@ import com.facebook.presto.bytecode.Scope;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.sql.relational.CallExpression;
 import com.facebook.presto.sql.relational.ConstantExpression;
+import com.facebook.presto.sql.relational.DeferredSymbolReferenceExpression;
 import com.facebook.presto.sql.relational.InputReferenceExpression;
 import com.facebook.presto.sql.relational.LambdaDefinitionExpression;
 import com.facebook.presto.sql.relational.RowExpression;
@@ -233,6 +234,12 @@ public class RowExpressionCompiler
         public BytecodeNode visitVariableReference(VariableReferenceExpression reference, Context context)
         {
             return fieldReferenceCompiler.visitVariableReference(reference, context.getScope());
+        }
+
+        @Override
+        public BytecodeNode visitDeferredSymbolReference(DeferredSymbolReferenceExpression reference, Context context)
+        {
+            throw new UnsupportedOperationException();
         }
     }
 

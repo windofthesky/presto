@@ -72,6 +72,7 @@ public class FeaturesConfig
     private boolean pushAggregationThroughJoin = true;
 
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
+    private boolean dynamicPartitionPruning = false;
 
     public boolean isResourceGroupsEnabled()
     {
@@ -388,6 +389,18 @@ public class FeaturesConfig
     public FeaturesConfig setSpillMaxUsedSpaceThreshold(double spillMaxUsedSpaceThreshold)
     {
         this.spillMaxUsedSpaceThreshold = spillMaxUsedSpaceThreshold;
+        return this;
+    }
+
+    public boolean isDynamicPartitionPruningEnabled()
+    {
+        return dynamicPartitionPruning;
+    }
+
+    @Config("experimental.dynamic-partition-pruning-enabled")
+    public FeaturesConfig setDynamicPartitionPruningEnabled(boolean value)
+    {
+        this.dynamicPartitionPruning = value;
         return this;
     }
 

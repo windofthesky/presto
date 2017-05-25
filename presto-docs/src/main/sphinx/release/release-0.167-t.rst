@@ -235,3 +235,11 @@ The following has been added to 0.167-t.0.4:
 
 * Hive configuration property to enable/disable creating non-managed (external) Hive tables
 * Support NULLs as valid values in `value IN (%subquery%)`
+
+===================
+Release 0.167-t.0.5
+===================
+
+The following has been added to 0.167-t.0.5:
+
+* Dissable identity projection optimization that might lead to unpredicted transfer errors

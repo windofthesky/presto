@@ -16,7 +16,6 @@ package com.facebook.presto.util;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.lang.String.format;
 
 public class Types
 {
@@ -24,13 +23,12 @@ public class Types
 
     public static <T> T checkType(Object object, Class<T> expectedClass)
     {
-        return checkType(object, expectedClass,
-                format("Expected an object of type [%s]", expectedClass.getCanonicalName()));
+        return checkType(object, expectedClass, "Expected an object of type [%s]", expectedClass.getCanonicalName());
     }
 
-    public static <T> T checkType(Object object, Class<T> expectedClass, String message)
+    public static <T> T checkType(Object object, Class<T> expectedClass, String messageTemplate, Object... arguments)
     {
-        checkArgument(expectedClass.isInstance(object), message);
+        checkArgument(expectedClass.isInstance(object), messageTemplate, arguments);
         return expectedClass.cast(object);
     }
 

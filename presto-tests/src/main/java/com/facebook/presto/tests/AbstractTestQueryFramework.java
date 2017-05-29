@@ -18,6 +18,7 @@ import com.facebook.presto.cost.CostCalculator;
 import com.facebook.presto.cost.CostCalculatorUsingExchanges;
 import com.facebook.presto.cost.CostCalculatorWithEstimatedExchanges;
 import com.facebook.presto.cost.CostComparator;
+import com.facebook.presto.cost.FilterStatsCalculator;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.server.ServerMainModule;
 import com.facebook.presto.spi.security.AccessDeniedException;
@@ -304,7 +305,7 @@ public abstract class AbstractTestQueryFramework
                 forceSingleNode,
                 new MBeanExporter(new TestingMBeanServer()),
                 new CostComparator(featuresConfig),
-                ServerMainModule.createStatsCalculator(metadata),
+                ServerMainModule.createStatsCalculator(metadata, new FilterStatsCalculator(metadata)),
                 costCalculator,
                 new CostCalculatorWithEstimatedExchanges(costCalculator, queryRunner.getNodeCount())).get();
         return new QueryExplainer(

@@ -44,9 +44,13 @@ import com.google.common.collect.ImmutableMap;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.inject.Inject;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
+import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
+import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
+import static com.google.common.collect.Iterables.getOnlyElement;
 
 /**
  * Simple implementation of StatsCalculator. It make many arbitrary decisions (e.g filtering selectivity, join matching).
@@ -162,8 +166,27 @@ public class CoefficientBasedStatsCalculator
             Constraint<ColumnHandle> constraint = getConstraint(node, BooleanLiteral.TRUE_LITERAL);
 
             TableStatistics tableStatistics = metadata.getTableStatistics(session, node.getTable(), constraint);
+            Map<Symbol, ColumnStatistics> outputSymbolStats = new HashMap<>();
+
+            // TODO as stream
+            for (Map.Entry<Symbol, ColumnHandle> entry : node.getAssignments().entrySet()) {
+                Symbol symbol = entry.getKey();
+                ColumnStatistics statistics = tableStatistics.getColumnStatistics().get(entry.getValue());
+                if (statistics == null) {
+                    statistics = ColumnStatistics.builder().addRange(
+                                    RangeColumnStatistics.builder()
+                                            .setDataSize(unknownValue())
+                                            .setDistinctValuesCount(unknownValue())
+                                            .setNullsFraction(unknownValue())
+                                            .setHighValue(Optional.empty())
+                                            .setLowValue(Optional.empty()).build()).build();
+                }
+                outputSymbolStats.put(symbol, statistics);
+            }
+
             return PlanNodeStatsEstimate.builder()
                     .setOutputRowCount(tableStatistics.getRowCount())
+                    .setSymbolStatistics(outputSymbolStats)
                     .build();
         }
 

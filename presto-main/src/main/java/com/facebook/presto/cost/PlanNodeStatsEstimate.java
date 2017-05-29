@@ -13,10 +13,16 @@
  */
 package com.facebook.presto.cost;
 
+import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
+import com.facebook.presto.spi.statistics.RangeColumnStatistics;
+import com.facebook.presto.sql.planner.Symbol;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
 import static java.util.Objects.requireNonNull;
@@ -28,11 +34,13 @@ public class PlanNodeStatsEstimate
 
     private final Estimate outputRowCount;
     private final Estimate outputSizeInBytes;
+    private final Map<Symbol, ColumnStatistics> symbolStatistics;
 
-    private PlanNodeStatsEstimate(Estimate outputRowCount, Estimate outputSizeInBytes)
+    private PlanNodeStatsEstimate(Estimate outputRowCount, Estimate outputSizeInBytes, Map<Symbol, ColumnStatistics> symbolStatistics)
     {
         this.outputRowCount = requireNonNull(outputRowCount, "outputRowCount can not be null");
         this.outputSizeInBytes = requireNonNull(outputSizeInBytes, "outputSizeInBytes can not be null");
+        this.symbolStatistics = symbolStatistics;
     }
 
     public Estimate getOutputRowCount()
@@ -53,6 +61,31 @@ public class PlanNodeStatsEstimate
     public PlanNodeStatsEstimate mapOutputSizeInBytes(Function<Double, Double> mappingFunction)
     {
         return buildFrom(this).setOutputSizeInBytes(outputRowCount.map(mappingFunction)).build();
+    }
+
+    public PlanNodeStatsEstimate mapSymbolColumnStatistics(Symbol symbol, Function<ColumnStatistics, ColumnStatistics> mappingFunction)
+    {
+        return buildFrom(this)
+                .setSymbolStatistics(symbolStatistics.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                e -> {
+                                    if (e.getKey().equals(symbol)) {
+                                        return mappingFunction.apply(e.getValue());
+                                    }
+                                    return e.getValue();
+                                })))
+                .build();
+    }
+
+    public RangeColumnStatistics getOnlyRangeStats(Symbol symbol)
+    {
+        return symbolStatistics.get(symbol).getOnlyRangeColumnStatistics();
+    }
+
+    public boolean containsSymbolStats(Symbol symbol)
+    {
+        return symbolStatistics.containsKey(symbol);
     }
 
     @Override
@@ -89,13 +122,25 @@ public class PlanNodeStatsEstimate
     public static Builder buildFrom(PlanNodeStatsEstimate other)
     {
         return builder().setOutputRowCount(other.getOutputRowCount())
-                .setOutputSizeInBytes(other.getOutputSizeInBytes());
+                .setOutputSizeInBytes(other.getOutputSizeInBytes())
+                .setSymbolStatistics(other.getSymbolStatistics());
+    }
+
+    public Map<Symbol, ColumnStatistics> getSymbolStatistics()
+    {
+        return symbolStatistics;
+    }
+
+    public ColumnStatistics getSymbolStatistics(Symbol symbol)
+    {
+        return symbolStatistics.getOrDefault(symbol, ColumnStatistics.UNKNOWN_COLUMN_STATISTICS);
     }
 
     public static final class Builder
     {
         private Estimate outputRowCount = unknownValue();
         private Estimate outputSizeInBytes = unknownValue();
+        private Map<Symbol, ColumnStatistics> symbolStatistics = new HashMap<>();
 
         public Builder setOutputRowCount(Estimate outputRowCount)
         {
@@ -109,12 +154,24 @@ public class PlanNodeStatsEstimate
             return this;
         }
 
+        public Builder setSymbolStatistics(Map<Symbol, ColumnStatistics> symbolStatistics)
+        {
+            this.symbolStatistics = new HashMap<>(symbolStatistics);
+            return this;
+        }
+
+        public Builder addSymbolStatistics(Symbol symbol, ColumnStatistics statistics)
+        {
+            this.symbolStatistics.put(symbol, statistics);
+            return this;
+        }
+
         public PlanNodeStatsEstimate build()
         {
             if (outputSizeInBytes.isValueUnknown() && !outputRowCount.isValueUnknown()) {
                 outputSizeInBytes = new Estimate(DEFAULT_ROW_SIZE * outputRowCount.getValue());
             }
-            return new PlanNodeStatsEstimate(outputRowCount, outputSizeInBytes);
+            return new PlanNodeStatsEstimate(outputRowCount, outputSizeInBytes, symbolStatistics);
         }
     }
 }

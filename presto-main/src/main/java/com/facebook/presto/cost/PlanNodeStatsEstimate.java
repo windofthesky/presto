@@ -85,6 +85,18 @@ public class PlanNodeStatsEstimate
                 .build();
     }
 
+    public PlanNodeStatsEstimate add(PlanNodeStatsEstimate other)
+    {
+        // TODO this is broken (it does not operate on symbol stats at all). Remove or fix
+        ImmutableMap.Builder<Symbol, SymbolStatsEstimate> symbolsStatsBuilder = ImmutableMap.builder();
+        symbolsStatsBuilder.putAll(symbolStatistics).putAll(other.symbolStatistics); // This may not count all information
+
+        PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+        return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                .setOutputRowCount(getOutputRowCount() + other.getOutputRowCount())
+                .build();
+    }
+
     public SymbolStatsEstimate getSymbolStatistics(Symbol symbol)
     {
         return symbolStatistics.getOrDefault(symbol, SymbolStatsEstimate.UNKNOWN_STATS);
@@ -132,7 +144,7 @@ public class PlanNodeStatsEstimate
     public static Builder buildFrom(PlanNodeStatsEstimate other)
     {
         return builder().setOutputRowCount(other.getOutputRowCount())
-                .setSymbolStatistics(other.getSymbolStatistics());
+                .setSymbolStatistics(other.symbolStatistics);
     }
 
     public static final class Builder

@@ -17,6 +17,7 @@ import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.sql.planner.Symbol;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.AbstractMap;
 import java.util.HashMap;
@@ -76,6 +77,18 @@ public class PlanNodeStatsEstimate
                     }
                     return stat;
                 }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))).build();
+    }
+
+    public PlanNodeStatsEstimate add(PlanNodeStatsEstimate other)
+    {
+        ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+        symbolsStatsBuilder.putAll(getSymbolStatistics()).putAll(other.getSymbolStatistics()); // This may not count all information
+
+        PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+        return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                .setOutputRowCount(getOutputRowCount().add(other.getOutputRowCount()))
+                .setOutputSizeInBytes(getOutputSizeInBytes().add(other.getOutputSizeInBytes()))
+                .build();
     }
 
     public RangeColumnStatistics getOnlyRangeStats(Symbol symbol)

@@ -19,6 +19,10 @@ import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.operator.scalar.ScalarFunctionImplementation;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.function.OperatorType;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.IntegerType;
+import com.facebook.presto.spi.type.SmallintType;
+import com.facebook.presto.spi.type.TinyintType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.sql.planner.ExpressionInterpreter;
@@ -51,21 +55,21 @@ public class TypeStatOperatorCaller
         OperatorType operatorType = OperatorType.valueOf(comparisonType.name());
         Signature signature = functionRegistry.resolveOperator(operatorType, ImmutableList.of(type, type));
         ScalarFunctionImplementation implementation = functionRegistry.getScalarFunctionImplementation(signature);
-        return (boolean) ExpressionInterpreter.invoke(session, implementation, ImmutableList.of(left, right));
+        return (boolean) ExpressionInterpreter.invoke(session, implementation, ImmutableList.of(castToValidLiteralType(left), castToValidLiteralType(right)));
     }
 
     public boolean callBetweenOperator(Object which, Object low, Object high)
     {
         Signature signature = functionRegistry.resolveOperator(BETWEEN, ImmutableList.of(type, type, type));
         ScalarFunctionImplementation implementation = functionRegistry.getScalarFunctionImplementation(signature);
-        return (boolean) ExpressionInterpreter.invoke(session, implementation, ImmutableList.of(which, low, high));
+        return (boolean) ExpressionInterpreter.invoke(session, implementation, ImmutableList.of(which, castToValidLiteralType(low), castToValidLiteralType(high)));
     }
 
     public Slice castToVarchar(Object object)
     {
         Signature castSignature = functionRegistry.getCoercion(type, VarcharType.createUnboundedVarcharType());
         ScalarFunctionImplementation castImplementation = functionRegistry.getScalarFunctionImplementation(castSignature);
-        return (Slice) ExpressionInterpreter.invoke(session, castImplementation, singletonList(object));
+        return (Slice) ExpressionInterpreter.invoke(session, castImplementation, singletonList(castToValidLiteralType(object)));
     }
 
     public double translateToDouble(Object object)
@@ -73,6 +77,18 @@ public class TypeStatOperatorCaller
         if (object instanceof Long) {
             return (double) (long) object;
         }
+        if (object instanceof Integer) {
+            return (double) (int) object;
+        }
         return (double) object; //fixme
+    }
+
+    public Object castToValidLiteralType(Object obj)
+    {
+        if (ImmutableList.of(BigintType.BIGINT, IntegerType.INTEGER, SmallintType.SMALLINT, type.equals(TinyintType.TINYINT)).contains(type) &&
+                obj instanceof Double) {
+            return (Long) (long) (double) obj;
+        }
+        return obj;
     }
 }

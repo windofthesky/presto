@@ -88,6 +88,15 @@ public class RangeColumnStatistics
         return statistics;
     }
 
+    public Builder asBuilder()
+    {
+        return builder()
+                .setDataSize(getDataSize())
+                .setDistinctValuesCount(getDistinctValuesCount())
+                .setHighValue(getHighValue())
+                .setLowValue(getLowValue());
+    }
+
     public static Builder builder()
     {
         return new Builder();

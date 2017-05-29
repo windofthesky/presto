@@ -59,6 +59,14 @@ public final class ColumnStatistics
         return nullsFraction;
     }
 
+    public Builder asBuilder()
+    {
+        Builder builder = builder()
+                .setNullsFraction(nullsFraction);
+        rangeColumnStatistics.forEach(builder::addRange);
+        return builder;
+    }
+
     public static Builder builder()
     {
         return new Builder();

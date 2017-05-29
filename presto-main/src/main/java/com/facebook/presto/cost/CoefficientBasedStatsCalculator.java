@@ -46,6 +46,7 @@ import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Literal;
+import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -271,6 +272,12 @@ public class CoefficientBasedStatsCalculator
             }
 
             @Override
+            protected PlanNodeStatsEstimate visitNode(Node node, Void context)
+            {
+                return input;
+            }
+
+            @Override
             protected PlanNodeStatsEstimate visitComparisonExpression(ComparisonExpression node, Void context)
             {
                 // FIXME left and right might not be exactly SymbolReference and Literal
@@ -304,6 +311,9 @@ public class CoefficientBasedStatsCalculator
             private PlanNodeStatsEstimate comparisonSymbolToLiteralStats(Symbol left, Literal right, ComparisonExpressionType type)
             {
                 Object literalValue = LiteralInterpreter.evaluate(metadata, session.toConnectorSession(), right);
+                if (!input.containsSymbolStats(left)) {
+                    return filterStatsByFactor(0.5); //fixme
+                }
                 switch (type) {
                     case EQUAL:
                         return symbolToLiteralEquality(left, literalValue);
@@ -380,6 +390,9 @@ public class CoefficientBasedStatsCalculator
 
             private PlanNodeStatsEstimate comparisonSymbolToSymbolStats(Symbol left, Symbol right, ComparisonExpressionType type)
             {
+                if (!input.containsSymbolStats(left) || !input.containsSymbolStats(right)) {
+                    return filterStatsByFactor(0.5); //fixme
+                }
                 switch (type) {
                     case EQUAL:
                         return symbolToSymbolEquality(left, right);

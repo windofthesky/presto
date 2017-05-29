@@ -19,10 +19,13 @@ import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
+import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.DomainTranslator;
+import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.EnforceSingleRowNode;
@@ -37,8 +40,14 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
+import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.BooleanLiteral;
+import com.facebook.presto.sql.tree.ComparisonExpression;
+import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.Literal;
+import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -46,6 +55,7 @@ import javax.inject.Inject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
@@ -116,9 +126,8 @@ public class CoefficientBasedStatsCalculator
         @Override
         public PlanNodeStatsEstimate visitFilter(FilterNode node, Void context)
         {
-            PlanNodeStatsEstimate sourceStats = lookupStats(node.getSource());
-            return sourceStats
-                    .mapOutputRowCount(value -> value * FILTER_COEFFICIENT);
+            Expression expr = node.getPredicate();
+            return new FilterExpressionStatsCalculatingVisitor(lookupStats(node.getSource())).process(expr);
         }
 
         @Override
@@ -133,31 +142,39 @@ public class CoefficientBasedStatsCalculator
             PlanNodeStatsEstimate leftStats = lookupStats(node.getLeft());
             PlanNodeStatsEstimate rightStats = lookupStats(node.getRight());
 
-            PlanNodeStatsEstimate.Builder joinCost = PlanNodeStatsEstimate.builder();
-            if (!leftStats.getOutputRowCount().isValueUnknown() && !rightStats.getOutputRowCount().isValueUnknown()) {
-                double rowCount = Math.max(leftStats.getOutputRowCount().getValue(), rightStats.getOutputRowCount().getValue()) * JOIN_MATCHING_COEFFICIENT;
-                joinCost.setOutputRowCount(new Estimate(rowCount));
+            if (node.getCriteria().size() == 1) {
+                // FIXME, more complex criteria
+                JoinNode.EquiJoinClause joinClause = getOnlyElement(node.getCriteria());
+                Expression comparison = new ComparisonExpression(ComparisonExpressionType.EQUAL, joinClause.getLeft().toSymbolReference(), joinClause.getRight().toSymbolReference());
+                PlanNodeStatsEstimate mergedInputCosts = crossJoinStats(leftStats, rightStats);
+                return new FilterExpressionStatsCalculatingVisitor(mergedInputCosts).process(comparison);
             }
+
+            PlanNodeStatsEstimate.Builder joinCost = PlanNodeStatsEstimate.builder();
             return joinCost.build();
+        }
+
+        public PlanNodeStatsEstimate crossJoinStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)
+        {
+            ImmutableMap.Builder<Symbol, ColumnStatistics> symbolsStatsBuilder = ImmutableMap.builder();
+            symbolsStatsBuilder.putAll(left.getSymbolStatistics()).putAll(right.getSymbolStatistics());
+
+            PlanNodeStatsEstimate.Builder statsBuilder = PlanNodeStatsEstimate.builder();
+            return statsBuilder.setSymbolStatistics(symbolsStatsBuilder.build())
+                    .setOutputRowCount(left.getOutputRowCount().multiply(right.getOutputRowCount()))
+                    .setOutputSizeInBytes(left.getOutputSizeInBytes().multiply(right.getOutputRowCount())) // FIXME it shouldn't be order (left, right) dependent
+                    .build();
         }
 
         @Override
         public PlanNodeStatsEstimate visitExchange(ExchangeNode node, Void context)
         {
-            Estimate rowCount = new Estimate(0);
-            for (int i = 0; i < node.getSources().size(); i++) {
-                PlanNodeStatsEstimate childCost = lookupStats(node.getSources().get(i));
-                if (childCost.getOutputRowCount().isValueUnknown()) {
-                    rowCount = Estimate.unknownValue();
-                }
-                else {
-                    rowCount = rowCount.map(value -> value + childCost.getOutputRowCount().getValue());
-                }
+            PlanNodeStatsEstimate estimateSum = lookupStats(node.getSources().get(0));
+            for (int i = 1; i < node.getSources().size(); i++) {
+                estimateSum = estimateSum.add(lookupStats(node.getSources().get(1)));
             }
 
-            return PlanNodeStatsEstimate.builder()
-                    .setOutputRowCount(rowCount)
-                    .build();
+            return estimateSum;
         }
 
         @Override
@@ -241,6 +258,164 @@ public class CoefficientBasedStatsCalculator
                 limitCost.setOutputRowCount(new Estimate(node.getCount()));
             }
             return limitCost.build();
+        }
+
+        private class FilterExpressionStatsCalculatingVisitor
+                extends AstVisitor<PlanNodeStatsEstimate, Void>
+        {
+            PlanNodeStatsEstimate input;
+
+            FilterExpressionStatsCalculatingVisitor(PlanNodeStatsEstimate input)
+            {
+                this.input = input;
+            }
+
+            @Override
+            protected PlanNodeStatsEstimate visitComparisonExpression(ComparisonExpression node, Void context)
+            {
+                // FIXME left and right might not be exactly SymbolReference and Literal
+                if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof SymbolReference) {
+                    return comparisonSymbolToSymbolStats(
+                            Symbol.from(node.getLeft()),
+                            Symbol.from(node.getRight()),
+                            node.getType()
+                    );
+                }
+                else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
+                    return comparisonSymbolToLiteralStats(
+                            Symbol.from(node.getLeft()),
+                            (Literal) node.getRight(),
+                            node.getType()
+                    );
+                }
+                else if (node.getLeft() instanceof Literal && node.getRight() instanceof SymbolReference) {
+                    return comparisonSymbolToLiteralStats(
+                            Symbol.from(node.getRight()),
+                            (Literal) node.getLeft(),
+                            node.getType().flip()
+                    );
+                }
+                else {
+                    // It should be collapsed already?
+                    return input;
+                }
+            }
+
+            private PlanNodeStatsEstimate comparisonSymbolToLiteralStats(Symbol left, Literal right, ComparisonExpressionType type)
+            {
+                Object literalValue = LiteralInterpreter.evaluate(metadata, session.toConnectorSession(), right);
+                switch (type) {
+                    case EQUAL:
+                        return symbolToLiteralEquality(left, literalValue);
+                    case NOT_EQUAL:
+                        return symbolToLiteralNonEquality(left, literalValue);
+                    case LESS_THAN:
+                    case LESS_THAN_OR_EQUAL:
+                        return symbolToLiteralLessThan(left, literalValue);
+                    case GREATER_THAN:
+                    case GREATER_THAN_OR_EQUAL:
+                        return symbolToLiteralGreaterThan(left, literalValue);
+                    case IS_DISTINCT_FROM:
+                        break;
+                }
+                return filterStatsByFactor(0.5); //fixme
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralGreaterThan(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.empty(), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralLessThan(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.empty(), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralNonEquality(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats intersectStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = Estimate.of(1.0).subtract(intersectStats.getFilteredPercent());
+                return filterStatsByFactor(filtered.getValue())
+                        .mapSymbolColumnStatistics(left,
+                                x -> x.builderFrom()
+                                        .setDataSize(x.getDataSize().multiply(filtered))
+                                        .setDistinctValuesCount(x.getDistinctValuesCount().subtract(Estimate.of(1.0)))
+                                        .setNullsFraction(zeroValue())
+                                        .build());
+            }
+
+            private PlanNodeStatsEstimate symbolToLiteralEquality(Symbol left, Object literalValue)
+            {
+                TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
+            }
+
+            private PlanNodeStatsEstimate filterStatsByFactor(double filterRate)
+            {
+                return input
+                        .mapOutputRowCount(size -> size * filterRate)
+                        .mapOutputSizeInBytes(size -> size * filterRate);
+            }
+
+            private PlanNodeStatsEstimate comparisonSymbolToSymbolStats(Symbol left, Symbol right, ComparisonExpressionType type)
+            {
+                switch (type) {
+                    case EQUAL:
+                        return symbolToSymbolEquality(left, right);
+                    case NOT_EQUAL:
+                    case LESS_THAN:
+                    case LESS_THAN_OR_EQUAL:
+                    case GREATER_THAN:
+                    case GREATER_THAN_OR_EQUAL:
+                    case IS_DISTINCT_FROM:
+                }
+                return filterStatsByFactor(0.5); //fixme
+            }
+
+            private PlanNodeStatsEstimate symbolToSymbolEquality(Symbol left, Symbol right)
+            {
+                if (!input.containsSymbolStats(left) || !input.containsSymbolStats(right)) {
+                    return filterStatsByFactor(0.5); //fixme
+                }
+                RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
+                RangeColumnStatistics rightStats = input.getOnlyRangeStats(right);
+
+                Estimate maxDistinctValues = Estimate.max(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
+                Estimate minDistinctValues = Estimate.min(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
+
+                double filterRate =
+                        Estimate.of(1.0).divide(maxDistinctValues)
+                        .multiply(Estimate.of(1.0).subtract(leftStats.getNullsFraction()))
+                        .multiply(Estimate.of(1.0).subtract(rightStats.getNullsFraction())).getValue();
+
+                RangeColumnStatistics newRightStats = rightStats.builderFrom().setNullsFraction(zeroValue()).setDistinctValuesCount(minDistinctValues).build();
+                RangeColumnStatistics newLeftStats = leftStats.builderFrom().setNullsFraction(zeroValue()).setDistinctValuesCount(minDistinctValues).build();
+
+                return filterStatsByFactor(filterRate)
+                        .mapSymbolColumnStatistics(left, x -> newLeftStats)
+                        .mapSymbolColumnStatistics(right, x -> newRightStats);
+            }
         }
     }
 }

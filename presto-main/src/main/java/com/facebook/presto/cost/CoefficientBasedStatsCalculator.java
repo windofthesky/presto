@@ -127,7 +127,7 @@ public class CoefficientBasedStatsCalculator
         public PlanNodeStatsEstimate visitFilter(FilterNode node, Void context)
         {
             Expression expr = node.getPredicate();
-            return new FilterExpressionStatsCalculatingVisitor(lookupStats(node)).process(expr);
+            return new FilterExpressionStatsCalculatingVisitor(lookupStats(node.getSource())).process(expr);
         }
 
         @Override
@@ -359,48 +359,28 @@ public class CoefficientBasedStatsCalculator
             {
                 TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
                 RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
-                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
-                    // TODO unknownLowHighStats(left, right, type);
-                    return input;
-                }
 
-                if (!operatorCaller.callBetweenOperator(literalValue, leftStats.getLowValue().get(), leftStats.getHighValue().get())) {
-                    return input;
-                }
-
-                double distinctValuesCount = leftStats.getDistinctValuesCount().getValue();
-                double filterRate = ((distinctValuesCount - 1) / distinctValuesCount) * (1 - leftStats.getNullsFraction().getValue());
-
-                RangeColumnStatistics newColumnStats = leftStats.builderFrom()
-                        .setNullsFraction(zeroValue())
-                        .setDistinctValuesCount(new Estimate(leftStats.getDistinctValuesCount().getValue() - 1))
-                        .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue())).build();
-
-                return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats intersectStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = Estimate.of(1.0).subtract(intersectStats.getFilteredPercent());
+                return filterStatsByFactor(filtered.getValue())
+                        .mapSymbolColumnStatistics(left,
+                                x -> x.builderFrom()
+                                        .setDataSize(x.getDataSize().multiply(filtered))
+                                        .setDistinctValuesCount(x.getDistinctValuesCount().subtract(Estimate.of(1.0)))
+                                        .setNullsFraction(zeroValue())
+                                        .build());
             }
 
             private PlanNodeStatsEstimate symbolToLiteralEquality(Symbol left, Object literalValue)
             {
                 TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(types.get(left), metadata.getFunctionRegistry(), session.toConnectorSession());
                 RangeColumnStatistics leftStats = input.getOnlyRangeStats(left);
-                if (!leftStats.getLowValue().isPresent() || !leftStats.getHighValue().isPresent()) {
-                    // TODO unknownLowHighStats(left, right, type);
-                    return input;
-                }
 
-                double filterRate = 0;
-                if (operatorCaller.callBetweenOperator(literalValue, leftStats.getLowValue().get(), leftStats.getHighValue().get())) {
-                    filterRate = (1 - leftStats.getNullsFraction().getValue()) / leftStats.getDistinctValuesCount().getValue();
-                }
-
-                RangeColumnStatistics newColumnStats = leftStats.builderFrom()
-                        .setNullsFraction(zeroValue())
-                        .setDistinctValuesCount(new Estimate(1))
-                        .setDataSize(new Estimate(filterRate * leftStats.getDataSize().getValue()))
-                        .setLowValue(Optional.of(literalValue))
-                        .setHighValue(Optional.of(literalValue)).build();
-
-                return filterStatsByFactor(filterRate).mapSymbolColumnStatistics(left, x -> newColumnStats);
+                SimplifiedHistogramStats histogram = SimplifiedHistogramStats.of(ImmutableList.of(leftStats), operatorCaller);
+                SimplifiedHistogramStats newStats = histogram.intersect(new StatsHistogramRange(Optional.of(literalValue), Optional.of(literalValue), operatorCaller, Optional.empty()));
+                Estimate filtered = newStats.getFilteredPercent();
+                return filterStatsByFactor(filtered.getValue()).mapSymbolColumnStatistics(left, x -> newStats.toRangeColumnStatistics());
             }
 
             private PlanNodeStatsEstimate filterStatsByFactor(double filterRate)

@@ -42,7 +42,7 @@ public class TestTpchDistributedStats
         statisticsAssertion = new StatisticsAssertion(runner);
     }
 
-    @Test
+    @Test(enabled = false)
     void testTableScanStats()
     {
         TpchTable.getTables()
@@ -52,7 +52,7 @@ public class TestTpchDistributedStats
                                 .estimate(OUTPUT_ROW_COUNT, defaultTolerance())));
     }
 
-    @Test
+    @Test(enabled = false)
     void testFilter()
     {
         String query = "" +
@@ -64,7 +64,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, relativeError(Range.closed(-.55, -.45))));
     }
 
-    @Test
+    @Test(enabled = false)
     void testJoin()
     {
         statisticsAssertion.check("SELECT * FROM  part, partsupp WHERE p_partkey = ps_partkey",
@@ -72,7 +72,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, relativeError(Range.closed(.95, 1.05))));
     }
 
-    @Test
+    @Test(enabled = false)
     void testSetOperations()
     {
         statisticsAssertion.check("SELECT * FROM nation UNION SELECT * FROM nation",
@@ -88,7 +88,7 @@ public class TestTpchDistributedStats
                         .noEstimate(OUTPUT_ROW_COUNT));
     }
 
-    @Test
+    @Test(enabled = false)
     void testEnforceSingleRow()
     {
         String query = "SELECT (SELECT n_regionkey FROM nation WHERE n_name = 'Germany')";
@@ -97,7 +97,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, noError()));
     }
 
-    @Test
+    @Test(enabled = false)
     void testValues()
     {
         String query = "VALUES 1";
@@ -106,7 +106,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, noError()));
     }
 
-    @Test
+    @Test(enabled = false)
     void testSemiJoin()
     {
         statisticsAssertion.check("SELECT * FROM nation WHERE n_regionkey IN (SELECT r_regionkey FROM region)",
@@ -117,7 +117,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, absoluteError(Range.singleton(15.))));
     }
 
-    @Test
+    @Test(enabled = false)
     void testLimit()
     {
         statisticsAssertion.check("SELECT * FROM nation LIMIT 10",
@@ -125,7 +125,7 @@ public class TestTpchDistributedStats
                         .estimate(OUTPUT_ROW_COUNT, noError()));
     }
 
-    @Test
+    @Test(enabled = false)
     void testGroupBy()
     {
         String query = "" +

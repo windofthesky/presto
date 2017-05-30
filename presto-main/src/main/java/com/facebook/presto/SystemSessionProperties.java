@@ -77,6 +77,7 @@ public final class SystemSessionProperties
     public static final String PARSE_DECIMAL_LITERALS_AS_DOUBLE = "deprecated_parse_decimal_literals_as_double";
     public static final String DISTRIBUTED_SORT = "distributed_sort";
     public static final String REDISTRIBUTE_SORT = "redistribute_sort";
+    public static final String USE_NEW_STATS_CALCULATOR = "use_new_stats_calculator";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -341,7 +342,12 @@ public final class SystemSessionProperties
                         REDISTRIBUTE_SORT,
                         "Force data redistribution before partial sort",
                         featuresConfig.isRedistributeSort(),
-                        false));
+                        false),
+        booleanSessionProperty(
+                        USE_NEW_STATS_CALCULATOR,
+                        "Use new experimental statistics calculator",
+                        featuresConfig.isUseNewStatsCalculator(),
+                        true));
     }
 
     public List<PropertyMetadata<?>> getSessionProperties()
@@ -536,5 +542,10 @@ public final class SystemSessionProperties
     public static boolean isRedistributeSort(Session session)
     {
         return session.getSystemProperty(REDISTRIBUTE_SORT, Boolean.class);
+    }
+
+    public static boolean isUseNewStatsCalculator(Session session)
+    {
+        return session.getSystemProperty(USE_NEW_STATS_CALCULATOR, Boolean.class);
     }
 }

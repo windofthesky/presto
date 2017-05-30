@@ -71,7 +71,8 @@ public class TestFeaturesConfig
                 .setPushAggregationThroughJoin(true)
                 .setParseDecimalLiteralsAsDouble(false)
                 .setDistributedSortEnabled(false)
-                .setRedistributeSort(true));
+                .setRedistributeSort(true)
+                .setUseNewStatsCalculator(false));
     }
 
     @Test
@@ -115,6 +116,7 @@ public class TestFeaturesConfig
                 .put("deprecated.parse-decimal-literals-as-double", "true")
                 .put("experimental.distributed-sort", "true")
                 .put("experimental.redistribute-sort", "false")
+                .put("experimental.use-new-stats-calculator", "true")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("cpu-cost-weight", "0.4")
@@ -154,6 +156,7 @@ public class TestFeaturesConfig
                 .put("deprecated.parse-decimal-literals-as-double", "true")
                 .put("experimental.distributed-sort", "true")
                 .put("experimental.redistribute-sort", "false")
+                .put("experimental.use-new-stats-calculator", "true")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -193,7 +196,8 @@ public class TestFeaturesConfig
                 .setEnableIntermediateAggregations(true)
                 .setParseDecimalLiteralsAsDouble(true)
                 .setDistributedSortEnabled(true)
-                .setRedistributeSort(false);
+                .setRedistributeSort(false)
+                .setUseNewStatsCalculator(true);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

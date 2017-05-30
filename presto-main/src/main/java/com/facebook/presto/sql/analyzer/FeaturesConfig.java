@@ -77,6 +77,8 @@ public class FeaturesConfig
     private double memoryRevokingTarget = 0.5;
     private double memoryRevokingThreshold = 0.9;
     private boolean parseDecimalLiteralsAsDouble;
+    private boolean useNewStatsCalculator = false;
+
 
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
 
@@ -528,5 +530,17 @@ public class FeaturesConfig
     {
         this.redistributeSort = redistributeSort;
         return this;
+    }
+
+    @Config("experimental.use-new-stats-calculator")
+    public FeaturesConfig setUseNewStatsCalculator(boolean useNewStatsCalculator)
+    {
+        this.useNewStatsCalculator = useNewStatsCalculator;
+        return this;
+    }
+
+    public boolean isUseNewStatsCalculator()
+    {
+        return useNewStatsCalculator;
     }
 }

@@ -31,6 +31,7 @@ import com.facebook.presto.cost.FilterStatsCalculator;
 import com.facebook.presto.cost.OutputStatsRule;
 import com.facebook.presto.cost.ScalarStatsCalculator;
 import com.facebook.presto.cost.StatsCalculator;
+import com.facebook.presto.cost.TableScanStatsRule;
 import com.facebook.presto.event.query.QueryMonitor;
 import com.facebook.presto.event.query.QueryMonitorConfig;
 import com.facebook.presto.execution.LocationFactory;
@@ -463,6 +464,7 @@ public class ServerMainModule
     {
         ImmutableList.Builder<ComposableStatsCalculator.Rule> rules = ImmutableList.builder();
         rules.add(new OutputStatsRule());
+        rules.add(new TableScanStatsRule(metadata));
         return new ComposableStatsCalculator(rules.build());
     }
 

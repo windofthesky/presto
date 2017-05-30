@@ -359,7 +359,7 @@ public class ShowStatsRewrite
             TypeStatOperatorCaller operatorCaller = new TypeStatOperatorCaller(valueType, metadata.getFunctionRegistry(), session.toConnectorSession());
             String stringValue = operatorCaller.castToVarchar(value.get()).toStringUtf8();
             if (stringValue.length() > MAX_LOW_HIGH_LENGTH) {
-                stringValue = stringValue.substring(0, 15) + "...";
+                stringValue = stringValue.substring(0, MAX_LOW_HIGH_LENGTH) + "...";
             }
             return new StringLiteral(stringValue);
         }

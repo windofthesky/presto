@@ -254,11 +254,11 @@ public class JdbcTests
     {
         final String distributedIndexJoin = "distributed_index_join";
 
-        assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(TRUE.toString());
-        setSessionProperty(connection, distributedIndexJoin, FALSE.toString());
         assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(FALSE.toString());
-        resetSessionProperty(connection, distributedIndexJoin);
+        setSessionProperty(connection, distributedIndexJoin, TRUE.toString());
         assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(TRUE.toString());
+        resetSessionProperty(connection, distributedIndexJoin);
+        assertThat(getSessionProperty(connection, distributedIndexJoin)).isEqualTo(FALSE.toString());
     }
 
     private QueryResult queryResult(Statement statement, String query)

@@ -485,6 +485,7 @@ public class ServerMainModule
         rules.add(new ProjectStatsRule(scalarStatsCalculator));
         rules.add(new FilterStatsRule(filterStatsCalculator));
         rules.add(new JoinStatsRule(filterStatsCalculator));
+        rules.add(new SemiJoinStatsRule());
 
         return new ComposableStatsCalculator(rules.build());
     }

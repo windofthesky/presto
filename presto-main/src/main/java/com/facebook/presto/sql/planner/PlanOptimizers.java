@@ -41,6 +41,7 @@ import com.facebook.presto.sql.planner.iterative.rule.PruneSemiJoinFilteringSour
 import com.facebook.presto.sql.planner.iterative.rule.PruneTableScanColumns;
 import com.facebook.presto.sql.planner.iterative.rule.PruneValuesColumns;
 import com.facebook.presto.sql.planner.iterative.rule.PushAggregationThroughOuterJoin;
+import com.facebook.presto.sql.planner.iterative.rule.PushDownTableConstraints;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughMarkDistinct;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughProject;
 import com.facebook.presto.sql.planner.iterative.rule.PushLimitThroughSemiJoin;
@@ -251,6 +252,11 @@ public class PlanOptimizers
                 new TransformCorrelatedNoAggregationSubqueryToJoin(),
                 new TransformCorrelatedSingleRowSubqueryToProject(),
                 new PredicatePushDown(metadata, sqlParser),
+                new IterativeOptimizer(
+                        stats,
+                        statsCalculator,
+                        estimatedExchangesCostCalculator,
+                        ImmutableSet.of(new PushDownTableConstraints(metadata))),
                 new PruneUnreferencedOutputs(),
                 new IterativeOptimizer(
                         stats,
@@ -298,6 +304,11 @@ public class PlanOptimizers
                         ImmutableSet.of(new EliminateCrossJoins())
                 ),
                 new PredicatePushDown(metadata, sqlParser),
+                new IterativeOptimizer(
+                        stats,
+                        statsCalculator,
+                        estimatedExchangesCostCalculator,
+                        ImmutableSet.of(new PushDownTableConstraints(metadata))),
                 projectionPushDown);
 
         if (featuresConfig.isOptimizeSingleDistinct()) {

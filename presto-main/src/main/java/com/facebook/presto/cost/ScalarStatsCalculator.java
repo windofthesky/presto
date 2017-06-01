@@ -21,6 +21,7 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.SymbolReference;
 
 import javax.inject.Inject;
 
@@ -61,6 +62,12 @@ public class ScalarStatsCalculator
         protected ColumnStatistics visitNode(Node node, Void context)
         {
             return ColumnStatistics.UNKNOWN_COLUMN_STATISTICS;
+        }
+
+        @Override
+        protected ColumnStatistics visitSymbolReference(SymbolReference node, Void context)
+        {
+            return input.getSymbolStatistics().getOrDefault(Symbol.from(node), ColumnStatistics.UNKNOWN_COLUMN_STATISTICS);
         }
     }
 }

@@ -101,6 +101,8 @@ public class ShowStatsRewrite
 
     private static final String COLUMN_NAME_COLUMN = "column_name";
     private static final String NULLS_FRACTION_COLUMN = "nulls_fraction";
+    private static final String LOW_VALUE_COLUMN = "low_value";
+    private static final String HIGH_VALUE_COLUMN = "high_value";
 
     @Override
     public Statement rewrite(Session session, Metadata metadata, SqlParser parser, Optional<QueryExplainer> queryExplainer, Statement node, List<Expression> parameters, AccessControl accessControl)
@@ -321,6 +323,8 @@ public class ShowStatsRewrite
                                     .collect(toList()))
                             .add(NULLS_FRACTION_COLUMN)
                             .build()));
+            columnNamesBuilder.add(LOW_VALUE_COLUMN);
+            columnNamesBuilder.add(HIGH_VALUE_COLUMN);
             return columnNamesBuilder.build();
         }
 
@@ -333,6 +337,12 @@ public class ShowStatsRewrite
                 switch (statColumnName) {
                     case COLUMN_NAME_COLUMN:
                         rowValues.add(new StringLiteral(columnName));
+                        break;
+                    case LOW_VALUE_COLUMN:
+                        rowValues.add(asVarcharLiteral(columnType, rangeStatistics.getLowValue()));
+                        break;
+                    case HIGH_VALUE_COLUMN:
+                        rowValues.add(asVarcharLiteral(columnType, rangeStatistics.getHighValue()));
                         break;
                     case NULLS_FRACTION_COLUMN:
                         rowValues.add(createStatisticValueOrNull(columnStatistics.getNullsFraction()));
@@ -364,6 +374,8 @@ public class ShowStatsRewrite
             for (String columnName : columnNames) {
                 switch (columnName) {
                     case COLUMN_NAME_COLUMN:
+                    case LOW_VALUE_COLUMN:
+                    case HIGH_VALUE_COLUMN:
                         rowValues.add(new Cast(new NullLiteral(), VARCHAR));
                         break;
                     case NULLS_FRACTION_COLUMN:

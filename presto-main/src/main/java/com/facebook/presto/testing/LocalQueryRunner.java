@@ -29,8 +29,8 @@ import com.facebook.presto.connector.system.NodeSystemTable;
 import com.facebook.presto.connector.system.SchemaPropertiesSystemTable;
 import com.facebook.presto.connector.system.TablePropertiesSystemTable;
 import com.facebook.presto.connector.system.TransactionsSystemTable;
-import com.facebook.presto.cost.CoefficientBasedCostCalculator;
-import com.facebook.presto.cost.CostCalculator;
+import com.facebook.presto.cost.CoefficientBasedStatsCalculator;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.execution.CommitTask;
 import com.facebook.presto.execution.CreateTableTask;
 import com.facebook.presto.execution.CreateViewTask;
@@ -226,7 +226,7 @@ public class LocalQueryRunner
     private final PageSinkManager pageSinkManager;
     private final TransactionManager transactionManager;
     private final SpillerFactory spillerFactory;
-    private final CostCalculator costCalculator;
+    private final StatsCalculator statsCalculator;
     private final Lookup lookup;
 
     private final ExpressionCompiler expressionCompiler;
@@ -389,8 +389,8 @@ public class LocalQueryRunner
 
         SpillerStats spillerStats = new SpillerStats();
         this.spillerFactory = new GenericSpillerFactory(new FileSingleStreamSpillerFactory(blockEncodingSerde, spillerStats, featuresConfig));
-        this.costCalculator = new CoefficientBasedCostCalculator(metadata);
-        this.lookup = new StatelessLookup(costCalculator);
+        this.statsCalculator = new CoefficientBasedStatsCalculator(metadata);
+        this.lookup = new StatelessLookup(statsCalculator);
     }
 
     public static LocalQueryRunner queryRunnerWithInitialTransaction(Session defaultSession)
@@ -437,9 +437,9 @@ public class LocalQueryRunner
         return lookup;
     }
 
-    public CostCalculator getCostCalculator()
+    public StatsCalculator getStatsCalculator()
     {
-        return costCalculator;
+        return statsCalculator;
     }
 
     @Override
@@ -619,7 +619,7 @@ public class LocalQueryRunner
         LocalExecutionPlanner executionPlanner = new LocalExecutionPlanner(
                 metadata,
                 sqlParser,
-                costCalculator,
+                statsCalculator,
                 Optional.empty(),
                 pageSourceManager,
                 indexManager,
@@ -721,7 +721,7 @@ public class LocalQueryRunner
         FeaturesConfig featuresConfig = new FeaturesConfig()
                 .setDistributedIndexJoinsEnabled(false)
                 .setOptimizeHashGeneration(true);
-        PlanOptimizers planOptimizers = new PlanOptimizers(metadata, sqlParser, featuresConfig, forceSingleNode, new MBeanExporter(new TestingMBeanServer()), costCalculator);
+        PlanOptimizers planOptimizers = new PlanOptimizers(metadata, sqlParser, featuresConfig, forceSingleNode, new MBeanExporter(new TestingMBeanServer()), statsCalculator);
         return createPlan(session, sql, planOptimizers.get(), stage);
     }
 

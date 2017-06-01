@@ -72,8 +72,15 @@ public class TestLocalQueries
         // FIXME Add tests for more complex scenario with more stats
         MaterializedResult result = computeActual("SHOW STATS FOR nation");
 
-        MaterializedResult expectedStatistics = resultBuilder(getSession(), VARCHAR, DOUBLE, VARCHAR, VARCHAR)
-                .row(null, 25.0, null, null)
+        MaterializedResult expectedStatistics =
+                resultBuilder(getSession(), VARCHAR, DOUBLE, DOUBLE, DOUBLE, DOUBLE, VARCHAR, VARCHAR)
+                .row("regionkey", null, 5.0, null, null, "0", "4")
+                .row("name", null, 25.0, null, null, "ALGERIA", "VIETNAM")
+                .row("comment", null, 25.0, null, null,
+                        " haggle. carefully final deposits detect slyly agai",
+                        "y final packages. slow foxes cajole quickly. quickly silent platelets breach ironic accounts. unusual pinto be")
+                .row("nationkey", null, 25.0, null, null, "0", "24")
+                .row(null, null, null, null, 25.0, null, null)
                 .build();
 
         assertEquals(result, expectedStatistics);

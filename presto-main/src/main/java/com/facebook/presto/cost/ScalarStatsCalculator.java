@@ -16,10 +16,12 @@ package com.facebook.presto.cost;
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.statistics.ColumnStatistics;
+import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.SymbolReference;
 
@@ -27,6 +29,7 @@ import javax.inject.Inject;
 
 import java.util.Map;
 
+import static com.facebook.presto.sql.planner.LiteralInterpreter.evaluate;
 import static java.util.Objects.requireNonNull;
 
 public class ScalarStatsCalculator
@@ -68,6 +71,18 @@ public class ScalarStatsCalculator
         protected ColumnStatistics visitSymbolReference(SymbolReference node, Void context)
         {
             return input.getSymbolStatistics().getOrDefault(Symbol.from(node), ColumnStatistics.UNKNOWN_COLUMN_STATISTICS);
+        }
+
+        @Override
+        protected ColumnStatistics visitLiteral(Literal node, Void context)
+        {
+            Object literalValue = evaluate(metadata, session.toConnectorSession(), node);
+            ColumnStatistics.Builder builder = ColumnStatistics.builder();
+            builder.addRange(literalValue, literalValue, rb -> rb
+                    .setFraction(Estimate.of(1.0))
+                    .setDistinctValuesCount(Estimate.of(1.0)));
+            builder.setNullsFraction(Estimate.zeroValue());
+            return builder.build();
         }
     }
 }

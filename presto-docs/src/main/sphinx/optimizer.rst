@@ -8,3 +8,5 @@ Query Optimizer
     optimizer/logical-planner
     optimizer/join-distribution-type
     optimizer/reorder-joins
+    optimizer/statistics
+    optimizer/cost-in-explain

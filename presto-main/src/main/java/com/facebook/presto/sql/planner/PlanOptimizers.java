@@ -13,7 +13,7 @@
  */
 package com.facebook.presto.sql.planner;
 
-import com.facebook.presto.cost.CostCalculator;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.parser.SqlParser;
@@ -98,9 +98,9 @@ public class PlanOptimizers
     private final MBeanExporter exporter;
 
     @Inject
-    public PlanOptimizers(Metadata metadata, SqlParser sqlParser, FeaturesConfig featuresConfig, MBeanExporter exporter, CostCalculator costCalculator)
+    public PlanOptimizers(Metadata metadata, SqlParser sqlParser, FeaturesConfig featuresConfig, MBeanExporter exporter, StatsCalculator statsCalculator)
     {
-        this(metadata, sqlParser, featuresConfig, false, exporter, costCalculator);
+        this(metadata, sqlParser, featuresConfig, false, exporter, statsCalculator);
     }
 
     @PostConstruct
@@ -115,7 +115,7 @@ public class PlanOptimizers
         stats.unexport(exporter);
     }
 
-    public PlanOptimizers(Metadata metadata, SqlParser sqlParser, FeaturesConfig featuresConfig, boolean forceSingleNode, MBeanExporter exporter, CostCalculator costCalculator)
+    public PlanOptimizers(Metadata metadata, SqlParser sqlParser, FeaturesConfig featuresConfig, boolean forceSingleNode, MBeanExporter exporter, StatsCalculator statsCalculator)
     {
         this.exporter = exporter;
         ImmutableList.Builder<PlanOptimizer> builder = ImmutableList.builder();
@@ -125,14 +125,14 @@ public class PlanOptimizers
 
         IterativeOptimizer inlineProjections = new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableSet.of(
                         new InlineProjections(),
                         new RemoveRedundantIdentityProjections()));
 
         IterativeOptimizer projectionPushDown = new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableList.of(new ProjectionPushDown()),
                 ImmutableSet.of(
                         new PushProjectionThroughUnion(),
@@ -143,7 +143,7 @@ public class PlanOptimizers
                 new CanonicalizeExpressions(),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.<Rule>builder()
                                 .addAll(predicatePushDownRules)
                                 .addAll(ImmutableSet.of(
@@ -165,7 +165,7 @@ public class PlanOptimizers
                 ),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(
                                 new ImplementFilteredAggregations(),
                                 new ImplementBernoulliSampleAsFilter())),
@@ -173,7 +173,7 @@ public class PlanOptimizers
                 new UnaliasSymbolReferences(),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(new RemoveRedundantIdentityProjections())
                 ),
                 new SetFlatteningOptimizer(),
@@ -183,7 +183,7 @@ public class PlanOptimizers
                 inlineProjections,
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(new TransformExistsApplyToScalarApply(metadata.getFunctionRegistry()))),
                 new TransformQuantifiedComparisonApplyToScalarApply(metadata),
                 new RemoveUnreferencedScalarInputApplyNodes(),
@@ -191,12 +191,12 @@ public class PlanOptimizers
                 new TransformUncorrelatedScalarToJoin(),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableList.of(new TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry())),
                         ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.TransformCorrelatedScalarAggregationToJoin(metadata.getFunctionRegistry()))),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(
                                 new TransformCorrelatedInPredicateToJoin(), // must be run after PruneUnreferencedOutputs
                                 new ImplementFilteredAggregations())
@@ -205,7 +205,7 @@ public class PlanOptimizers
                 new PruneUnreferencedOutputs(),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(
                                 new RemoveRedundantIdentityProjections(),
                                 new PushAggregationThroughOuterJoin())
@@ -218,12 +218,12 @@ public class PlanOptimizers
                 new IndexJoinOptimizer(metadata), // Run this after projections and filters have been fully simplified and pushed down
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(new SimplifyCountOverConstant())),
                 new WindowFilterPushDown(metadata), // This must run after PredicatePushDown and LimitPushDown so that it squashes any successive filter nodes and limits
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(
                                 // add UnaliasSymbolReferences when it's ported
                                 new RemoveRedundantIdentityProjections(),
@@ -233,18 +233,18 @@ public class PlanOptimizers
                 new PruneUnreferencedOutputs(), // Make sure to run this at the end to help clean the plan for logging/execution and not remove info that other optimizers might need at an earlier point
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(new RemoveRedundantIdentityProjections())
                 ),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableList.of(new MetadataQueryOptimizer(metadata)),
                         ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.MetadataQueryOptimizer(metadata))
                 ),
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableList.of(new com.facebook.presto.sql.planner.optimizations.EliminateCrossJoins()), // This can pull up Filter and Project nodes from between Joins, so we need to push them down again
                         ImmutableSet.of(new EliminateCrossJoins())
                 ),
@@ -255,19 +255,19 @@ public class PlanOptimizers
             builder.add(
                     new IterativeOptimizer(
                             stats,
-                            costCalculator,
+                            statsCalculator,
                             ImmutableSet.of(new SingleMarkDistinctToGroupBy())),
                     new PruneUnreferencedOutputs());
         }
 
         builder.add(new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableList.of(new OptimizeMixedDistinctAggregations(metadata)),
                 ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations(metadata.getFunctionRegistry()))));
         builder.add(new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableSet.of(
                         new CreatePartialTopN(),
                         new PushTopNThroughUnion())));
@@ -286,14 +286,14 @@ public class PlanOptimizers
         builder.add(
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableList.of(new PickLayout(metadata)),
                         ImmutableSet.of(new AddTableLayout(metadata))));
 
         builder.add(
                 new IterativeOptimizer(
                         stats,
-                        costCalculator,
+                        statsCalculator,
                         ImmutableSet.of(new RemoveEmptyDelete()) // Run RemoveEmptyDelete after table scan is removed by PickLayout/AddExchanges
                 ));
 
@@ -304,7 +304,7 @@ public class PlanOptimizers
         builder.add(new PruneUnreferencedOutputs());
         builder.add(new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableSet.of(new RemoveRedundantIdentityProjections())));
 
         // Optimizers above this don't understand local exchanges, so be careful moving this.
@@ -315,7 +315,7 @@ public class PlanOptimizers
         builder.add(new PartialAggregationPushDown(metadata.getFunctionRegistry()));
         builder.add(new IterativeOptimizer(
                 stats,
-                costCalculator,
+                statsCalculator,
                 ImmutableSet.of(
                         new AddIntermediateAggregations(),
                         new RemoveRedundantIdentityProjections())));

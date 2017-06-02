@@ -30,16 +30,14 @@ import static java.util.Objects.requireNonNull;
 public class PlanNodeStatsEstimate
 {
     public static final PlanNodeStatsEstimate UNKNOWN_STATS = PlanNodeStatsEstimate.builder().build();
-    public static final double DEFAULT_ROW_SIZE = 42;
+    public static final double DEFAULT_DATA_SIZE_PER_COLUMN = 10;
 
     private final Estimate outputRowCount;
-    private final Estimate outputSizeInBytes;
     private final Map<Symbol, ColumnStatistics> symbolStatistics;
 
-    private PlanNodeStatsEstimate(Estimate outputRowCount, Estimate outputSizeInBytes, Map<Symbol, ColumnStatistics> symbolStatistics)
+    private PlanNodeStatsEstimate(Estimate outputRowCount, Map<Symbol, ColumnStatistics> symbolStatistics)
     {
         this.outputRowCount = requireNonNull(outputRowCount, "outputRowCount can not be null");
-        this.outputSizeInBytes = requireNonNull(outputSizeInBytes, "outputSizeInBytes can not be null");
         this.symbolStatistics = symbolStatistics;
     }
 
@@ -50,17 +48,26 @@ public class PlanNodeStatsEstimate
 
     public Estimate getOutputSizeInBytes()
     {
+        Estimate outputSizeInBytes = Estimate.zeroValue();
+        for (Map.Entry<Symbol, ColumnStatistics> entry : symbolStatistics.entrySet()) {
+            outputSizeInBytes = outputSizeInBytes.add(getOutputSizeForColumn(entry.getKey(), entry.getValue()));
+        }
         return outputSizeInBytes;
+    }
+
+    private Estimate getOutputSizeForColumn(Symbol key, ColumnStatistics value)
+    {
+        Estimate dataSizeForColumn = value.getOnlyRangeColumnStatistics().getDataSize();
+        if (dataSizeForColumn.isValueUnknown()) {
+            // TODO take into consderation data type of column
+            dataSizeForColumn = outputRowCount.map(count -> count * DEFAULT_DATA_SIZE_PER_COLUMN);
+        }
+        return dataSizeForColumn;
     }
 
     public PlanNodeStatsEstimate mapOutputRowCount(Function<Double, Double> mappingFunction)
     {
         return buildFrom(this).setOutputRowCount(outputRowCount.map(mappingFunction)).build();
-    }
-
-    public PlanNodeStatsEstimate mapOutputSizeInBytes(Function<Double, Double> mappingFunction)
-    {
-        return buildFrom(this).setOutputSizeInBytes(outputRowCount.map(mappingFunction)).build();
     }
 
     public PlanNodeStatsEstimate mapSymbolColumnStatistics(Symbol symbol, Function<ColumnStatistics, ColumnStatistics> mappingFunction)
@@ -91,7 +98,7 @@ public class PlanNodeStatsEstimate
     @Override
     public String toString()
     {
-        return "PlanNodeStatsEstimate{outputRowCount=" + outputRowCount + ", outputSizeInBytes=" + outputSizeInBytes + '}';
+        return "PlanNodeStatsEstimate{outputRowCount=" + outputRowCount + '}';
     }
 
     @Override
@@ -104,14 +111,13 @@ public class PlanNodeStatsEstimate
             return false;
         }
         PlanNodeStatsEstimate that = (PlanNodeStatsEstimate) o;
-        return Objects.equals(outputRowCount, that.outputRowCount) &&
-                Objects.equals(outputSizeInBytes, that.outputSizeInBytes);
+        return Objects.equals(outputRowCount, that.outputRowCount);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(outputRowCount, outputSizeInBytes);
+        return Objects.hash(outputRowCount);
     }
 
     public static Builder builder()
@@ -122,7 +128,6 @@ public class PlanNodeStatsEstimate
     public static Builder buildFrom(PlanNodeStatsEstimate other)
     {
         return builder().setOutputRowCount(other.getOutputRowCount())
-                .setOutputSizeInBytes(other.getOutputSizeInBytes())
                 .setSymbolStatistics(other.getSymbolStatistics());
     }
 
@@ -139,18 +144,11 @@ public class PlanNodeStatsEstimate
     public static final class Builder
     {
         private Estimate outputRowCount = unknownValue();
-        private Estimate outputSizeInBytes = unknownValue();
         private Map<Symbol, ColumnStatistics> symbolStatistics = new HashMap<>();
 
         public Builder setOutputRowCount(Estimate outputRowCount)
         {
             this.outputRowCount = outputRowCount;
-            return this;
-        }
-
-        public Builder setOutputSizeInBytes(Estimate outputSizeInBytes)
-        {
-            this.outputSizeInBytes = outputSizeInBytes;
             return this;
         }
 
@@ -168,10 +166,7 @@ public class PlanNodeStatsEstimate
 
         public PlanNodeStatsEstimate build()
         {
-            if (outputSizeInBytes.isValueUnknown() && !outputRowCount.isValueUnknown()) {
-                outputSizeInBytes = new Estimate(DEFAULT_ROW_SIZE * outputRowCount.getValue());
-            }
-            return new PlanNodeStatsEstimate(outputRowCount, outputSizeInBytes, symbolStatistics);
+            return new PlanNodeStatsEstimate(outputRowCount, symbolStatistics);
         }
     }
 }

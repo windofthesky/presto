@@ -84,8 +84,10 @@ public class MetricComparator
     {
         return PlanNodeStatsEstimate.builder()
                 .setOutputRowCount(new Estimate(operatorStats.getPlanNodeOutputPositions()))
-                .setOutputSizeInBytes(new Estimate(operatorStats.getPlanNodeOutputDataSize().toBytes()))
                 .build();
+        // TODO think if we want to compare estimated data size with actual data size
+        //      hacky way to do it is to have single symbol with single range with data_size set to
+        //      new Estimate(operatorStats.getPlanNodeOutputDataSize().toBytes())
     }
 
     private MetricComparison createMetricComparison(Metric metric, PlanNode node, PlanNodeStatsEstimate estimate, Optional<PlanNodeStatsEstimate> execution)

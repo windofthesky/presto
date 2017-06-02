@@ -71,11 +71,6 @@ public final class WindowPartition
         updatePeerGroup();
     }
 
-    public int getPartitionStart()
-    {
-        return partitionStart;
-    }
-
     public int getPartitionEnd()
     {
         return partitionEnd;

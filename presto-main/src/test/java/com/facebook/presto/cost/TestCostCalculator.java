@@ -246,7 +246,12 @@ public class TestCostCalculator
     {
         return PlanNodeStatsEstimate.builder()
                 .setOutputRowCount(Math.max(outputSizeInBytes / 8, 1))
-                .setOutputSizeInBytes(outputSizeInBytes).build();
+                .addSymbolStatistics(
+                        new Symbol("s"),
+                        SymbolStatsEstimate.builder()
+                                .setDataSize(outputSizeInBytes)
+                                .build())
+                .build();
     }
 
     private TableScanNode tableScan(int planNodeId, String... symbols)

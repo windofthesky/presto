@@ -242,4 +242,12 @@ Release 0.167-t.0.5
 
 The following has been added to 0.167-t.0.5:
 
-* Dissable identity projection optimization that might lead to unpredicted transfer errors
+* Disable identity projection optimization that might lead to unpredicted transfer errors
+
+===================
+Release 0.167-t.0.6
+===================
+
+The following has been added to 0.167-t.0.5:
+
+* Disable gathering of extended statistics for window function that might lead to unpredictable failures on huge data sets

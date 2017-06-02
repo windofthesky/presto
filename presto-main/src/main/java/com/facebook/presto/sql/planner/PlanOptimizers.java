@@ -305,6 +305,8 @@ public class PlanOptimizers
 
         builder.add(new IterativeOptimizer(
                 stats,
+                statsCalculator,
+                estimatedExchangesCostCalculator,
                 ImmutableList.of(new OptimizeMixedDistinctAggregations(metadata)),
                 ImmutableSet.of(new com.facebook.presto.sql.planner.iterative.rule.OptimizeMixedDistinctAggregations(metadata.getFunctionRegistry()))));
         builder.add(new IterativeOptimizer(
@@ -324,6 +326,8 @@ public class PlanOptimizers
         builder.add(
                 new IterativeOptimizer(
                         stats,
+                        statsCalculator,
+                        costCalculator,
                         ImmutableList.of(new PickLayout(metadata)),
                         ImmutableSet.of(new AddTableLayout(metadata))));
 

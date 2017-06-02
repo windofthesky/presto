@@ -127,5 +127,19 @@ public class TestLastValueFunction
                         .row(null, null, null)
                         .row(null, null, null)
                         .build());
+        assertWindowQueryWithNulls("last_value(orderkey) OVER (PARTITION BY orderstatus ORDER BY orderkey " +
+                        "RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING)",
+                resultBuilder(TEST_SESSION, BIGINT, VARCHAR, BIGINT)
+                        .row(3L, "F", null)
+                        .row(5L, "F", 3L)
+                        .row(6L, "F", 5L)
+                        .row(null, "F", 6L)
+                        .row(34L, "O", null)
+                        .row(null, "O", 34L)
+                        .row(1L, null, null)
+                        .row(7L, null, 1L)
+                        .row(null, null, 7L)
+                        .row(null, null, 7L)
+                        .build());
     }
 }

@@ -107,6 +107,12 @@ public final class ColumnStatistics
             return this;
         }
 
+        public Builder clearRanges()
+        {
+            rangeColumnStatistics.clear();
+            return this;
+        }
+
         public ColumnStatistics build()
         {
             return new ColumnStatistics(nullsFraction, rangeColumnStatistics);

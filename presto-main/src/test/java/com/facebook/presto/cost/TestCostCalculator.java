@@ -19,6 +19,7 @@ import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.type.StandardTypes;
 import com.facebook.presto.spi.type.Type;
@@ -247,7 +248,13 @@ public class TestCostCalculator
     {
         return PlanNodeStatsEstimate.builder()
                 .setOutputRowCount(new Estimate(Math.max(outputSizeInBytes / 8, 1)))
-                .setOutputSizeInBytes(new Estimate(outputSizeInBytes)).build();
+                .addSymbolStatistics(
+                        new Symbol("s"),
+                        ColumnStatistics.builder()
+                                .addRange(rangeBuilder -> rangeBuilder
+                                        .setDataSize(new Estimate(outputSizeInBytes)))
+                                .build())
+                .build();
     }
 
     private TableScanNode tableScan(int planNodeId, String... symbols)

@@ -634,10 +634,5 @@ public class WindowOperator
         {
             return partitions;
         }
-
-        public long getTotalRowCountInPartitions()
-        {
-            return partitions.stream().mapToInt(Integer::intValue).sum();
-        }
     }
 }

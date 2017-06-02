@@ -55,7 +55,6 @@ public class TestCoefficientBasedStatsCalculator
                                 node(TableScanNode.class)
                                         .withStats(PlanNodeStatsEstimate.builder()
                                                 .setOutputRowCount(385.0)
-                                                .setOutputSizeInBytes(Double.NaN)
                                                 .build()))));
 
         assertPlan("SELECT orderstatus FROM orders WHERE orderkey = 42",
@@ -64,7 +63,6 @@ public class TestCoefficientBasedStatsCalculator
                                 node(TableScanNode.class)
                                         .withStats(PlanNodeStatsEstimate.builder()
                                                 .setOutputRowCount(0)
-                                                .setOutputSizeInBytes(Double.NaN)
                                                 .build()))));
     }
 

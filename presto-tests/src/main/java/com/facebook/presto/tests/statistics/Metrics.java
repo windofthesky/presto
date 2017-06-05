@@ -1,0 +1,142 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.facebook.presto.tests.statistics;
+
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.spi.statistics.ColumnStatistics;
+import com.facebook.presto.spi.statistics.Estimate;
+import com.facebook.presto.spi.statistics.RangeColumnStatistics;
+import com.facebook.presto.sql.planner.plan.OutputNode;
+import com.facebook.presto.testing.MaterializedRow;
+
+import java.util.List;
+import java.util.Optional;
+
+public final class Metrics
+{
+    private Metrics() {}
+
+    public static final Metric<Double> OUTPUT_ROW_COUNT = new Metric<Double>()
+    {
+        @Override
+        public Optional<Double> getValueFromPlanNodeEstimate(PlanNodeStatsEstimate planNodeStatsEstimate, StatsContext statsContext)
+        {
+            return asOptional(planNodeStatsEstimate.getOutputRowCount());
+        }
+
+        @Override
+        public Optional<Double> getValueFromAggregationQuery(MaterializedRow aggregationQueryResult, int fieldId, StatsContext statsContext)
+        {
+            return Optional.of(((Number) aggregationQueryResult.getField(fieldId)).doubleValue());
+        }
+
+        @Override
+        public String getComputingAggregationSql()
+        {
+            return "count(*)";
+        }
+
+        @Override
+        public String getName()
+        {
+            return "OUTPUT_ROW_COUNT";
+        }
+    };
+
+    public static Metric<Double> nullsFraction(String columnName)
+    {
+        return new Metric<Double>()
+        {
+            @Override
+            public Optional<Double> getValueFromPlanNodeEstimate(PlanNodeStatsEstimate planNodeStatsEstimate, StatsContext statsContext)
+            {
+                return asOptional(getColumnStatistics(planNodeStatsEstimate, columnName, statsContext).getNullsFraction());
+            }
+
+            @Override
+            public Optional<Double> getValueFromAggregationQuery(MaterializedRow aggregationQueryResult, int fieldId, StatsContext statsContext)
+            {
+                return Optional.of(((Number) aggregationQueryResult.getField(fieldId)).doubleValue());
+            }
+
+            @Override
+            public String getComputingAggregationSql()
+            {
+                return "(count(*) filter(where " + columnName + " is null)) / cast(count(*) as double)";
+            }
+
+            @Override
+            public String getName()
+            {
+                return "NULLS_FRACTION(" + columnName + ")";
+            }
+        };
+    }
+
+    public static Metric<Double> distinctValuesCount(String columnName)
+    {
+        return new Metric<Double>()
+        {
+            @Override
+            public Optional<Double> getValueFromPlanNodeEstimate(PlanNodeStatsEstimate planNodeStatsEstimate, StatsContext statsContext)
+            {
+                return asOptional(getOnlyRangeStatistics(planNodeStatsEstimate, columnName, statsContext).getDistinctValuesCount());
+            }
+
+            @Override
+            public Optional getValueFromAggregationQuery(MaterializedRow aggregationQueryResult, int fieldId, StatsContext statsContext)
+            {
+                return Optional.of(((Number) aggregationQueryResult.getField(fieldId)).doubleValue());
+            }
+
+            @Override
+            public String getComputingAggregationSql()
+            {
+                return "count(distinct " + columnName + ")";
+            }
+
+            @Override
+            public String getName()
+            {
+                return "DISTINCT_VALUES_COUNT(" + columnName + ")";
+            }
+        };
+    }
+
+    public static List<Metric<?>> allMetrics(OutputNode outputNode)
+    {
+        ImmutableList.Builder<Metric<?>> metrics = ImmutableList.builder();
+        for (String columnName : outputNode.getColumnNames()) {
+            metrics.add(nullsFraction(columnName));
+            metrics.add(distinctValuesCount(columnName));
+        }
+        metrics.add(OUTPUT_ROW_COUNT);
+        return metrics.build();
+    }
+
+    private static ColumnStatistics getColumnStatistics(PlanNodeStatsEstimate planNodeStatsEstimate, String columnName, StatsContext statsContext)
+    {
+        return planNodeStatsEstimate.getSymbolStatistics(statsContext.getSymbolForColumn(columnName));
+    }
+
+    private static RangeColumnStatistics getOnlyRangeStatistics(PlanNodeStatsEstimate planNodeStatsEstimate, String columnName, StatsContext statsContext)
+    {
+        return getColumnStatistics(planNodeStatsEstimate, columnName, statsContext).getOnlyRangeColumnStatistics();
+    }
+
+    private static Optional<Double> asOptional(Estimate estimate)
+    {
+        return estimate.isValueUnknown() ? Optional.empty() : Optional.of(estimate.getValue());
+    }
+}

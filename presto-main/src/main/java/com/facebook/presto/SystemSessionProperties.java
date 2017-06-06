@@ -562,7 +562,7 @@ public final class SystemSessionProperties
 
     public static boolean isRedistributeSort(Session session)
     {
-        return session.getSystemProperty(DISTRIBUTED_SORT, Boolean.class);
+        return session.getSystemProperty(REDISTRIBUTE_SORT, Boolean.class);
     }
 
     public static String getJoinDistributionType(Session session)

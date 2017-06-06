@@ -267,6 +267,9 @@ final class StreamPropertyDerivations
         public StreamProperties visitExchange(ExchangeNode node, List<StreamProperties> inputProperties)
         {
             if (node.getScope() == REMOTE) {
+                if (node.isOrderSensitive()) {
+                    return StreamProperties.ordered();
+                }
                 return StreamProperties.fixedStreams();
             }
 

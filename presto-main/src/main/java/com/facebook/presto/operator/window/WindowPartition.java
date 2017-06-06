@@ -160,7 +160,7 @@ public final class WindowPartition
             return new Range(-1, -1);
         }
 
-        if (frameInfo.getType() == RANGE && emptyFrame(frameInfo, peerGroupStart, peerGroupEnd - 1)) {
+        if (frameInfo.getType() == RANGE && emptyFrame(frameInfo, peerGroupStart, endPosition - (peerGroupEnd - 1))) {
             return new Range(-1, -1);
         }
 
@@ -173,6 +173,9 @@ public final class WindowPartition
         }
         else if (frameInfo.getType() == RANGE && frameInfo.getStartType() == PRECEDING) {
             frameStart = precedingStartRange(getStartValue(frameInfo));
+        }
+        else if (frameInfo.getType() == RANGE && frameInfo.getStartType() == FOLLOWING) {
+            frameStart = followingRange(rowPosition, endPosition, getStartValue(frameInfo));
         }
         else if (frameInfo.getStartType() == PRECEDING) {
             frameStart = preceding(rowPosition, getStartValue(frameInfo));
@@ -193,6 +196,9 @@ public final class WindowPartition
         }
         else if (frameInfo.getType() == RANGE && frameInfo.getEndType() == PRECEDING) {
             frameEnd = precedingEndRange(getEndValue(frameInfo));
+        }
+        else if (frameInfo.getType() == RANGE && frameInfo.getEndType() == FOLLOWING) {
+            frameEnd = followingRange(peerGroupEnd, endPosition + 1, getEndValue(frameInfo)) - 1;
         }
         else if (frameInfo.getEndType() == PRECEDING) {
             frameEnd = preceding(rowPosition, getEndValue(frameInfo));
@@ -226,6 +232,33 @@ public final class WindowPartition
             return 0;
         }
         return peerGroupStartIndices.get(toIntExact(peerGroupStartIndex - startValue));
+    }
+
+    private int followingRange(int followingPeerGroupStart, int endPosition, long value)
+    {
+        if (value == 0) {
+            return followingPeerGroupStart;
+        }
+        // TODO: Optimize this to *not* look for peers often, probably have pageIndex keep the peer groups
+        int followingPeerGroupEnd = 0;
+        int currentValue = 0;
+        while (currentValue < value) {
+            boolean peerFound = false;
+            followingPeerGroupEnd = followingPeerGroupStart + 1;
+            while ((followingPeerGroupEnd < partitionEnd) && pagesIndex.positionEqualsPosition(peerGroupHashStrategy, followingPeerGroupStart, followingPeerGroupEnd)) {
+                followingPeerGroupEnd++;
+                peerFound = true;
+            }
+            if (followingPeerGroupEnd >= partitionEnd) {
+                return endPosition;
+            }
+
+            if (!peerFound) {
+                currentValue++;
+            }
+            followingPeerGroupStart++;
+        }
+        return followingPeerGroupEnd;
     }
 
     private boolean emptyFrame(FrameInfo frameInfo, int rowPosition, int position)

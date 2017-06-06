@@ -147,12 +147,12 @@ public class TestNthValueFunction
                         .row(null, null, null)
                         .build());
 
-        assertWindowQueryWithNulls("nth_value(orderkey, 4) OVER (PARTITION BY orderstatus ORDER BY orderkey " +
-                        "RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING)",
+        assertWindowQueryWithNulls("nth_value(orderkey, 3) OVER (PARTITION BY orderstatus ORDER BY orderkey " +
+                        "RANGE BETWEEN 2 PRECEDING AND 1 FOLLOWING)",
                 resultBuilder(TEST_SESSION, BIGINT, VARCHAR, BIGINT)
                         .row(3L, "F", null)
-                        .row(5L, "F", null)
-                        .row(6L, "F", null)
+                        .row(5L, "F", 6L)
+                        .row(6L, "F", 6L)
                         .row(null, "F", null)
                         .row(34L, "O", null)
                         .row(null, "O", null)

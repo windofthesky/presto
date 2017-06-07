@@ -17,11 +17,19 @@ import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.RangeColumnStatistics;
-import com.facebook.presto.sql.planner.plan.OutputNode;
+import com.facebook.presto.spi.type.DecimalType;
+import com.facebook.presto.spi.type.Decimals;
+import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.testing.MaterializedRow;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Optional;
+
+import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
+import static com.facebook.presto.spi.type.IntegerType.INTEGER;
+import static com.facebook.presto.spi.type.RealType.REAL;
 
 public final class Metrics
 {
@@ -114,15 +122,96 @@ public final class Metrics
         };
     }
 
-    public static List<Metric<?>> allMetrics(OutputNode outputNode)
+    public static Metric<Object> lowValue(String columnName)
     {
-        ImmutableList.Builder<Metric<?>> metrics = ImmutableList.builder();
-        for (String columnName : outputNode.getColumnNames()) {
-            metrics.add(nullsFraction(columnName));
-            metrics.add(distinctValuesCount(columnName));
+        return new Metric<Object>()
+        {
+            @Override
+            public Optional<Object> getValueFromPlanNodeEstimate(PlanNodeStatsEstimate planNodeStatsEstimate, StatsContext statsContext)
+            {
+                return getOnlyRangeStatistics(planNodeStatsEstimate, columnName, statsContext).getLowValue();
+            }
+
+            @Override
+            public Optional<Object> getValueFromAggregationQuery(MaterializedRow aggregationQueryResult, int fieldId, StatsContext statsContext)
+            {
+                Type targetType = statsContext.getTypeForSymbol(statsContext.getSymbolForColumn(columnName));
+                return Optional.ofNullable(toPrestoTypeDomain(aggregationQueryResult.getField(fieldId), targetType));
+            }
+
+            @Override
+            public String getComputingAggregationSql()
+            {
+                return "min(" + columnName + ")";
+            }
+
+            @Override
+            public String getName()
+            {
+                return "LOW_VALUE(" + columnName + ")";
+            }
+        };
+    }
+
+    public static Metric<Object> highValue(String columnName)
+    {
+        return new Metric<Object>()
+        {
+            @Override
+            public Optional<Object> getValueFromPlanNodeEstimate(PlanNodeStatsEstimate planNodeStatsEstimate, StatsContext statsContext)
+            {
+                return getOnlyRangeStatistics(planNodeStatsEstimate, columnName, statsContext).getHighValue();
+            }
+
+            @Override
+            public Optional<Object> getValueFromAggregationQuery(MaterializedRow aggregationQueryResult, int fieldId, StatsContext statsContext)
+            {
+                Type targetType = statsContext.getTypeForSymbol(statsContext.getSymbolForColumn(columnName));
+                return Optional.ofNullable(toPrestoTypeDomain(aggregationQueryResult.getField(fieldId), targetType));
+            }
+
+            @Override
+            public String getComputingAggregationSql()
+            {
+                return "max(" + columnName + ")";
+            }
+
+            @Override
+            public String getName()
+            {
+                return "HIGH_VALUE(" + columnName + ")";
+            }
+        };
+    }
+
+    private static Object toPrestoTypeDomain(Object javaValue, Type prestoType)
+    {
+        if (javaValue == null) {
+            return null;
         }
-        metrics.add(OUTPUT_ROW_COUNT);
-        return metrics.build();
+        if (prestoType.equals(BIGINT)
+                || prestoType.equals(INTEGER)) {
+            return ((Number) javaValue).longValue();
+        }
+        else if (prestoType.equals(DOUBLE)) {
+            return ((Number) javaValue).doubleValue();
+        }
+        else if (prestoType.equals(REAL)) {
+            return Float.floatToRawIntBits(((Number) javaValue).floatValue());
+        }
+        else if (prestoType instanceof DecimalType) {
+            DecimalType decimalType = (DecimalType) prestoType;
+            BigInteger unscaledValue = Decimals.rescale(((BigDecimal) javaValue), decimalType).unscaledValue();
+            if (decimalType.isShort()) {
+                return unscaledValue.longValue();
+            }
+            else {
+                return Decimals.encodeUnscaledValue(unscaledValue);
+            }
+        }
+        else {
+            throw new IllegalArgumentException("unsupported type " + prestoType);
+        }
     }
 
     private static ColumnStatistics getColumnStatistics(PlanNodeStatsEstimate planNodeStatsEstimate, String columnName, StatsContext statsContext)

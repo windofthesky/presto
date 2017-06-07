@@ -34,6 +34,7 @@ import static com.facebook.presto.spi.Constraint.alwaysFalse;
 import static com.facebook.presto.spi.Constraint.alwaysTrue;
 import static com.facebook.presto.spi.predicate.TupleDomain.fromFixedValues;
 import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
+import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
 import static com.facebook.presto.tpch.TpchRecordSet.convertToPredicate;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.tpch.CustomerColumn.ADDRESS;
@@ -342,7 +343,9 @@ public class TestTpchMetadata
                 .addRange(rb -> rb
                         .setDistinctValuesCount(distinctValuesCount.map(Estimate::new).orElse(unknownValue()))
                         .setLowValue(min)
-                        .setHighValue(max))
+                        .setHighValue(max)
+                        .setFraction(new Estimate(1.0)))
+                .setNullsFraction(zeroValue())
                 .build();
     }
 }

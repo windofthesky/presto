@@ -36,10 +36,10 @@ import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.CharType;
 import com.facebook.presto.spi.type.DateType;
-import com.facebook.presto.spi.type.DoubleType;
-import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.tpch.statistics.ColumnStatisticsData;
 import com.facebook.presto.tpch.statistics.StatisticsEstimator;
 import com.facebook.presto.tpch.statistics.TableStatisticsData;
@@ -69,6 +69,9 @@ import java.util.stream.Collectors;
 
 import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.spi.type.DateType.DATE;
+import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
+import static com.facebook.presto.spi.type.IntegerType.INTEGER;
 import static com.facebook.presto.spi.type.VarcharType.createVarcharType;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Maps.asMap;
@@ -320,8 +323,10 @@ public class TpchMetadata
     {
         TableStatistics.Builder builder = TableStatistics.builder()
                 .setRowCount(new Estimate(tableStatisticsData.getRowCount()));
-        tableStatisticsData.getColumns().forEach((columnName, stats) ->
-                builder.setColumnStatistics(getColumnHandle(tpchTableHandle, columnHandles, columnName), toColumnStatistics(stats)));
+        tableStatisticsData.getColumns().forEach((columnName, stats) -> {
+            TpchColumnHandle columnHandle = (TpchColumnHandle) getColumnHandle(tpchTableHandle, columnHandles, columnName);
+            builder.setColumnStatistics(columnHandle, toColumnStatistics(stats, columnHandle.getType()));
+        });
         return builder.build();
     }
 
@@ -331,24 +336,30 @@ public class TpchMetadata
         return columnHandles.get(columnNaming.getName(table.getColumn(columnName)));
     }
 
-    private ColumnStatistics toColumnStatistics(ColumnStatisticsData stats)
+    private ColumnStatistics toColumnStatistics(ColumnStatisticsData stats, Type columnType)
     {
         return ColumnStatistics.builder()
                 .addRange(rangeBuilder -> rangeBuilder
                         .setDistinctValuesCount(stats.getDistinctValuesCount().map(Estimate::new).orElse(unknownValue()))
-                        .setLowValue(stats.getMin().map(this::toPrestoValue))
-                        .setHighValue(stats.getMax().map(this::toPrestoValue))
+                        .setLowValue(stats.getMin().map(value -> toPrestoValue(value, columnType)))
+                        .setHighValue(stats.getMax().map(value -> toPrestoValue(value, columnType)))
                         .setFraction(new Estimate(1.0)))
                 .setNullsFraction(Estimate.zeroValue())
                 .build();
     }
 
-    private Object toPrestoValue(Object tpchValue)
+    private Object toPrestoValue(Object tpchValue, Type columnType)
     {
-        if (tpchValue instanceof String) {
+        if (columnType instanceof VarcharType) {
             return Slices.utf8Slice((String) tpchValue);
         }
-        return tpchValue;
+        if (columnType.equals(BIGINT) || columnType.equals(INTEGER) || columnType.equals(DATE)) {
+            return ((Number) tpchValue).longValue();
+        }
+        if (columnType.equals(DOUBLE)) {
+            return ((Number) tpchValue).doubleValue();
+        }
+        throw new IllegalArgumentException("unsupported column type " + columnType);
     }
 
     @VisibleForTesting
@@ -462,11 +473,11 @@ public class TpchMetadata
             case IDENTIFIER:
                 return BigintType.BIGINT;
             case INTEGER:
-                return IntegerType.INTEGER;
+                return INTEGER;
             case DATE:
-                return DateType.DATE;
+                return DATE;
             case DOUBLE:
-                return DoubleType.DOUBLE;
+                return DOUBLE;
             case VARCHAR:
                 return createVarcharType((int) (long) tpchType.getPrecision().get());
         }

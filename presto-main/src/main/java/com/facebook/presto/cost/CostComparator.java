@@ -20,8 +20,6 @@ import com.facebook.presto.sql.analyzer.FeaturesConfig;
 
 import javax.inject.Inject;
 
-import static com.facebook.presto.SystemSessionProperties.getQueryMaxMemory;
-
 public class CostComparator
 {
     private final double cpuWeight;
@@ -43,11 +41,6 @@ public class CostComparator
 
     public int compare(Session session, PlanNodeCostEstimate left, PlanNodeCostEstimate right)
     {
-        if (getQueryMaxMemory(session).toBytes() <
-                Math.max(left.getMemoryCost().getValue(), right.getMemoryCost().getValue())) {
-            return Double.compare(left.getMemoryCost().getValue(), right.getMemoryCost().getValue());
-        }
-
         Estimate leftCost = left.getCpuCost().map(value -> value * cpuWeight)
                 .add(left.getMemoryCost().map(value -> value * memoryWeight))
                 .add(left.getNetworkCost().map(value -> value * networkWeight));

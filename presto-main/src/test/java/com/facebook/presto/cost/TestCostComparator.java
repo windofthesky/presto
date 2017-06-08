@@ -17,7 +17,6 @@ import com.facebook.presto.Session;
 import com.facebook.presto.spi.statistics.Estimate;
 import org.testng.annotations.Test;
 
-import static com.facebook.presto.SystemSessionProperties.QUERY_MAX_MEMORY;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static org.testng.Assert.assertTrue;
 
@@ -61,26 +60,6 @@ public class TestCostComparator
         new CostComparisonAssertion(1.0, 1000.0, 1.0)
                 .smaller(300, 299, 300)
                 .larger(100, 300, 100)
-                .assertCompare();
-    }
-
-    @Test
-    public void testOutOfMemory()
-    {
-        new CostComparisonAssertion(1.0, 1.0, 1.0)
-                .smaller(5000, 5000, 5000)
-                .larger(100000, 100, 100000)
-                .session(testSessionBuilder()
-                        .setSystemProperty(QUERY_MAX_MEMORY, "1MB")
-                        .build())
-                .assertCompare();
-
-        new CostComparisonAssertion(1.0, 1.0, 1.0)
-                .larger(5000, 5000, 5000)
-                .smaller(100000, 100, 100000)
-                .session(testSessionBuilder()
-                        .setSystemProperty(QUERY_MAX_MEMORY, "1kB")
-                        .build())
                 .assertCompare();
     }
 

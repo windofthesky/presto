@@ -223,6 +223,7 @@ public class FilterStatsCalculator
                     .clearRanges()
                     .addRange(rightStats.getOnlyRangeColumnStatistics().asBuilder()
                             .setDistinctValuesCount(minDistinctValues)
+                            .setFraction(Estimate.of(1.0))
                             .build())
                     .build();
             ColumnStatistics newLeftStats = leftStats.asBuilder()
@@ -230,6 +231,7 @@ public class FilterStatsCalculator
                     .clearRanges()
                     .addRange(leftStats.getOnlyRangeColumnStatistics().asBuilder()
                             .setDistinctValuesCount(minDistinctValues)
+                            .setFraction(Estimate.of(1.0))
                             .build())
                     .build();
 

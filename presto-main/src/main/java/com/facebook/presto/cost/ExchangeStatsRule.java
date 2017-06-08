@@ -15,15 +15,12 @@ package com.facebook.presto.cost;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.spi.statistics.ColumnStatistics;
-import com.facebook.presto.spi.statistics.Estimate;
-import com.facebook.presto.spi.statistics.RangeColumnStatistics;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +37,31 @@ public class ExchangeStatsRule
         }
         ExchangeNode exchangeNode = (ExchangeNode) node;
 
+        if (exchangeNode.getSources().size() > 1) {
+            return Optional.of(PlanNodeStatsEstimate.UNKNOWN_STATS);
+        }
+
+        PlanNode source = exchangeNode.getSources().get(0);
+        PlanNodeStatsEstimate sourceStats = lookup.getStats(source, session, types);
+        List<Symbol> sourceSymbols = exchangeNode.getInputs().get(0);
+
+        PlanNodeStatsEstimate.Builder outputStats = PlanNodeStatsEstimate.builder();
+        outputStats.setOutputRowCount(sourceStats.getOutputRowCount());
+        for (int symbolIndex = 0; symbolIndex < sourceSymbols.size(); ++symbolIndex) {
+            Symbol sourceSymbol = sourceSymbols.get(symbolIndex);
+            Symbol outputSymbol = exchangeNode.getOutputSymbols().get(symbolIndex);
+            ColumnStatistics sourceSymbolStats = sourceStats.getSymbolStatistics(sourceSymbol);
+            outputStats.addSymbolStatistics(
+                    outputSymbol,
+                    ColumnStatistics.builder()
+                            .setNullsFraction(sourceSymbolStats.getNullsFraction())
+                            .addRange(sourceSymbolStats.getOnlyRangeColumnStatistics())
+                            .build());
+        }
+        return Optional.of(outputStats.build());
+    }
+
+    /*
         // we do not replicate logic for rows replication here as stats
         // are used mostly in phase where exchanges are not in plan anyway
         List<Symbol> outputSymbols = exchangeNode.getOutputSymbols();
@@ -80,7 +102,8 @@ public class ExchangeStatsRule
 
     private RangeColumnStatistics mergeRange(RangeColumnStatistics left, RangeColumnStatistics right)
     {
-        // TODO
-        return RangeColumnStatistics.builder().build();
+        return RangeColumnStatistics.builder()
+                .set
     }
+    */
 }

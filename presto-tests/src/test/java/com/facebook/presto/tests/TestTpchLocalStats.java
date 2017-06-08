@@ -58,4 +58,46 @@ public class TestTpchLocalStats
                         .verifyExactColumnStatistics("n_name")
         );
     }
+
+    @Test
+    void testSimpleJoinStats()
+    {
+        statisticsAssertion.check("SELECT * FROM supplier s, nation n",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("s_nationkey"));
+
+        statisticsAssertion.check("SELECT * FROM supplier s, nation n WHERE s_nationkey = n_nationkey",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("s_nationkey")
+                        .verifyExactColumnStatistics("n_nationkey"));
+
+        statisticsAssertion.check("SELECT * FROM customer c, nation s WHERE c_nationkey = n_nationkey",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("c_nationkey")
+                        .verifyExactColumnStatistics("n_nationkey"));
+
+        statisticsAssertion.check("SELECT * FROM nation n, region r WHERE n_regionkey = r_regionkey",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("n_regionkey")
+                        .verifyExactColumnStatistics("r_regionkey"));
+
+        statisticsAssertion.check("SELECT * FROM part p, partsupp ps WHERE p_partkey = ps_partkey",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("p_partkey")
+                        .verifyExactColumnStatistics("ps_partkey"));
+
+        // two join on different keys
+        statisticsAssertion.check("SELECT * FROM nation n, supplier s, partsupp ps WHERE n_nationkey = s_nationkey AND s_suppkey = ps_suppkey",
+                checks -> checks
+                        .estimate(OUTPUT_ROW_COUNT, defaultTolerance())
+                        .verifyExactColumnStatistics("ps_partkey")
+                        .verifyExactColumnStatistics("n_nationkey")
+                        .verifyExactColumnStatistics("s_nationkey")
+                        .verifyExactColumnStatistics("n_name"));
+    }
 }

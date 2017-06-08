@@ -21,14 +21,17 @@ import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.tree.ComparisonExpression;
-import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableMap;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.facebook.presto.sql.ExpressionUtils.combineConjuncts;
+import static com.facebook.presto.sql.tree.BooleanLiteral.TRUE_LITERAL;
+import static com.facebook.presto.sql.tree.ComparisonExpressionType.EQUAL;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class JoinStatsRule
         implements ComposableStatsCalculator.Rule
@@ -51,15 +54,13 @@ public class JoinStatsRule
         PlanNodeStatsEstimate leftStats = lookup.getStats(joinNode.getLeft(), session, types);
         PlanNodeStatsEstimate rightStats = lookup.getStats(joinNode.getRight(), session, types);
 
-        if (joinNode.getCriteria().size() == 1) {
-            // FIXME, more complex criteria
-            JoinNode.EquiJoinClause joinClause = getOnlyElement(joinNode.getCriteria());
-            Expression comparison = new ComparisonExpression(ComparisonExpressionType.EQUAL, joinClause.getLeft().toSymbolReference(), joinClause.getRight().toSymbolReference());
-            PlanNodeStatsEstimate mergedInputCosts = crossJoinStats(leftStats, rightStats);
-            return Optional.of(filterStatsCalculator.filterStats(mergedInputCosts, comparison, session, types));
-        }
+        List<Expression> comparisons = joinNode.getCriteria().stream()
+                .map(criteria -> new ComparisonExpression(EQUAL, criteria.getLeft().toSymbolReference(), criteria.getRight().toSymbolReference()))
+                .collect(toImmutableList());
 
-        return Optional.empty();
+        PlanNodeStatsEstimate mergedInputCosts = crossJoinStats(leftStats, rightStats);
+        Expression predicate = combineConjuncts(combineConjuncts(comparisons), joinNode.getFilter().orElse(TRUE_LITERAL));
+        return Optional.of(filterStatsCalculator.filterStats(mergedInputCosts, predicate, session, types));
     }
 
     private PlanNodeStatsEstimate crossJoinStats(PlanNodeStatsEstimate left, PlanNodeStatsEstimate right)

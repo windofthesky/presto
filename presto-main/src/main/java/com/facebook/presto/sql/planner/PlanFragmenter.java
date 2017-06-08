@@ -23,7 +23,6 @@ import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.ExplainAnalyzeNode;
 import com.facebook.presto.sql.planner.plan.IndexJoinNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
-import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.MetadataDeleteNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanFragmentId;
@@ -209,16 +208,7 @@ public class PlanFragmenter
                     .map(PlanFragment::getId)
                     .collect(toImmutableList());
 
-            if (exchange.getOrderingScheme().isPresent()) {
-                return new MergeRemoteSourceNode(
-                        exchange.getId(),
-                        childrenIds,
-                        exchange.getOutputSymbols(),
-                        exchange.getOrderingScheme().get().getOrderBy(),
-                        exchange.getOrderingScheme().get().getOrderings());
-            }
-
-            return new RemoteSourceNode(exchange.getId(), childrenIds, exchange.getOutputSymbols());
+            return new RemoteSourceNode(exchange.getId(), childrenIds, exchange.getOutputSymbols(), exchange.getOrderingScheme());
         }
 
         private SubPlan buildSubPlan(PlanNode node, FragmentProperties properties, RewriteContext<FragmentProperties> context)

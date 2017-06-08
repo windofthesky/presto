@@ -62,7 +62,6 @@ import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LateralJoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
-import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.MetadataDeleteNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanFragmentId;
@@ -971,17 +970,11 @@ public class PlanPrinter
         @Override
         public Void visitRemoteSource(RemoteSourceNode node, Integer indent)
         {
-            print(indent, "- RemoteSource[%s] => [%s]", Joiner.on(',').join(node.getSourceFragmentIds()), formatOutputs(node.getOutputSymbols()));
+            print(indent, "- Remote%s[%s] => [%s]",
+                    node.getOrderingScheme().isPresent() ? "Merge" : "Source",
+                    Joiner.on(',').join(node.getSourceFragmentIds()),
+                    formatOutputs(node.getOutputSymbols()));
             printCost(indent + 2, node);
-            printStats(indent + 2, node.getId());
-
-            return null;
-        }
-
-        @Override
-        public Void visitMergeRemoteSource(MergeRemoteSourceNode node, Integer indent)
-        {
-            print(indent, "- RemoteMerge[%s] => [%s]", Joiner.on(',').join(node.getSourceFragmentIds()), formatOutputs(node.getOutputSymbols()));
             printStats(indent + 2, node.getId());
 
             return null;

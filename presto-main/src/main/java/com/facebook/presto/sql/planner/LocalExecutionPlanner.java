@@ -122,7 +122,6 @@ import com.facebook.presto.sql.planner.plan.IndexSourceNode;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
-import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.MetadataDeleteNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -590,32 +589,24 @@ public class LocalExecutionPlanner
         @Override
         public PhysicalOperation visitRemoteSource(RemoteSourceNode node, LocalExecutionPlanContext context)
         {
-            List<Type> types = getSourceOperatorTypes(node, context.getTypes());
-
-            if (!context.getDriverInstanceCount().isPresent()) {
-                context.setDriverInstanceCount(getTaskConcurrency(session));
+            if (node.getOrderingScheme().isPresent()) {
+                return createMergeSource(node, context);
             }
-
-            OperatorFactory operatorFactory = new ExchangeOperatorFactory(
-                    context.getNextOperatorId(),
-                    node.getId(),
-                    exchangeClientSupplier,
-                    new PagesSerdeFactory(blockEncodingSerde, isExchangeCompressionEnabled(session)),
-                    types);
-
-            return new PhysicalOperation(operatorFactory, makeLayout(node));
+            else {
+                return createRemoteSource(node, context);
+            }
         }
 
-        @Override
-        public PhysicalOperation visitMergeRemoteSource(MergeRemoteSourceNode node, LocalExecutionPlanContext context)
+        private PhysicalOperation createMergeSource(RemoteSourceNode node, LocalExecutionPlanContext context)
         {
+            checkArgument(node.getOrderingScheme().isPresent(), "orderingScheme is absent");
+            OrderingScheme orderingScheme = node.getOrderingScheme().get();
             List<Type> types = getSourceOperatorTypes(node, context.getTypes());
-
             Map<Symbol, Integer> sourceLayout = makeLayoutFromOutputSymbols(node.getOutputSymbols());
-            List<Symbol> orderBySymbols = node.getOrderBy();
+            List<Symbol> orderBySymbols = orderingScheme.getOrderBy();
             List<Integer> sortChannels = getChannelsForSymbols(orderBySymbols, sourceLayout);
             List<SortOrder> sortOrder = orderBySymbols.stream()
-                    .map(symbol -> node.getOrderings().get(symbol))
+                    .map(symbol -> orderingScheme.getOrderings().get(symbol))
                     .collect(toImmutableList());
 
             ImmutableList<Integer> outputChannels = IntStream.range(0, types.size()).boxed().collect(toImmutableList());
@@ -630,6 +621,24 @@ public class LocalExecutionPlanner
                     outputChannels,
                     sortChannels,
                     sortOrder);
+
+            return new PhysicalOperation(operatorFactory, makeLayout(node));
+        }
+
+        private PhysicalOperation createRemoteSource(RemoteSourceNode node, LocalExecutionPlanContext context)
+        {
+            List<Type> types = getSourceOperatorTypes(node, context.getTypes());
+
+            if (!context.getDriverInstanceCount().isPresent()) {
+                context.setDriverInstanceCount(getTaskConcurrency(session));
+            }
+
+            OperatorFactory operatorFactory = new ExchangeOperatorFactory(
+                    context.getNextOperatorId(),
+                    node.getId(),
+                    exchangeClientSupplier,
+                    new PagesSerdeFactory(blockEncodingSerde, isExchangeCompressionEnabled(session)),
+                    types);
 
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }

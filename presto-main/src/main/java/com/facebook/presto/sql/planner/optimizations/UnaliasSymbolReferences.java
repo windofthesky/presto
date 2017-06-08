@@ -42,7 +42,6 @@ import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.LateralJoinNode;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
-import com.facebook.presto.sql.planner.plan.MergeRemoteSourceNode;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
@@ -282,19 +281,7 @@ public class UnaliasSymbolReferences
                     node.getPartitioningScheme().isReplicateNullsAndAny(),
                     node.getPartitioningScheme().getBucketToPartition());
 
-            Optional<OrderingScheme> orderingScheme = node.getOrderingScheme().map(scheme -> {
-                Set<Symbol> added = new HashSet<>();
-                ImmutableList.Builder<Symbol> symbols = ImmutableList.builder();
-                ImmutableMap.Builder<Symbol, SortOrder> orderings = ImmutableMap.builder();
-                for (Symbol symbol : scheme.getOrderBy()) {
-                    Symbol canonical = canonicalize(symbol);
-                    if (added.add(canonical)) {
-                        symbols.add(canonical);
-                        orderings.put(canonical, scheme.getOrderings().get(symbol));
-                    }
-                }
-                return new OrderingScheme(symbols.build(), orderings.build());
-            });
+            Optional<OrderingScheme> orderingScheme = node.getOrderingScheme().map(this::canonicalize);
 
             return new ExchangeNode(node.getId(), node.getType(), node.getScope(), partitioningScheme, sources, inputs, orderingScheme);
         }
@@ -348,23 +335,11 @@ public class UnaliasSymbolReferences
         @Override
         public PlanNode visitRemoteSource(RemoteSourceNode node, RewriteContext<Void> context)
         {
-            return new RemoteSourceNode(node.getId(), node.getSourceFragmentIds(), canonicalizeAndDistinct(node.getOutputSymbols()));
-        }
-
-        @Override
-        public PlanNode visitMergeRemoteSource(MergeRemoteSourceNode node, RewriteContext<Void> context)
-        {
-            Set<Symbol> added = new HashSet<>();
-            ImmutableList.Builder<Symbol> orderBySymbols = ImmutableList.builder();
-            ImmutableMap.Builder<Symbol, SortOrder> orderings = ImmutableMap.builder();
-            for (Symbol symbol : node.getOrderBy()) {
-                Symbol canonical = canonicalize(symbol);
-                if (added.add(canonical)) {
-                    orderBySymbols.add(canonical);
-                    orderings.put(canonical, node.getOrderings().get(symbol));
-                }
-            }
-            return new MergeRemoteSourceNode(node.getId(), node.getSourceFragmentIds(), canonicalizeAndDistinct(node.getOutputSymbols()), orderBySymbols.build(), orderings.build());
+            return new RemoteSourceNode(
+                    node.getId(),
+                    node.getSourceFragmentIds(),
+                    canonicalizeAndDistinct(node.getOutputSymbols()),
+                    node.getOrderingScheme().map(this::canonicalize));
         }
 
         @Override
@@ -771,6 +746,21 @@ public class UnaliasSymbolReferences
                     canonicalize(scheme.getHashColumn()),
                     scheme.isReplicateNullsAndAny(),
                     scheme.getBucketToPartition());
+        }
+
+        private OrderingScheme canonicalize(OrderingScheme orderingScheme)
+        {
+            Set<Symbol> added = new HashSet<>();
+            ImmutableList.Builder<Symbol> symbols = ImmutableList.builder();
+            ImmutableMap.Builder<Symbol, SortOrder> orderings = ImmutableMap.builder();
+            for (Symbol symbol : orderingScheme.getOrderBy()) {
+                Symbol canonical = canonicalize(symbol);
+                if (added.add(canonical)) {
+                    symbols.add(canonical);
+                    orderings.put(canonical, orderingScheme.getOrderings().get(symbol));
+                }
+            }
+            return new OrderingScheme(symbols.build(), orderings.build());
         }
     }
 }

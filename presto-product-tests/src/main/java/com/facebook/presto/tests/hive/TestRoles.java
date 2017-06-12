@@ -652,6 +652,24 @@ public class TestRoles
     }
 
     @Test(groups = {HIVE_CONNECTOR, ROLES, AUTHORIZATION, PROFILE_SPECIFIC_TESTS})
+    public void testGrantOption()
+            throws Exception
+    {
+        onPresto().executeQuery(CREATE_TABLE_SQL);
+        onPresto().executeQuery("CREATE ROLE role1");
+        onPresto().executeQuery("GRANT role1 TO USER alice");
+        onPresto().executeQuery(format("GRANT select ON %s TO ROLE role1 WITH GRANT OPTION", TABLE_NAME));
+        QueryAssert.assertThat(onPrestoAlice().executeQuery(format("SELECT * FROM %s", TABLE_NAME))).hasNoRows();
+        onPrestoAlice().executeQuery(format("GRANT select ON %s TO USER bob WITH GRANT OPTION", TABLE_NAME));
+        QueryAssert.assertThat(onPrestoBob().executeQuery(format("SELECT * FROM %s", TABLE_NAME))).hasNoRows();
+        onPrestoBob().executeQuery(format("REVOKE select ON %s FROM USER alice", TABLE_NAME));
+        onPrestoAlice().executeQuery(format("SELECT * FROM %s", TABLE_NAME));
+        onPrestoBob().executeQuery(format("REVOKE select ON %s FROM USER bob", TABLE_NAME));
+        QueryAssert.assertThat(() -> onPrestoBob().executeQuery(format("SELECT * FROM %s", TABLE_NAME))).
+                failsWithMessage(format("Access Denied: Cannot select from table %s", TABLE_NAME));
+    }
+
+        @Test(groups = {HIVE_CONNECTOR, ROLES, AUTHORIZATION, PROFILE_SPECIFIC_TESTS})
     public void testShowCurrentRoles()
             throws Exception
     {

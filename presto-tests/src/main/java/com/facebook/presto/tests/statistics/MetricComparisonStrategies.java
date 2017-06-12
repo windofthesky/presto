@@ -56,7 +56,8 @@ public class MetricComparisonStrategies
                 .contains(estimate);
     }
 
-    public static MetricComparisonStrategy<Object> isEqual() {
+    public static MetricComparisonStrategy<Object> isEqual()
+    {
         return Object::equals;
     }
 

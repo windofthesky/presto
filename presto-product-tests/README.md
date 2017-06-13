@@ -139,12 +139,12 @@ groups run the following command:
 presto-product-tests/bin/run_on_docker.sh <profile> -x quarantine,big_query,profile_specific_tests
 ```
 
-where [profile](#profile) is one of either:
+where [profile](profile) is one of either:
 - **multinode** - pseudo-distributed Hadoop installation running on a
  single Docker container and a distributed Presto installation running on
  multiple Docker containers. For multinode the default configuration is
  1 coordinator and 1 worker.
-- **[singlenode](#singlenode)** - pseudo-distributed Hadoop installation running on a
+- **singlenode** - pseudo-distributed Hadoop installation running on a
  single Docker container and a single node installation of Presto also running
  on a single Docker container.
 - **singlenode-hdfs-impersonation** - HDFS impersonation enabled on top of the

@@ -5,6 +5,7 @@ services:
     image: 'teradatalabs/centos6-java8-oracle:${DOCKER_IMAGES_VERSION}'
     volumes:
       - ../..:/docker/volumes/conf
+      - ../../target:/docker/volumes/logs
 
   hadoop-master:
     extends:

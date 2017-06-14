@@ -28,6 +28,7 @@ import com.facebook.presto.cost.CostCalculatorUsingExchanges;
 import com.facebook.presto.cost.CostCalculatorWithEstimatedExchanges;
 import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.FilterStatsCalculator;
+import com.facebook.presto.cost.ScalarStatsCalculator;
 import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.event.query.QueryMonitor;
 import com.facebook.presto.event.query.QueryMonitorConfig;
@@ -357,6 +358,7 @@ public class ServerMainModule
                 .to(CostCalculatorWithEstimatedExchanges.class).in(Scopes.SINGLETON);
         binder.bind(Lookup.class).to(StatelessLookup.class).in(Scopes.SINGLETON);
         binder.bind(FilterStatsCalculator.class).in(Scopes.SINGLETON);
+        binder.bind(ScalarStatsCalculator.class).in(Scopes.SINGLETON);
 
         // type
         binder.bind(TypeRegistry.class).in(Scopes.SINGLETON);
@@ -456,7 +458,7 @@ public class ServerMainModule
 
     @Provides
     @Singleton
-    public static StatsCalculator createStatsCalculator(Metadata metadata, FilterStatsCalculator filterStatsCalculator)
+    public static StatsCalculator createStatsCalculator(Metadata metadata, FilterStatsCalculator filterStatsCalculator, ScalarStatsCalculator scalarStatsCalculator)
     {
         ImmutableList.Builder<ComposableStatsCalculator.Rule> rules = ImmutableList.builder();
         return new ComposableStatsCalculator(rules.build());

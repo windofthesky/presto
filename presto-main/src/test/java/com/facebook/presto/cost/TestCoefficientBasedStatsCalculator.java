@@ -13,7 +13,6 @@
  */
 package com.facebook.presto.cost;
 
-import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.sql.planner.LogicalPlanner;
 import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.assertions.PlanAssert;
@@ -25,7 +24,6 @@ import com.facebook.presto.tpch.TpchConnectorFactory;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
-import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.node;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
@@ -56,8 +54,8 @@ public class TestCoefficientBasedStatsCalculator
                         node(FilterNode.class,
                                 node(TableScanNode.class)
                                         .withStats(PlanNodeStatsEstimate.builder()
-                                                .setOutputRowCount(new Estimate(385.0))
-                                                .setOutputSizeInBytes(unknownValue())
+                                                .setOutputRowCount(385.0)
+                                                .setOutputSizeInBytes(Double.NaN)
                                                 .build()))));
 
         assertPlan("SELECT orderstatus FROM orders WHERE orderkey = 42",
@@ -65,8 +63,8 @@ public class TestCoefficientBasedStatsCalculator
                         node(FilterNode.class,
                                 node(TableScanNode.class)
                                         .withStats(PlanNodeStatsEstimate.builder()
-                                                .setOutputRowCount(new Estimate(0.0))
-                                                .setOutputSizeInBytes(unknownValue())
+                                                .setOutputRowCount(0)
+                                                .setOutputSizeInBytes(Double.NaN)
                                                 .build()))));
     }
 

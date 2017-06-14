@@ -13,41 +13,37 @@
  */
 package com.facebook.presto.cost;
 
-import com.facebook.presto.spi.statistics.Estimate;
-
 import java.util.Objects;
 
-import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
-import static com.facebook.presto.spi.statistics.Estimate.zeroValue;
-import static java.util.Objects.requireNonNull;
+import static java.lang.Double.POSITIVE_INFINITY;
 
 public class PlanNodeCostEstimate
 {
-    public static final PlanNodeCostEstimate UNKNOWN_COST = new PlanNodeCostEstimate(unknownValue(), unknownValue(), unknownValue());
+    public static final PlanNodeCostEstimate INFINITE_COST = new PlanNodeCostEstimate(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
     public static final PlanNodeCostEstimate ZERO_COST = PlanNodeCostEstimate.builder().build();
 
-    private final Estimate cpuCost;
-    private final Estimate memoryCost;
-    private final Estimate networkCost;
+    private final double cpuCost;
+    private final double memoryCost;
+    private final double networkCost;
 
-    private PlanNodeCostEstimate(Estimate cpuCost, Estimate memoryCost, Estimate networkCost)
+    private PlanNodeCostEstimate(double cpuCost, double memoryCost, double networkCost)
     {
-        this.cpuCost = requireNonNull(cpuCost, "cpuCost can not be null");
-        this.memoryCost = requireNonNull(memoryCost, "memoryCost can not be null");
-        this.networkCost = requireNonNull(networkCost, "networkCost can not be null");
+        this.cpuCost = cpuCost;
+        this.memoryCost = memoryCost;
+        this.networkCost = networkCost;
     }
 
-    public Estimate getCpuCost()
+    public double getCpuCost()
     {
         return cpuCost;
     }
 
-    public Estimate getMemoryCost()
+    public double getMemoryCost()
     {
         return memoryCost;
     }
 
-    public Estimate getNetworkCost()
+    public double getNetworkCost()
     {
         return networkCost;
     }
@@ -85,21 +81,22 @@ public class PlanNodeCostEstimate
     public PlanNodeCostEstimate add(PlanNodeCostEstimate other)
     {
         return new PlanNodeCostEstimate(
-                getCpuCost().add(other.getCpuCost()), getMemoryCost().add(other.getMemoryCost()), getNetworkCost().add(other.getNetworkCost())
-        );
+                cpuCost + other.cpuCost,
+                memoryCost + other.memoryCost,
+                networkCost + other.networkCost);
     }
 
-    public static PlanNodeCostEstimate networkCost(Estimate networkCost)
+    public static PlanNodeCostEstimate networkCost(double networkCost)
     {
         return builder().setNetworkCost(networkCost).build();
     }
 
-    public static PlanNodeCostEstimate cpuCost(Estimate cpuCost)
+    public static PlanNodeCostEstimate cpuCost(double cpuCost)
     {
         return builder().setCpuCost(cpuCost).build();
     }
 
-    public static PlanNodeCostEstimate memoryCost(Estimate memoryCost)
+    public static PlanNodeCostEstimate memoryCost(double memoryCost)
     {
         return builder().setCpuCost(memoryCost).build();
     }
@@ -111,9 +108,9 @@ public class PlanNodeCostEstimate
 
     public static final class Builder
     {
-        private Estimate cpuCost = zeroValue();
-        private Estimate memoryCost = zeroValue();
-        private Estimate networkCost = zeroValue();
+        private double cpuCost = 0;
+        private double memoryCost = 0;
+        private double networkCost = 0;
 
         public Builder setFrom(PlanNodeCostEstimate otherStatistics)
         {
@@ -122,19 +119,19 @@ public class PlanNodeCostEstimate
                     .setNetworkCost(otherStatistics.getNetworkCost());
         }
 
-        public Builder setCpuCost(Estimate cpuCost)
+        public Builder setCpuCost(double cpuCost)
         {
             this.cpuCost = cpuCost;
             return this;
         }
 
-        public Builder setMemoryCost(Estimate memoryCost)
+        public Builder setMemoryCost(double memoryCost)
         {
             this.memoryCost = memoryCost;
             return this;
         }
 
-        public Builder setNetworkCost(Estimate networkCost)
+        public Builder setNetworkCost(double networkCost)
         {
             this.networkCost = networkCost;
             return this;

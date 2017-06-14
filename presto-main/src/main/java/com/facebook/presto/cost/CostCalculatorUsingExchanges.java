@@ -38,7 +38,7 @@ import javax.inject.Inject;
 
 import java.util.Map;
 
-import static com.facebook.presto.cost.PlanNodeCostEstimate.UNKNOWN_COST;
+import static com.facebook.presto.cost.PlanNodeCostEstimate.INFINITE_COST;
 import static com.facebook.presto.cost.PlanNodeCostEstimate.ZERO_COST;
 import static com.facebook.presto.cost.PlanNodeCostEstimate.cpuCost;
 import static java.lang.String.format;
@@ -95,7 +95,7 @@ public class CostCalculatorUsingExchanges
         @Override
         protected PlanNodeCostEstimate visitPlan(PlanNode node, Void context)
         {
-            return UNKNOWN_COST;
+            return INFINITE_COST;
         }
 
         @Override

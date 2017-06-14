@@ -25,7 +25,7 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 import java.util.Map;
 import java.util.function.Function;
 
-import static com.facebook.presto.cost.PlanNodeCostEstimate.UNKNOWN_COST;
+import static com.facebook.presto.cost.PlanNodeCostEstimate.INFINITE_COST;
 import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.google.common.base.Verify.verify;
 
@@ -68,7 +68,7 @@ public interface Lookup
             @Override
             public PlanNodeCostEstimate getCumulativeCost(PlanNode node, Session session, Map<Symbol, Type> types)
             {
-                return UNKNOWN_COST;
+                return INFINITE_COST;
             }
         };
     }
@@ -77,7 +77,7 @@ public interface Lookup
     {
         return from(resolver,
                 (planNode, lookup, session, types) -> UNKNOWN_STATS,
-                (planNode, lookup, session, types) -> UNKNOWN_COST);
+                (planNode, lookup, session, types) -> INFINITE_COST);
     }
 
     static Lookup from(Function<GroupReference, PlanNode> resolver, StatsCalculator statsCalculator, CostCalculator costCalculator)

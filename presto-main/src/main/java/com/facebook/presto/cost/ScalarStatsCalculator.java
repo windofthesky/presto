@@ -19,13 +19,16 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.Node;
+import com.facebook.presto.sql.tree.NullLiteral;
 import com.facebook.presto.sql.tree.SymbolReference;
 
 import javax.inject.Inject;
 
 import java.util.Map;
 
+import static com.facebook.presto.sql.planner.LiteralInterpreter.evaluate;
 import static java.util.Objects.requireNonNull;
 
 public class ScalarStatsCalculator
@@ -67,6 +70,26 @@ public class ScalarStatsCalculator
         protected SymbolStatsEstimate visitSymbolReference(SymbolReference node, Void context)
         {
             return input.getSymbolStatistics().getOrDefault(Symbol.from(node), SymbolStatsEstimate.UNKNOWN_STATS);
+        }
+
+        @Override
+        protected SymbolStatsEstimate visitNullLiteral(NullLiteral node, Void context)
+        {
+            return SymbolStatsEstimate.builder()
+                    .setDistinctValuesCount(0)
+                    .setNullsFraction(1)
+                    .build();
+        }
+
+        @Override
+        protected SymbolStatsEstimate visitLiteral(Literal node, Void context)
+        {
+            Object literalValue = evaluate(metadata, session.toConnectorSession(), node);
+            // TODO transform literalValue to double and and set in result; would be nice to have literal type here and use TypeStatOperatorCaller
+            return SymbolStatsEstimate.builder()
+                    .setNullsFraction(0)
+                    .setDistinctValuesCount(1)
+                    .build();
         }
     }
 }

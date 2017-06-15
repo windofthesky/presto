@@ -286,7 +286,6 @@ public class TestHiveCoercion
                     BIGINT,
                     BIGINT,
                     VARCHAR,
-                    INTEGER,
                     DOUBLE,
                     BIGINT
             );

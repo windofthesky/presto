@@ -87,7 +87,7 @@ public class TestingLookup
         PlanNode resolved = resolve(planNode);
         PlanNodeCostEstimate costEstimate = costs.get(resolved);
         if (costEstimate == null) {
-            costEstimate = costCalculator.calculateCost(resolved, this, session, types);
+            costEstimate = costCalculator.calculateCumulativeCost(resolved, this, session, types);
             costs.put(resolved, costEstimate);
         }
         return costEstimate;

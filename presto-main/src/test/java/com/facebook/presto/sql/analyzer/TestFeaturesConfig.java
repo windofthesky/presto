@@ -67,7 +67,7 @@ public class TestFeaturesConfig
                 .setExchangeCompressionEnabled(false)
                 .setEnableIntermediateAggregations(false)
                 .setPushAggregationThroughJoin(true)
-                .setUseNewStatsCalculator(false));
+                .setUseNewStatsCalculator(true));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
-                .put("experimental.use-new-stats-calculator", "true")
+                .put("experimental.use-new-stats-calculator", "false")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("cpu-cost-weight", "0.4")
@@ -141,7 +141,7 @@ public class TestFeaturesConfig
                 .put("experimental.spiller-max-used-space-threshold", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
-                .put("experimental.use-new-stats-calculator", "true")
+                .put("experimental.use-new-stats-calculator", "false")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -177,7 +177,7 @@ public class TestFeaturesConfig
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
                 .setEnableIntermediateAggregations(true)
-                .setUseNewStatsCalculator(true);
+                .setUseNewStatsCalculator(false);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

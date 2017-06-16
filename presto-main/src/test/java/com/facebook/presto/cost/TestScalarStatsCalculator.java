@@ -44,21 +44,6 @@ public class TestScalarStatsCalculator
         session = testSessionBuilder().build();
     }
 
-    private SymbolStatsAssertion assertCalculate(Expression scalarExpression)
-    {
-        return assertCalculate(scalarExpression, UNKNOWN_STATS);
-    }
-
-    private SymbolStatsAssertion assertCalculate(Expression scalarExpression, PlanNodeStatsEstimate inputStatistics)
-    {
-        return assertCalculate(scalarExpression, inputStatistics, emptyMap());
-    }
-
-    private SymbolStatsAssertion assertCalculate(Expression scalarExpression, PlanNodeStatsEstimate inputStatistics, Map<Symbol, Type> types)
-    {
-        return SymbolStatsAssertion.assertThat(calculator.calculate(scalarExpression, inputStatistics, session, types));
-    }
-
     @Test
     public void testLiteral()
     {
@@ -85,5 +70,20 @@ public class TestScalarStatsCalculator
                 .lowValueUnknown()
                 .highValueUnknown()
                 .nullsFraction(1.0);
+    }
+
+    private SymbolStatsAssertion assertCalculate(Expression scalarExpression)
+    {
+        return assertCalculate(scalarExpression, UNKNOWN_STATS);
+    }
+
+    private SymbolStatsAssertion assertCalculate(Expression scalarExpression, PlanNodeStatsEstimate inputStatistics)
+    {
+        return assertCalculate(scalarExpression, inputStatistics, emptyMap());
+    }
+
+    private SymbolStatsAssertion assertCalculate(Expression scalarExpression, PlanNodeStatsEstimate inputStatistics, Map<Symbol, Type> types)
+    {
+        return SymbolStatsAssertion.assertThat(calculator.calculate(scalarExpression, inputStatistics, session, types));
     }
 }

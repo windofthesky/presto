@@ -16,10 +16,14 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.Session;
 import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.PlanNodeStatsEstimate;
+import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.cost.SymbolStatsEstimate;
+import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.rule.test.RuleTester;
 import com.facebook.presto.sql.planner.plan.JoinNode;
+import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.collect.ImmutableList;
@@ -28,8 +32,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.util.Map;
 import java.util.Optional;
 
+import static com.facebook.presto.cost.PlanNodeStatsEstimate.UNKNOWN_STATS;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.equiJoinClause;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.join;
@@ -272,5 +278,35 @@ public class TestReorderJoins
                         values(ImmutableMap.of("A1", 0)),
                         values(ImmutableMap.of("B1", 0))
                 ));
+    }
+
+    @Test
+    public void testDoesNotFireWithNoStats()
+    {
+        tester.assertThat(new ReorderJoins(new CostComparator(1, 1, 1)))
+                .withStatsCalculator(new UnknownStatsCalculator())
+                .on(p ->
+                        p.join(
+                                INNER,
+                                p.values(new PlanNodeId("valuesA"), p.symbol("A1", BIGINT)),
+                                p.values(new PlanNodeId("valuesB"), p.symbol("B1", BIGINT)),
+                                ImmutableList.of(new JoinNode.EquiJoinClause(p.symbol("A1", BIGINT), p.symbol("B1", BIGINT))),
+                                ImmutableList.of(p.symbol("A1", BIGINT)),
+                                Optional.empty()))
+                .doesNotFire();
+    }
+
+    private static class UnknownStatsCalculator
+            implements StatsCalculator
+    {
+        @Override
+        public PlanNodeStatsEstimate calculateStats(
+                PlanNode planNode,
+                Lookup lookup,
+                Session session,
+                Map<Symbol, Type> types)
+        {
+            return UNKNOWN_STATS;
+        }
     }
 }

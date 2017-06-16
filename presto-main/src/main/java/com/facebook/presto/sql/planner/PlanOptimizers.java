@@ -304,6 +304,7 @@ public class PlanOptimizers
                 // Because ReorderJoins runs only once,
                 // PredicatePushDown, PruneUnreferenedOutputpus and RemoveRedundantIdentityProjections
                 // need to run beforehand in order to produce an optimal join order
+                // It also needs to run after EliminateCrossJoins so that it's chosen order doesn't get undone.
                 new IterativeOptimizer(
                         stats,
                         statsCalculator,

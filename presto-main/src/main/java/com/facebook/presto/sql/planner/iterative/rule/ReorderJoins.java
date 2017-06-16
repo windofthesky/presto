@@ -17,6 +17,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.Session;
 import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.PlanNodeCostEstimate;
+import com.facebook.presto.cost.PlanNodeStatsEstimate;
 import com.facebook.presto.sql.analyzer.FeaturesConfig;
 import com.facebook.presto.sql.planner.DependencyExtractor;
 import com.facebook.presto.sql.planner.EqualityInference;
@@ -98,6 +99,10 @@ public class ReorderJoins
         }
 
         MultiJoinNode multiJoinNode = toMultiJoinNode(joinNode, lookup);
+        if(multiJoinNode.getSources().stream()
+                .anyMatch(source -> lookup.getStats(source, session, symbolAllocator.getTypes()).equals(PlanNodeStatsEstimate.UNKNOWN_STATS))) {
+            return Optional.empty();
+        }
         return Optional.of(new JoinEnumerator(idAllocator, symbolAllocator, session, lookup, multiJoinNode.getFilter(), costComparator).chooseJoinOrder(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols()));
     }
 

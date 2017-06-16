@@ -20,21 +20,17 @@ import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import static com.facebook.presto.sql.ExpressionUtils.and;
-import static com.facebook.presto.sql.ExpressionUtils.extractConjuncts;
 import static com.facebook.presto.sql.planner.DeterminismEvaluator.isDeterministic;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
 import static com.facebook.presto.sql.tree.BooleanLiteral.TRUE_LITERAL;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -69,30 +65,6 @@ public class MultiJoinNode
     public List<Symbol> getOutputSymbols()
     {
         return outputSymbols;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(
-                ImmutableSet.copyOf(this.getOutputSymbols()),
-                ImmutableSet.copyOf(extractConjuncts(this.getFilter())),
-                this.getSources().stream()
-                        .map(PlanNode::getId)
-                        .collect(toImmutableSet()));
-    }
-
-    @Override
-    public boolean equals(Object other)
-    {
-        if (!(other instanceof MultiJoinNode)) {
-            return false;
-        }
-
-        MultiJoinNode otherNode = (MultiJoinNode) other;
-        return ImmutableSet.copyOf(this.getOutputSymbols()).equals(ImmutableSet.copyOf(otherNode.getOutputSymbols()))
-                && ImmutableSet.copyOf(extractConjuncts(this.getFilter())).equals(ImmutableSet.copyOf(extractConjuncts(otherNode.getFilter())))
-                && this.getSources().stream().map(PlanNode::getId).collect(toImmutableSet()).equals(otherNode.getSources().stream().map(PlanNode::getId).collect(toImmutableSet()));
     }
 
     static MultiJoinNode toMultiJoinNode(JoinNode joinNode, Lookup lookup)

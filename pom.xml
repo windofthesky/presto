@@ -55,6 +55,7 @@
         <dep.testng.version>6.10</dep.testng.version>
         <dep.nifty.version>0.15.1</dep.nifty.version>
         <dep.swift.version>0.15.2</dep.swift.version>
+        <dep.guava.version>22.0</dep.guava.version>
 
         <!-- use a fractional hour timezone offset for tests -->
         <air.test.timezone>Asia/Katmandu</air.test.timezone>
@@ -117,6 +118,36 @@
 
     <dependencyManagement>
         <dependencies>
+
+            <!-- guava -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${dep.guava.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <!-- Guava pulls more dependencies since https://github.com/google/guava/issues/2721 -->
+                        <groupId>com.google.code.findbugs</groupId>
+                        <artifactId>jsr305</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <!-- Guava pulls more dependencies since https://github.com/google/guava/issues/2721 -->
+                        <groupId>com.google.errorprone</groupId>
+                        <artifactId>error_prone_annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <!-- Guava pulls more dependencies since https://github.com/google/guava/issues/2721 -->
+                        <groupId>com.google.j2objc</groupId>
+                        <artifactId>j2objc-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <!-- Guava pulls more dependencies since https://github.com/google/guava/issues/2721 -->
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>animal-sniffer-annotations</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
             <dependency>
                 <groupId>com.facebook.presto</groupId>
                 <artifactId>presto-spi</artifactId>

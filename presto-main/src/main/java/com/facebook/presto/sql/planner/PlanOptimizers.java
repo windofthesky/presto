@@ -333,6 +333,8 @@ public class PlanOptimizers
             builder.add(
                     new IterativeOptimizer(
                             stats,
+                            statsCalculator,
+                            estimatedExchangesCostCalculator,
                             ImmutableList.of(new com.facebook.presto.sql.planner.optimizations.PushTableWriteThroughUnion()), // Must run before AddExchanges
                             ImmutableSet.of(new PushTableWriteThroughUnion())
                     ));

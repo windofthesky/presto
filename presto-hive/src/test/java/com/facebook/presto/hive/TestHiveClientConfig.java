@@ -92,6 +92,7 @@ public class TestHiveClientConfig
                 .setFileSystemMaxCacheSize(1000)
                 .setWritesToNonManagedTablesEnabled(false)
                 .setCreateNonManagedTableEnabled(true)
+                .setMultiFileBucketingEnabled(false)
                 .setEmptyBucketedPartitionsEnabled(false));
     }
 

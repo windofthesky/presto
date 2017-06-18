@@ -79,7 +79,6 @@ public class FeaturesConfig
     private boolean parseDecimalLiteralsAsDouble;
     private boolean useNewStatsCalculator = false;
 
-
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
 
     public double getCpuCostWeight()

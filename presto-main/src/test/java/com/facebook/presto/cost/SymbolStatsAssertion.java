@@ -80,4 +80,16 @@ public class SymbolStatsAssertion
         assertTrue(isNaN(statistics.getDistinctValuesCount()), "expected unknown distinctValuesCount but got " + statistics.getDistinctValuesCount());
         return this;
     }
+
+    public SymbolStatsAssertion dataSize(double expected)
+    {
+        assertEquals(statistics.getDataSize(), expected, "dataSize mismatch");
+        return this;
+    }
+
+    public SymbolStatsAssertion dataSizeUnknown()
+    {
+        assertTrue(isNaN(statistics.getDataSize()), "expected unknown dataSize but got " + statistics.getDistinctValuesCount());
+        return this;
+    }
 }

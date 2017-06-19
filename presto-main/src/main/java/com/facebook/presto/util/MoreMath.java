@@ -24,9 +24,9 @@ public final class MoreMath
      */
     public static boolean nearlyEqual(double a, double b, double epsilon)
     {
-        final double absA = Math.abs(a);
-        final double absB = Math.abs(b);
-        final double diff = Math.abs(a - b);
+        double absA = Math.abs(a);
+        double absB = Math.abs(b);
+        double diff = Math.abs(a - b);
 
         if (a == b) { // shortcut, handles infinities
             return true;
@@ -46,9 +46,9 @@ public final class MoreMath
      */
     public static boolean nearlyEqual(float a, float b, float epsilon)
     {
-        final float absA = Math.abs(a);
-        final float absB = Math.abs(b);
-        final float diff = Math.abs(a - b);
+        float absA = Math.abs(a);
+        float absB = Math.abs(b);
+        float diff = Math.abs(a - b);
 
         if (a == b) { // shortcut, handles infinities
             return true;

@@ -77,7 +77,7 @@ public class PlanNodeStatsAssertion
 
     public PlanNodeStatsAssertion equalTo(PlanNodeStatsEstimate expected)
     {
-        assertEquals(actual.getOutputRowCount(), expected.getOutputRowCount());
+        assertEstimateEquals(actual.getOutputRowCount(), expected.getOutputRowCount(), "outputRowCount mismatch");
 
         for (Symbol symbol : union(expected.getSymbolsWithKnownStatistics(), actual.getSymbolsWithKnownStatistics())) {
             assertSymbolStatsEqual(symbol, actual.getSymbolStatistics(symbol), expected.getSymbolStatistics(symbol));

@@ -55,6 +55,11 @@ public class SymbolStatsEstimate
         return distinctValuesCount != 0 || (!isNaN(lowValue) && !isNaN(highValue));
     }
 
+    public double getNonNullsFraction()
+    {
+        return 1.0 - nullsFraction;
+    }
+
     public double getNullsFraction()
     {
         return nullsFraction;

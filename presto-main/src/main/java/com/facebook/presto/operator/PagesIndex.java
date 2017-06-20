@@ -161,6 +161,24 @@ public class PagesIndex
         estimatedSize = calculateEstimatedSize();
     }
 
+    public void evictBlock(int blockNumber)
+    {
+        // TODO: worth it to check which blocks you've evicted thusfar?
+        for (ObjectArrayList<Block> channel : channels) {
+            Block block = channel.get(blockNumber);
+            if (block != null) {
+                pagesMemorySize -= block.getRetainedSizeInBytes();
+                channel.set(blockNumber, null);
+            }
+        }
+
+        if (blockNumber >= nextBlockToCompact) {
+            nextBlockToCompact = blockNumber + 1;
+        }
+
+        estimatedSize = calculateEstimatedSize();
+    }
+
     public void addPage(Page page)
     {
         // ignore empty pages

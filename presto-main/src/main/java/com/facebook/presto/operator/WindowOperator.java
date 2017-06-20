@@ -27,11 +27,13 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
+import static com.facebook.presto.operator.SyntheticAddress.decodeSliceIndex;
 import static com.facebook.presto.spi.block.SortOrder.ASC_NULLS_LAST;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkPositionIndex;
@@ -193,6 +195,9 @@ public class WindowOperator
 
     private Page pendingInput;
 
+    private final List<List<Integer>> blocksToPartitionIndexes;
+    private int lastBlock = 0;
+
     public WindowOperator(
             OperatorContext operatorContext,
             List<Type> sourceTypes,
@@ -257,6 +262,8 @@ public class WindowOperator
             this.orderChannels = ImmutableList.copyOf(concat(unGroupedPartitionChannels, sortChannels));
             this.ordering = ImmutableList.copyOf(concat(nCopies(unGroupedPartitionChannels.size(), ASC_NULLS_LAST), sortOrder));
         }
+
+        this.blocksToPartitionIndexes = new ArrayList<>(); // TODO: better estimate of size based on expected positions?
     }
 
     @Override
@@ -389,10 +396,14 @@ public class WindowOperator
     {
         // INVARIANT: pagesIndex contains the full grouped & sorted data for one or more partitions
 
+        List<Integer> finishedPartitionEnds = new ArrayList<>();
         // Iterate through the positions sequentially until we have one full page
         while (!pageBuilder.isFull()) {
             if (partition == null || !partition.hasNext()) {
                 int partitionStart = partition == null ? 0 : partition.getPartitionEnd();
+                if (partition != null) {
+                    finishedPartitionEnds.add(partition.getPartitionEnd());
+                }
 
                 if (partitionStart >= pagesIndex.getPositionCount()) {
                     // Finished all of the partitions in the current pagesIndex
@@ -420,6 +431,9 @@ public class WindowOperator
                 }
 
                 int partitionEnd = findGroupEnd(pagesIndex, unGroupedPartitionHashStrategy, partitionStart);
+                if (orderChannels.isEmpty()) {
+                    addToPartitionBlockIndex(partitionStart, partitionEnd);
+                }
                 partition = new WindowPartition(pagesIndex, partitionStart, partitionEnd, outputChannels, windowFunctions, peerGroupHashStrategy);
             }
 
@@ -428,15 +442,52 @@ public class WindowOperator
 
         Page page = pageBuilder.build();
         pageBuilder.reset();
+        evictFromPositionBlockIndex(finishedPartitionEnds);
         return page;
+    }
+
+    private void evictFromPositionBlockIndex(List<Integer> finishedPartitionEnds)
+    {
+        for (int i = 0; i <= lastBlock; i++) { // TODO: keep track of firstBlock too
+            List<Integer> partitions = blocksToPartitionIndexes.get(i);
+            if (partitions != null) { // todo: it really should never be null
+                partitions.removeAll(finishedPartitionEnds);
+                if (partitions.isEmpty() && i != lastBlock) {
+                    pagesIndex.evictBlock(i);
+                }
+            }
+        }
+    }
+
+    // Assumes that partitionStart to partitionEnd has not yet been sorted
+    private void addToPartitionBlockIndex(int partitionStart, int partitionEnd)
+    {
+        long startPageAddress = pagesIndex.getValueAddresses().getLong(partitionStart);
+        long endPageAddress = pagesIndex.getValueAddresses().getLong(partitionEnd - 1);
+        int startBlockIndex = decodeSliceIndex(startPageAddress);
+        int endBlockIndex = decodeSliceIndex(endPageAddress);
+
+        for (int i = startBlockIndex; i <= endBlockIndex; i++) {
+            if (i <= blocksToPartitionIndexes.size() || blocksToPartitionIndexes.get(i) == null) {
+                List<Integer> partitions = new ArrayList<>();
+                partitions.add(partitionEnd);
+                blocksToPartitionIndexes.add(i, partitions);
+            }
+            else {
+                blocksToPartitionIndexes.get(i).add(partitionEnd);
+            }
+            // TODO: make blocksToPartitionIndexes an ObjectArrayList or something that's faster
+        }
+        lastBlock = Math.max(lastBlock, endBlockIndex);
     }
 
     private void sortPagesIndexIfNecessary()
     {
-        if (pagesIndex.getPositionCount() > 1 && !orderChannels.isEmpty()) {
+        if (pagesIndex.getPositionCount() > 0 && !orderChannels.isEmpty()) {
             int startPosition = 0;
             while (startPosition < pagesIndex.getPositionCount()) {
                 int endPosition = findGroupEnd(pagesIndex, preSortedPartitionHashStrategy, startPosition);
+                addToPartitionBlockIndex(startPosition, endPosition);
                 pagesIndex.sort(orderChannels, ordering, startPosition, endPosition);
                 startPosition = endPosition;
             }

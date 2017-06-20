@@ -623,6 +623,12 @@ public class TestWindowOperator
         assertFindEndPosition("000000000000001111111111", 14);
     }
 
+    @Test
+    public void testEvictPartitions()
+    {
+
+    }
+
     private static void assertFindEndPosition(String values, int expected)
     {
         char[] array = values.toCharArray();

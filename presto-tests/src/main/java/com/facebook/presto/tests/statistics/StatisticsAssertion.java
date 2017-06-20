@@ -26,7 +26,6 @@ import java.util.function.Predicate;
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.MATCH;
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.NO_BASELINE;
 import static com.facebook.presto.tests.statistics.MetricComparison.Result.NO_ESTIMATE;
-import static com.facebook.presto.tests.statistics.MetricComparisonStrategies.isEqual;
 import static com.facebook.presto.tests.statistics.MetricComparisonStrategies.noError;
 import static com.facebook.presto.tests.statistics.Metrics.distinctValuesCount;
 import static com.facebook.presto.tests.statistics.Metrics.highValue;
@@ -73,10 +72,16 @@ public class StatisticsAssertion
 
         public Checks verifyExactColumnStatistics(String columnName)
         {
-            estimate(nullsFraction(columnName), noError());
-            estimate(distinctValuesCount(columnName), noError());
-            estimate(lowValue(columnName), isEqual());
-            estimate(highValue(columnName), isEqual());
+            verifyColumnStatistics(columnName, noError());
+            return this;
+        }
+
+        public Checks verifyColumnStatistics(String columnName, MetricComparisonStrategy<Double> strategy)
+        {
+            estimate(nullsFraction(columnName), strategy);
+            estimate(distinctValuesCount(columnName), strategy);
+            estimate(lowValue(columnName), strategy);
+            estimate(highValue(columnName), strategy);
             return this;
         }
 

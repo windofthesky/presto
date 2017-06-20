@@ -16,7 +16,6 @@ package com.facebook.presto.cost;
 import com.facebook.presto.util.MoreMath;
 
 import static java.lang.Double.isNaN;
-import static org.testng.Assert.assertTrue;
 
 public final class EstimateAssertion
 {
@@ -26,12 +25,14 @@ public final class EstimateAssertion
     {
     }
 
-    public static void assertEstimateEquals(double actual, double expected, String messageFormat, Object... mesaggeObjects)
+    public static void assertEstimateEquals(double actual, double expected, String messageFormat, Object... messageObjects)
     {
         if (isNaN(actual) && isNaN(expected)) {
             return;
         }
 
-        assertTrue(MoreMath.nearlyEqual(actual, expected, TOLERANCE), String.format(messageFormat, mesaggeObjects));
+        if (!MoreMath.nearlyEqual(actual, expected, TOLERANCE)) {
+            throw new AssertionError(String.format(messageFormat, messageObjects) + String.format(", expected [%f], but got [%f]", expected, actual));
+        }
     }
 }

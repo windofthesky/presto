@@ -83,7 +83,7 @@ public class ValuesStatsRule
             return SymbolStatsEstimate.builder()
                     .setLowValue(Double.NaN)
                     .setHighValue(Double.NaN)
-                    .setNullsFraction(1.0)
+                    .setNullsFraction(values.isEmpty() ? 0.0 : 1.0)
                     .setDistinctValuesCount(0.0)
                     .build();
         }

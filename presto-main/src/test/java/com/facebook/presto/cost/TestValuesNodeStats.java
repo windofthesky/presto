@@ -88,4 +88,25 @@ public class TestValuesNodeStats
                                                 .build())
                                 .build()));
     }
+
+    @Test
+    public void testStatsForEmptyValues()
+            throws Exception
+    {
+        tester.assertStatsFor(pb -> pb
+                .values(ImmutableList.of(pb.symbol("a", BIGINT)),
+                        ImmutableList.of()))
+                .check(outputStats -> outputStats.equalTo(
+                        PlanNodeStatsEstimate.builder()
+                                .setOutputRowCount(0)
+                                .addSymbolStatistics(
+                                        new Symbol("a"),
+                                        SymbolStatsEstimate.builder()
+                                                .setLowValue(NaN)
+                                                .setHighValue(NaN)
+                                                .setNullsFraction(0.0)
+                                                .setDistinctValuesCount(0.0)
+                                                .build())
+                                .build()));
+    }
 }

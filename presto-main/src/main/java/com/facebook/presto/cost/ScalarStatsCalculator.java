@@ -191,7 +191,8 @@ public class ScalarStatsCalculator
                 else if (leftLow >= 0) {
                     result.setLowValue(0)
                             .setHighValue(min(maxDivisor, leftHigh));
-                } else {
+                }
+                else {
                     result.setLowValue(max(-maxDivisor, leftLow))
                             .setHighValue(min(maxDivisor, leftHigh));
                 }

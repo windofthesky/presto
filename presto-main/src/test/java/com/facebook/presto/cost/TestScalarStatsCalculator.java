@@ -247,24 +247,24 @@ public class TestScalarStatsCalculator
     public void testDivideArithmeticBinaryExpression()
     {
         assertCalculate(expression("x / y"), xyStats(-11, -3, -5, -4)).lowValue(0.6).highValue(2.75);
-        assertCalculate(expression("x / y"), xyStats(-11, -3, -5,  4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
-        assertCalculate(expression("x / y"), xyStats(-11, -3,  4,  5)).lowValue(-2.75).highValue(-0.6);
+        assertCalculate(expression("x / y"), xyStats(-11, -3, -5, 4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
+        assertCalculate(expression("x / y"), xyStats(-11, -3, 4, 5)).lowValue(-2.75).highValue(-0.6);
 
         assertCalculate(expression("x / y"), xyStats(-11, 0, -5, -4)).lowValue(0).highValue(2.75);
-        assertCalculate(expression("x / y"), xyStats(-11, 0, -5,  4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
-        assertCalculate(expression("x / y"), xyStats(-11, 0,  4,  5)).lowValue(-2.75).highValue(0);
+        assertCalculate(expression("x / y"), xyStats(-11, 0, -5, 4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
+        assertCalculate(expression("x / y"), xyStats(-11, 0, 4, 5)).lowValue(-2.75).highValue(0);
 
-        assertCalculate(expression("x / y"), xyStats(-11,  3, -5, -4)).lowValue(-0.75).highValue(2.75);
-        assertCalculate(expression("x / y"), xyStats(-11,  3, -5,  4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
-        assertCalculate(expression("x / y"), xyStats(-11,  3,  4,  5)).lowValue(-2.75).highValue(0.75);
+        assertCalculate(expression("x / y"), xyStats(-11, 3, -5, -4)).lowValue(-0.75).highValue(2.75);
+        assertCalculate(expression("x / y"), xyStats(-11, 3, -5, 4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
+        assertCalculate(expression("x / y"), xyStats(-11, 3, 4, 5)).lowValue(-2.75).highValue(0.75);
 
-        assertCalculate(expression("x / y"), xyStats(0,  3, -5, -4)).lowValue(-0.75).highValue(0);
-        assertCalculate(expression("x / y"), xyStats(0,  3, -5,  4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
-        assertCalculate(expression("x / y"), xyStats(0,  3,  4,  5)).lowValue(0).highValue(0.75);
+        assertCalculate(expression("x / y"), xyStats(0, 3, -5, -4)).lowValue(-0.75).highValue(0);
+        assertCalculate(expression("x / y"), xyStats(0, 3, -5, 4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
+        assertCalculate(expression("x / y"), xyStats(0, 3, 4, 5)).lowValue(0).highValue(0.75);
 
-        assertCalculate(expression("x / y"), xyStats( 3,  11, -5, -4)).lowValue(-2.75).highValue(-0.6);
-        assertCalculate(expression("x / y"), xyStats( 3,  11, -5,  4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
-        assertCalculate(expression("x / y"), xyStats( 3,  11,  4,  5)).lowValue(0.6).highValue(2.75);
+        assertCalculate(expression("x / y"), xyStats(3, 11, -5, -4)).lowValue(-2.75).highValue(-0.6);
+        assertCalculate(expression("x / y"), xyStats(3, 11, -5, 4)).lowValue(NEGATIVE_INFINITY).highValue(POSITIVE_INFINITY);
+        assertCalculate(expression("x / y"), xyStats(3, 11, 4, 5)).lowValue(0.6).highValue(2.75);
     }
 
     @Test
@@ -275,22 +275,22 @@ public class TestScalarStatsCalculator
         assertCalculate(expression("x % y"), xyStats(-5, 0, -6, -4)).lowValue(-5).highValue(0);
         assertCalculate(expression("x % y"), xyStats(-8, 0, -6, -4)).lowValue(-6).highValue(0);
         assertCalculate(expression("x % y"), xyStats(-8, 0, -6, -4)).lowValue(-6).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-8, 0, -6,  4)).lowValue(-6).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-8, 0, -6,  6)).lowValue(-6).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-8, 0,  4,  6)).lowValue(-6).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-1, 0,  4,  6)).lowValue(-1).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-5, 0,  4,  6)).lowValue(-5).highValue(0);
-        assertCalculate(expression("x % y"), xyStats(-8, 0,  4,  6)).lowValue(-6).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-8, 0, -6, 4)).lowValue(-6).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-8, 0, -6, 6)).lowValue(-6).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-8, 0, 4, 6)).lowValue(-6).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-1, 0, 4, 6)).lowValue(-1).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-5, 0, 4, 6)).lowValue(-5).highValue(0);
+        assertCalculate(expression("x % y"), xyStats(-8, 0, 4, 6)).lowValue(-6).highValue(0);
 
         // positive
         assertCalculate(expression("x % y"), xyStats(0, 5, -6, -4)).lowValue(0).highValue(5);
         assertCalculate(expression("x % y"), xyStats(0, 8, -6, -4)).lowValue(0).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(0, 1, -6,  4)).lowValue(0).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(0, 5, -6,  4)).lowValue(0).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(0, 8, -6,  4)).lowValue(0).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(0, 1,  4,  6)).lowValue(0).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(0, 5,  4,  6)).lowValue(0).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(0, 8,  4,  6)).lowValue(0).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(0, 1, -6, 4)).lowValue(0).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(0, 5, -6, 4)).lowValue(0).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(0, 8, -6, 4)).lowValue(0).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(0, 1, 4, 6)).lowValue(0).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(0, 5, 4, 6)).lowValue(0).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(0, 8, 4, 6)).lowValue(0).highValue(6);
 
         // mix
         assertCalculate(expression("x % y"), xyStats(-1, 1, -6, -4)).lowValue(-1).highValue(1);
@@ -300,20 +300,20 @@ public class TestScalarStatsCalculator
         assertCalculate(expression("x % y"), xyStats(-5, 8, -6, -4)).lowValue(-5).highValue(6);
         assertCalculate(expression("x % y"), xyStats(-8, 5, -6, -4)).lowValue(-6).highValue(5);
         assertCalculate(expression("x % y"), xyStats(-8, 8, -6, -4)).lowValue(-6).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(-1, 1, -6,  4)).lowValue(-1).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(-1, 5, -6,  4)).lowValue(-1).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-5, 1, -6,  4)).lowValue(-5).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(-5, 5, -6,  4)).lowValue(-5).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-5, 8, -6,  4)).lowValue(-5).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(-8, 5, -6,  4)).lowValue(-6).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-8, 8, -6,  4)).lowValue(-6).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(-1, 1,  4,  6)).lowValue(-1).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(-1, 5,  4,  6)).lowValue(-1).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-5, 1,  4,  6)).lowValue(-5).highValue(1);
-        assertCalculate(expression("x % y"), xyStats(-5, 5,  4,  6)).lowValue(-5).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-5, 8,  4,  6)).lowValue(-5).highValue(6);
-        assertCalculate(expression("x % y"), xyStats(-8, 5,  4,  6)).lowValue(-6).highValue(5);
-        assertCalculate(expression("x % y"), xyStats(-8, 8,  4,  6)).lowValue(-6).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(-1, 1, -6, 4)).lowValue(-1).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(-1, 5, -6, 4)).lowValue(-1).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-5, 1, -6, 4)).lowValue(-5).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(-5, 5, -6, 4)).lowValue(-5).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-5, 8, -6, 4)).lowValue(-5).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(-8, 5, -6, 4)).lowValue(-6).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-8, 8, -6, 4)).lowValue(-6).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(-1, 1, 4, 6)).lowValue(-1).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(-1, 5, 4, 6)).lowValue(-1).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-5, 1, 4, 6)).lowValue(-5).highValue(1);
+        assertCalculate(expression("x % y"), xyStats(-5, 5, 4, 6)).lowValue(-5).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-5, 8, 4, 6)).lowValue(-5).highValue(6);
+        assertCalculate(expression("x % y"), xyStats(-8, 5, 4, 6)).lowValue(-6).highValue(5);
+        assertCalculate(expression("x % y"), xyStats(-8, 8, 4, 6)).lowValue(-6).highValue(6);
     }
 
     private PlanNodeStatsEstimate xyStats(double lowX, double highX, double lowY, double highY)

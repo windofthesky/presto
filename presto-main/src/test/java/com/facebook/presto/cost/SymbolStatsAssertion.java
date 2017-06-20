@@ -92,4 +92,12 @@ public class SymbolStatsAssertion
         assertTrue(isNaN(statistics.getDataSize()), "expected unknown dataSize but got " + statistics.getDistinctValuesCount());
         return this;
     }
+
+    public SymbolStatsAssertion isEqualTo(SymbolStatsEstimate expected) {
+        return nullsFraction(expected.getNullsFraction())
+                .lowValue(expected.getLowValue())
+                .highValue(expected.getHighValue())
+                .distinctValuesCount(expected.getDistinctValuesCount())
+                .dataSize(expected.getDataSize());
+    }
 }

@@ -124,6 +124,31 @@ public class StatisticRange
         return empty();
     }
 
+    public StatisticRange add(StatisticRange other)
+    {
+        double newDistinctValues = distinctValues + other.distinctValues;
+        return new StatisticRange(min(low, other.low), max(high, other.high), newDistinctValues);
+    }
+
+    public StatisticRange subtract(StatisticRange rightRange)
+    {
+        StatisticRange intersect = intersect(rightRange);
+        double newLow = getLow();
+        double newHigh = getHigh();
+        if (intersect.getLow() == getLow()) {
+            newLow = intersect.getHigh();
+        }
+        if (intersect.getHigh() == getHigh()) {
+            newHigh = intersect.getLow();
+        }
+        if (newLow > newHigh) {
+            newLow = NaN;
+            newHigh = NaN;
+        }
+
+        return new StatisticRange(newLow, newHigh, getDistinctValuesCount() - intersect.getDistinctValuesCount());
+    }
+
     @Override
     public boolean equals(Object obj)
     {

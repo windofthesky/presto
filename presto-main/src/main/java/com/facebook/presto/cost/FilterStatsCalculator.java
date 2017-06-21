@@ -22,13 +22,20 @@ import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Literal;
+import com.facebook.presto.sql.tree.LogicalBinaryExpression;
+import com.facebook.presto.sql.tree.NotExpression;
 import com.facebook.presto.sql.tree.SymbolReference;
 
 import javax.inject.Inject;
 
 import java.util.Map;
 
+import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.addStats;
+import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractNonRangeStats;
+import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractStats;
+import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
+import static java.lang.String.format;
 
 public class FilterStatsCalculator
 {
@@ -77,6 +84,29 @@ public class FilterStatsCalculator
         private PlanNodeStatsEstimate filterForUnknownExpression()
         {
             return filterStatsForUnknownExpression(input);
+        }
+
+        protected PlanNodeStatsEstimate visitNotExpression(NotExpression node, Void context)
+        {
+            return subtractStats(input, process(node.getValue()));
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitLogicalBinaryExpression(LogicalBinaryExpression node, Void context)
+        {
+            PlanNodeStatsEstimate leftStats = process(node.getLeft());
+            PlanNodeStatsEstimate rightStats = process(node.getRight());
+            PlanNodeStatsEstimate andStats = new FilterExpressionStatsCalculatingVisitor(rightStats, session, types).process(node.getLeft());
+
+            switch (node.getType()) {
+                case AND:
+                    return andStats;
+                case OR:
+                    return subtractNonRangeStats(addStats(leftStats, rightStats), andStats);
+                default:
+                    checkState(false, format("Unimplemented logical binary operator expression %s", node.getType()));
+                    return PlanNodeStatsEstimate.UNKNOWN_STATS;
+            }
         }
 
         @Override

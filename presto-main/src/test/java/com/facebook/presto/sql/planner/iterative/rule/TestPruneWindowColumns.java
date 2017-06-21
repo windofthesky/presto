@@ -1,0 +1,229 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.facebook.presto.sql.planner.iterative.rule;
+
+import com.facebook.presto.metadata.FunctionKind;
+import com.facebook.presto.metadata.Signature;
+import com.facebook.presto.spi.block.SortOrder;
+import com.facebook.presto.sql.planner.Symbol;
+import com.facebook.presto.sql.planner.assertions.ExpectedValueProvider;
+import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
+import com.facebook.presto.sql.planner.iterative.rule.test.BaseRuleTest;
+import com.facebook.presto.sql.planner.iterative.rule.test.PlanBuilder;
+import com.facebook.presto.sql.planner.plan.Assignments;
+import com.facebook.presto.sql.planner.plan.PlanNode;
+import com.facebook.presto.sql.planner.plan.WindowNode;
+import com.facebook.presto.sql.tree.FunctionCall;
+import com.facebook.presto.sql.tree.QualifiedName;
+import com.facebook.presto.sql.tree.WindowFrame;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import org.testng.annotations.Test;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
+
+import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.expression;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.functionCall;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.strictProject;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.window;
+import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.windowFrame;
+import static com.facebook.presto.sql.tree.FrameBound.Type.CURRENT_ROW;
+import static com.facebook.presto.sql.tree.FrameBound.Type.UNBOUNDED_PRECEDING;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
+public class TestPruneWindowColumns
+        extends BaseRuleTest
+{
+    private static final Signature signature = new Signature(
+            "min",
+            FunctionKind.WINDOW,
+            ImmutableList.of(),
+            ImmutableList.of(),
+            BIGINT.getTypeSignature(),
+            ImmutableList.of(BIGINT.getTypeSignature()),
+            false);
+
+    private static final List<String> inputSymbolNameList = ImmutableList.of("orderKey", "partitionKey", "hash", "startValue", "endValue", "input1", "input2", "unused");
+    private static final Set<String> inputSymbolNameSet = ImmutableSet.copyOf(inputSymbolNameList);
+
+    private static final ExpectedValueProvider<WindowNode.Frame> frameProvider = windowFrame(
+            WindowFrame.Type.RANGE,
+            UNBOUNDED_PRECEDING,
+            Optional.of("startValue"),
+            CURRENT_ROW,
+            Optional.of("endValue"));
+
+    @Test
+    public void testWindowNotNeeded()
+    {
+        tester().assertThat(new PruneWindowColumns())
+                .on(p -> buildProjectedWindow(p, symbol -> inputSymbolNameSet.contains(symbol.getName()), Predicates.alwaysTrue()))
+                .matches(
+                        strictProject(
+                                Maps.asMap(inputSymbolNameSet, PlanMatchPattern::expression),
+                                values(inputSymbolNameList)));
+    }
+
+    @Test
+    public void testOneFunctionNotNeeded()
+    {
+        tester().assertThat(new PruneWindowColumns())
+                .on(p -> buildProjectedWindow(p,
+                        symbol -> symbol.getName().equals("output2") || symbol.getName().equals("unused"),
+                        Predicates.alwaysTrue()))
+                .matches(
+                        strictProject(
+                                ImmutableMap.of(
+                                        "output2", expression("output2"),
+                                        "unused", expression("unused")),
+                                window(windowBuilder -> windowBuilder
+                                                .prePartitionedInputs(ImmutableSet.of())
+                                                .specification(
+                                                        ImmutableList.of("partitionKey"),
+                                                        ImmutableList.of("orderKey"),
+                                                        ImmutableMap.of("orderKey", SortOrder.ASC_NULLS_FIRST))
+                                                .preSortedOrderPrefix(0)
+                                                .addFunction(
+                                                        "output2",
+                                                        functionCall("min", ImmutableList.of("input2")),
+                                                        signature,
+                                                        frameProvider)
+                                                .hashSymbol("hash"),
+                                        strictProject(
+                                                Maps.asMap(
+                                                        Sets.difference(inputSymbolNameSet, ImmutableSet.of("input1")),
+                                                        PlanMatchPattern::expression),
+                                                values(inputSymbolNameList)))));
+    }
+
+    @Test
+    public void testAllColumnsNeeded()
+    {
+        tester().assertThat(new PruneWindowColumns())
+                .on(p -> buildProjectedWindow(p, Predicates.alwaysTrue(), Predicates.alwaysTrue()))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testUsedInputsNotNeeded()
+    {
+        // If the WindowNode needs all its inputs, we can't discard them from its child.
+        tester().assertThat(new PruneWindowColumns())
+                .on(p -> buildProjectedWindow(
+                        p,
+                        // only the window function outputs
+                        symbol -> !inputSymbolNameSet.contains(symbol.getName()),
+                        // only the used input symbols
+                        symbol -> !symbol.getName().equals("unused")))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testUnusedInputNotNeeded()
+    {
+        tester().assertThat(new PruneWindowColumns())
+                .on(p -> buildProjectedWindow(
+                        p,
+                        // only the window function outputs
+                        symbol -> !inputSymbolNameSet.contains(symbol.getName()),
+                        Predicates.alwaysTrue()))
+                .matches(
+                        strictProject(
+                                ImmutableMap.of(
+                                        "output1", expression("output1"),
+                                        "output2", expression("output2")),
+                                window(windowBuilder -> windowBuilder
+                                                .prePartitionedInputs(ImmutableSet.of())
+                                                .specification(
+                                                        ImmutableList.of("partitionKey"),
+                                                        ImmutableList.of("orderKey"),
+                                                        ImmutableMap.of("orderKey", SortOrder.ASC_NULLS_FIRST))
+                                                .preSortedOrderPrefix(0)
+                                                .addFunction(
+                                                        "output1",
+                                                        functionCall("min", ImmutableList.of("input1")),
+                                                        signature,
+                                                        frameProvider)
+                                                .addFunction(
+                                                        "output2",
+                                                        functionCall("min", ImmutableList.of("input2")),
+                                                        signature,
+                                                        frameProvider)
+                                                .hashSymbol("hash"),
+                                        strictProject(
+                                                Maps.asMap(
+                                                        Sets.filter(inputSymbolNameSet, symbolName -> !symbolName.equals("unused")),
+                                                        PlanMatchPattern::expression),
+                                                values(inputSymbolNameList)))));
+    }
+
+    private static PlanNode buildProjectedWindow(
+            PlanBuilder p,
+            Predicate<Symbol> projectionFilter,
+            Predicate<Symbol> sourceFilter)
+    {
+        Symbol orderKey = p.symbol("orderKey", BIGINT);
+        Symbol partitionKey = p.symbol("partitionKey", BIGINT);
+        Symbol hash = p.symbol("hash", BIGINT);
+        Symbol startValue = p.symbol("startValue", BIGINT);
+        Symbol endValue = p.symbol("endValue", BIGINT);
+        Symbol input1 = p.symbol("input1", BIGINT);
+        Symbol input2 = p.symbol("input2", BIGINT);
+        Symbol unused = p.symbol("unused", BIGINT);
+        Symbol output1 = p.symbol("output1", BIGINT);
+        Symbol output2 = p.symbol("output2", BIGINT);
+        List<Symbol> inputs = ImmutableList.of(orderKey, partitionKey, hash, startValue, endValue, input1, input2, unused);
+        List<Symbol> outputs = ImmutableList.<Symbol>builder().addAll(inputs).add(output1, output2).build();
+
+        WindowNode.Frame frame = new WindowNode.Frame(WindowFrame.Type.RANGE, UNBOUNDED_PRECEDING,
+                Optional.of(startValue), CURRENT_ROW, Optional.of(endValue));
+
+        return p.project(
+                Assignments.identity(
+                        outputs.stream()
+                                .filter(projectionFilter)
+                                .collect(toImmutableList())),
+                p.window(
+                        new WindowNode.Specification(
+                                ImmutableList.of(partitionKey),
+                                ImmutableList.of(orderKey),
+                                ImmutableMap.of(orderKey, SortOrder.ASC_NULLS_FIRST)),
+                        ImmutableMap.of(
+                                output1,
+                                new WindowNode.Function(
+                                        new FunctionCall(QualifiedName.of("min"), ImmutableList.of(input1.toSymbolReference())),
+                                        signature,
+                                        frame),
+                                output2,
+                                new WindowNode.Function(
+                                        new FunctionCall(QualifiedName.of("min"), ImmutableList.of(input2.toSymbolReference())),
+                                        signature,
+                                        frame)),
+                        hash,
+                        p.values(
+                                inputs.stream()
+                                        .filter(sourceFilter)
+                                        .collect(toImmutableList()),
+                                ImmutableList.of())));
+    }
+}

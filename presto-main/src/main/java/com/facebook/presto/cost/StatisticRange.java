@@ -15,12 +15,17 @@ package com.facebook.presto.cost;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
+import static java.lang.Double.isFinite;
+import static java.lang.Double.isInfinite;
 import static java.lang.Double.isNaN;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class StatisticRange
 {
+    private static final double INFINITE_TO_FINITE_RANGE_INTERSECT_OVERLAP_HEURISTIC_FACTOR = 0.25;
+    private static final double INFINITE_TO_INFINITE_RANGE_INTERSECT_OVERLAP_HEURISTIC_FACTOR = 0.5;
+
     private final double low;
     private final double high;
     private final double distinctValues;
@@ -58,11 +63,20 @@ public class StatisticRange
         return high - low;
     }
 
+    public boolean isEmpty()
+    {
+        return isNaN(low) && isNaN(high);
+    }
+
     public double overlapPercentWith(StatisticRange other)
     {
+        if (isEmpty() || other.isEmpty()) {
+            return 0.0; // zero is better than NaN as it will behave properly for calculating row count
+        }
+
         double lengthOfIntersect = min(high, other.high) - max(low, other.low);
-        if (lengthOfIntersect > 0) {
-            return lengthOfIntersect / length();
+        if (isInfinite(lengthOfIntersect)) {
+            return INFINITE_TO_INFINITE_RANGE_INTERSECT_OVERLAP_HEURISTIC_FACTOR;
         }
         if (lengthOfIntersect == 0) {
             return 1 / distinctValues;
@@ -70,6 +84,13 @@ public class StatisticRange
         if (lengthOfIntersect < 0) {
             return 0;
         }
+        if (isInfinite(length()) && isFinite(lengthOfIntersect)) {
+            return INFINITE_TO_FINITE_RANGE_INTERSECT_OVERLAP_HEURISTIC_FACTOR;
+        }
+        if (lengthOfIntersect > 0) {
+            return lengthOfIntersect / length();
+        }
+
         return NaN;
     }
 
@@ -79,7 +100,11 @@ public class StatisticRange
         double overlapPercentOfRight = other.overlapPercentWith(this);
         double overlapDistinctValuesLeft = overlapPercentOfLeft * distinctValues;
         double overlapDistinctValuesRight = overlapPercentOfRight * other.distinctValues;
-        return min(overlapDistinctValuesLeft, overlapDistinctValuesRight);
+        double overlapDistinctValues = min(overlapDistinctValuesLeft, overlapDistinctValuesRight);
+        if (isNaN(overlapDistinctValues)) {
+            overlapDistinctValues = isNaN(overlapDistinctValuesLeft) ? overlapDistinctValuesRight : overlapDistinctValuesLeft;
+        }
+        return overlapDistinctValues;
     }
 
     public StatisticRange intersect(StatisticRange other)
@@ -99,6 +124,7 @@ public class StatisticRange
         double overlapDistinctValuesLeft = overlapPercentOfLeft * distinctValues;
         double overlapDistinctValuesRight = overlapPercentOfRight * other.distinctValues;
         double overlapDistinctValuesOptimistic = min(overlapDistinctValuesLeft, overlapDistinctValuesRight);
+
         double newDistinctValues = distinctValues + other.distinctValues - overlapDistinctValuesOptimistic;
 
         return new StatisticRange(min(low, other.low), max(high, other.high), newDistinctValues);

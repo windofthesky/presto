@@ -69,7 +69,7 @@ public class ComparisonStatsCalculator
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(x -> filterFactor * x)
+        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> symbolNewEstimate);
     }
 
@@ -84,12 +84,12 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate symbolNewEstimate =
                 SymbolStatsEstimate.builder()
                         .setAverageRowSize(symbolStats.getAverageRowSize())
-                        .setDistinctValuesCount(filterFactor * intersectRange.getDistinctValuesCount())
+                        .setDistinctValuesCount(intersectRange.getDistinctValuesCount())
                         .setHighValue(intersectRange.getHigh())
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(x -> filterFactor * x)
+        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> symbolNewEstimate);
     }
 
@@ -102,7 +102,7 @@ public class ComparisonStatsCalculator
 
         double filterFactor = range.overlapPercentWith(intersectRange);
 
-        return inputStatistics.mapOutputRowCount(x -> filterFactor * x)
+        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> buildFrom(x)
                         .setNullsFraction(0.0)
                         .setDistinctValuesCount(x.getDistinctValuesCount() - 1)
@@ -121,13 +121,21 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate symbolNewEstimate =
                 SymbolStatsEstimate.builder()
                         .setAverageRowSize(symbolStats.getAverageRowSize())
-                        .setDistinctValuesCount(1)
+                        .setDistinctValuesCount(intersectRange.getDistinctValuesCount())
                         .setHighValue(intersectRange.getHigh())
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * (1 - symbolStats.getNullsFraction()))
+        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> symbolNewEstimate);
+    }
+
+    private double nullsFilterFactor(SymbolStatsEstimate symbolStats)
+    {
+        if (isNaN(symbolStats.getNullsFraction())) {
+            return 1.0; // If we don't know nullsFraction it means that there are no values at all, in this case we can avoid making output row count NaN as we know it should be 0
+        }
+        return (1 - symbolStats.getNullsFraction());
     }
 
     public PlanNodeStatsEstimate comparisonSymbolToSymbolStats(Symbol left, Symbol right, ComparisonExpressionType type)

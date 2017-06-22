@@ -16,57 +16,93 @@ package com.facebook.presto.server;
 import com.facebook.presto.operator.DynamicFilterSummary;
 
 import javax.annotation.concurrent.Immutable;
+import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
+@ThreadSafe
 public class DynamicFilterService
 {
     private final Map<SourceDescriptor, DynamicFilterSummaryWithSenders> dynamicFilterSummaries = new HashMap<>();
+    private final Map<SourceDescriptor, SummaryCompleteListener> listeners = new ConcurrentHashMap<>();
 
     // maintain driver IDs in the map too (in case of retries etc.)
-    public synchronized void storeOrMergeSummary(String queryId, String source, int stageId, int taskId, DynamicFilterSummary dynamicFilterSummary, int expectedSummariesCount)
+    public void storeOrMergeSummary(String queryId, String source, int stageId, int taskId, DynamicFilterSummary dynamicFilterSummary, int expectedSummariesCount)
     {
-        DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders
-                = dynamicFilterSummaries.getOrDefault(SourceDescriptor.of(queryId, source), new DynamicFilterSummaryWithSenders());
-        dynamicFilterSummaryWithSenders.addSummary(stageId, taskId, dynamicFilterSummary, expectedSummariesCount);
+        DynamicFilterSummary mergedSummary;
+        synchronized (this) {
+            DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders
+                    = dynamicFilterSummaries.getOrDefault(SourceDescriptor.of(queryId, source), new DynamicFilterSummaryWithSenders());
+            mergedSummary = dynamicFilterSummaryWithSenders.addSummary(stageId, taskId, dynamicFilterSummary, expectedSummariesCount);
 
-        dynamicFilterSummaries.put(SourceDescriptor.of(queryId, source), dynamicFilterSummaryWithSenders);
+            dynamicFilterSummaries.put(SourceDescriptor.of(queryId, source), dynamicFilterSummaryWithSenders);
+        }
+
+        if (mergedSummary != null) {
+            listeners.get(SourceDescriptor.of(queryId, source)).summaryComplete(queryId, source, mergedSummary);
+        }
     }
 
-    public synchronized void registerTask(String queryId, String source, int stageId, int taskId)
+    public void registerTask(String queryId, String source, int stageId, int taskId)
     {
-        DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders
-                = dynamicFilterSummaries.getOrDefault(SourceDescriptor.of(queryId, source), new DynamicFilterSummaryWithSenders());
-        dynamicFilterSummaryWithSenders.registerTask(stageId, taskId);
+        synchronized (this) {
+            DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders
+                    = dynamicFilterSummaries.getOrDefault(SourceDescriptor.of(queryId, source), new DynamicFilterSummaryWithSenders());
+            dynamicFilterSummaryWithSenders.registerTask(stageId, taskId);
 
-        dynamicFilterSummaries.put(SourceDescriptor.of(queryId, source), dynamicFilterSummaryWithSenders);
+            dynamicFilterSummaries.put(SourceDescriptor.of(queryId, source), dynamicFilterSummaryWithSenders);
+        }
     }
 
     /**
      * @return Optional.of(DynamicFilterSummary) or Optional.empty if not all nodes have reported theirs summaries
      **/
-    public synchronized Optional<DynamicFilterSummary> getSummary(String queryId, String source)
+    public Optional<DynamicFilterSummary> getSummary(String queryId, String source)
     {
-        DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders = dynamicFilterSummaries.get(SourceDescriptor.of(queryId, source));
-        return dynamicFilterSummaryWithSenders.getSummaryIfReady();
+        synchronized (this) {
+            DynamicFilterSummaryWithSenders dynamicFilterSummaryWithSenders = dynamicFilterSummaries.get(SourceDescriptor.of(queryId, source));
+            return dynamicFilterSummaryWithSenders.getSummaryIfReady();
+        }
     }
 
-    public synchronized void removeQuery(String queryId)
+    public void removeQuery(String queryId)
     {
-        Iterator<Map.Entry<SourceDescriptor, DynamicFilterSummaryWithSenders>> iter = dynamicFilterSummaries.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<SourceDescriptor, DynamicFilterSummaryWithSenders> entry = iter.next();
-            if (entry.getKey().getQueryId().equals(queryId)) {
-                iter.remove();
+        synchronized (this) {
+            {
+                Iterator<Map.Entry<SourceDescriptor, DynamicFilterSummaryWithSenders>> iter = dynamicFilterSummaries.entrySet().iterator();
+                while (iter.hasNext()) {
+                    Map.Entry<SourceDescriptor, DynamicFilterSummaryWithSenders> entry = iter.next();
+                    if (entry.getKey().getQueryId().equals(queryId)) {
+                        iter.remove();
+                    }
+                }
+            }
+            Iterator<Map.Entry<SourceDescriptor, SummaryCompleteListener>> iter = listeners.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<SourceDescriptor, SummaryCompleteListener> entry = iter.next();
+                if (entry.getKey().getQueryId().equals(queryId)) {
+                    iter.remove();
+                }
             }
         }
+    }
+
+    public void addListener(String queryId, String source, SummaryCompleteListener listener)
+    {
+        listeners.put(SourceDescriptor.of(queryId, source), listener);
+    }
+
+    public interface SummaryCompleteListener
+    {
+        void summaryComplete(String queryId, String source, DynamicFilterSummary summary);
     }
 
     private static class SourceDescriptor
@@ -140,7 +176,7 @@ public class DynamicFilterService
             senderStats.put(stageTaskId, new SenderStats());
         }
 
-        public void addSummary(int stageId, int taskId, DynamicFilterSummary summary, int expectedSummariesCount)
+        public DynamicFilterSummary addSummary(int stageId, int taskId, DynamicFilterSummary summary, int expectedSummariesCount)
         {
             String stageTaskId = stageId + "." + taskId;
 
@@ -159,6 +195,12 @@ public class DynamicFilterService
             else {
                 dynamicFilterSummary = dynamicFilterSummary.mergeWith(summary);
             }
+
+            if (stats.isCompleted()) {
+                return dynamicFilterSummary;
+            }
+
+            return null;
         }
 
         @Immutable

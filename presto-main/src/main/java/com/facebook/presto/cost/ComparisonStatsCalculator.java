@@ -105,7 +105,7 @@ public class ComparisonStatsCalculator
         return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> buildFrom(x)
                         .setNullsFraction(0.0)
-                        .setDistinctValuesCount(x.getDistinctValuesCount() - 1)
+                        .setDistinctValuesCount(max(x.getDistinctValuesCount() - 1, 0))
                         .setAverageRowSize(x.getAverageRowSize())
                         .build());
     }
@@ -133,7 +133,7 @@ public class ComparisonStatsCalculator
     private double nullsFilterFactor(SymbolStatsEstimate symbolStats)
     {
         if (isNaN(symbolStats.getNullsFraction())) {
-            return 1.0; // If we don't know nullsFraction it means that there are no values at all, in this case we can avoid making output row count NaN as we know it should be 0
+            return 0.0; // If we don't know nullsFraction it means that there are no values at all, in this case we can avoid making output row count NaN as we know it should be 0
         }
         return (1 - symbolStats.getNullsFraction());
     }

@@ -33,6 +33,7 @@ public class StatisticRange
     public StatisticRange(double low, double high, double distinctValues)
     {
         checkState(low <= high || (isNaN(low) && isNaN(high)), "Low must be smaller or equal to high or range must be empty (NaN, NaN)");
+        checkState(distinctValues >= 0, "Distinct values count cannot be negative");
         this.low = low;
         this.high = high;
         this.distinctValues = distinctValues;

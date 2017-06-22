@@ -126,7 +126,7 @@ public class ComparisonStatsCalculator
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(x -> filterFactor * x)
+        return inputStatistics.mapOutputRowCount(x -> filterFactor * x * (1 - symbolStats.getNullsFraction()))
                 .mapSymbolColumnStatistics(symbol, x -> symbolNewEstimate);
     }
 

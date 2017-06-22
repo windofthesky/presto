@@ -86,7 +86,7 @@ public class StatisticRange
     {
         double newLow = max(low, other.low);
         double newHigh = min(high, other.high);
-        if (newLow < newHigh) {
+        if (newLow <= newHigh) {
             return new StatisticRange(newLow, newHigh, overlappingDistinctValues(other));
         }
         return empty();

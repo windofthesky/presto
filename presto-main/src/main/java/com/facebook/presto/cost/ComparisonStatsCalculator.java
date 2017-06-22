@@ -64,7 +64,7 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate symbolNewEstimate =
                 SymbolStatsEstimate.builder()
                         .setAverageRowSize(symbolStats.getAverageRowSize())
-                        .setDistinctValuesCount(filterFactor * intersectRange.getDistinctValuesCount())
+                        .setDistinctValuesCount(intersectRange.getDistinctValuesCount())
                         .setHighValue(intersectRange.getHigh())
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
@@ -100,7 +100,7 @@ public class ComparisonStatsCalculator
         StatisticRange range = new StatisticRange(symbolStats.getLowValue(), symbolStats.getHighValue(), symbolStats.getDistinctValuesCount());
         StatisticRange intersectRange = range.intersect(new StatisticRange(literal, literal, 1));
 
-        double filterFactor = range.overlapPercentWith(intersectRange);
+        double filterFactor = 1 - range.overlapPercentWith(intersectRange);
 
         return inputStatistics.mapOutputRowCount(x -> filterFactor * x * nullsFilterFactor(symbolStats))
                 .mapSymbolColumnStatistics(symbol, x -> buildFrom(x)

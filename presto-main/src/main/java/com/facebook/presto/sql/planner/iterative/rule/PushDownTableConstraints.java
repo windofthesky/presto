@@ -34,6 +34,7 @@ import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
 import java.util.List;
@@ -42,6 +43,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 import static com.facebook.presto.sql.ExpressionUtils.combineConjuncts;
+import static com.facebook.presto.sql.ExpressionUtils.extractConjuncts;
 import static com.facebook.presto.sql.ExpressionUtils.stripDeterministicConjuncts;
 import static com.facebook.presto.sql.ExpressionUtils.stripNonDeterministicConjuncts;
 import static com.google.common.base.Preconditions.checkState;
@@ -143,7 +145,7 @@ public class PushDownTableConstraints
         }
 
         FilterNode rewrittenFilter = (FilterNode) rewrittenPlan;
-        if (!rewrittenFilter.getPredicate().equals(oldPlan.getPredicate())) {
+        if (!ImmutableSet.copyOf(extractConjuncts(rewrittenFilter.getPredicate())).equals(ImmutableSet.copyOf(extractConjuncts(oldPlan.getPredicate())))) {
             return true;
         }
 

@@ -13,14 +13,33 @@
  */
 package com.facebook.presto.spi.connector;
 
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.predicate.TupleDomain;
+
+import static java.util.Objects.requireNonNull;
 
 public interface ConnectorSplitManager
 {
     default ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout)
     {
         throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    class DynamicFilterDescription
+    {
+        private final TupleDomain<ColumnHandle> tupleDomain;
+
+        public DynamicFilterDescription(TupleDomain<ColumnHandle> tupleDomain)
+        {
+            this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
+        }
+
+        public TupleDomain<ColumnHandle> getTupleDomain()
+        {
+            return tupleDomain;
+        }
     }
 }

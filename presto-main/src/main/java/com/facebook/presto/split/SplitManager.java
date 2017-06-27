@@ -64,7 +64,7 @@ public class SplitManager
 
         ConnectorSession connectorSession = session.toConnectorSession(connectorId);
 
-        ConnectorSplitSource source = splitManager.getSplits(layout.getTransactionHandle(), connectorSession, layout.getConnectorHandle());
+        ConnectorSplitSource source = splitManager.getSplits(layout.getTransactionHandle(), connectorSession, layout.getConnectorHandle(), dynamicFilters);
 
         SplitSource splitSource = new ConnectorAwareSplitSource(connectorId, layout.getTransactionHandle(), source);
         if (minScheduleSplitBatchSize > 1) {

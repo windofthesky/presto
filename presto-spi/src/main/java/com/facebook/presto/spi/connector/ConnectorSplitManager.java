@@ -19,10 +19,19 @@ import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.predicate.TupleDomain;
 
+import java.util.List;
+import java.util.concurrent.Future;
+
 import static java.util.Objects.requireNonNull;
 
 public interface ConnectorSplitManager
 {
+    default ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout, Future<List<DynamicFilterDescription>> dynamicFilters)
+    {
+        return getSplits(transactionHandle, session, layout);
+    }
+
+    @Deprecated
     default ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout)
     {
         throw new UnsupportedOperationException("not yet implemented");

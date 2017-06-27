@@ -86,6 +86,7 @@ public final class SortExpressionExtractor
 
     private static Optional<SymbolReference> asBuildSymbolReference(Set<Symbol> buildLayout, Expression expression)
     {
+        // this is required to make sure the expression is pushed down (sort channel has the expression result)
         if (expression instanceof SymbolReference) {
             SymbolReference symbolReference = (SymbolReference) expression;
             if (buildLayout.contains(new Symbol(symbolReference.getName()))) {

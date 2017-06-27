@@ -253,7 +253,7 @@ public class PlanOptimizers
                         stats,
                         statsCalculator,
                         estimatedExchangesCostCalculator,
-                        ImmutableSet.of(new PushDownTableConstraints(metadata))),
+                        ImmutableSet.of(new PushDownTableConstraints(metadata, sqlParser))),
                 new PruneUnreferencedOutputs(),
                 new IterativeOptimizer(
                         stats,
@@ -305,7 +305,7 @@ public class PlanOptimizers
                         stats,
                         statsCalculator,
                         estimatedExchangesCostCalculator,
-                        ImmutableSet.of(new PushDownTableConstraints(metadata))),
+                        ImmutableSet.of(new PushDownTableConstraints(metadata, sqlParser))),
                 projectionPushDown);
 
         if (featuresConfig.isOptimizeSingleDistinct()) {

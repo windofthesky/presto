@@ -20,12 +20,15 @@ import com.facebook.presto.metadata.TableLayoutResult;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.DomainTranslator;
+import com.facebook.presto.sql.planner.ExpressionExtractor;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.optimizations.ExpressionEquivalence;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
@@ -54,10 +57,12 @@ public class PushDownTableConstraints
         implements Rule
 {
     private final Metadata metadata;
+    private final SqlParser sqlParser;
 
-    public PushDownTableConstraints(Metadata metadata)
+    public PushDownTableConstraints(Metadata metadata, SqlParser sqlParser)
     {
         this.metadata = metadata;
+        this.sqlParser = sqlParser;
     }
 
     @Override
@@ -123,7 +128,7 @@ public class PushDownTableConstraints
             rewrittenPlan = new FilterNode(idAllocator.getNextId(), rewrittenPlan, resultingPredicate);
         }
 
-        if (!planChanged(rewrittenPlan, filter, lookup)) {
+        if (!planChanged(rewrittenPlan, filter, lookup, session, symbolAllocator)) {
             return Optional.empty();
         }
         return Optional.of(rewrittenPlan);
@@ -138,13 +143,14 @@ public class PushDownTableConstraints
         };
     }
 
-    private boolean planChanged(PlanNode rewrittenPlan, FilterNode oldPlan, Lookup lookup)
+    private boolean planChanged(PlanNode rewrittenPlan, FilterNode oldPlan, Lookup lookup, Session session, SymbolAllocator symbolAllocator)
     {
         if (!(rewrittenPlan instanceof FilterNode)) {
             return true;
         }
 
         FilterNode rewrittenFilter = (FilterNode) rewrittenPlan;
+        if(!new ExpressionEquivalence(metadata, sqlParser).areExpressionsEquivalent(session, rewrittenFilter.getPredicate(), oldPlan.getPredicate(), symbolAllocator.getTypes()))
         if (!ImmutableSet.copyOf(extractConjuncts(rewrittenFilter.getPredicate())).equals(ImmutableSet.copyOf(extractConjuncts(oldPlan.getPredicate())))) {
             return true;
         }

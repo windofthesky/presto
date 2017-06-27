@@ -27,7 +27,6 @@ public class TestOutputNodeStats
 
     @BeforeMethod
     public void setUp()
-            throws Exception
     {
         tester = new StatsCalculatorTester();
     }

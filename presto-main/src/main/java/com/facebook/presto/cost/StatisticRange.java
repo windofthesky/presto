@@ -146,7 +146,7 @@ public class StatisticRange
             newHigh = NaN;
         }
 
-        return new StatisticRange(newLow, newHigh, getDistinctValuesCount() * overlapPercentWith(intersect));
+        return new StatisticRange(newLow, newHigh, getDistinctValuesCount() - intersect.getDistinctValuesCount());
     }
 
     @Override

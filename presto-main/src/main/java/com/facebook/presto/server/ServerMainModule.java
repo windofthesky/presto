@@ -496,7 +496,9 @@ public class ServerMainModule
         rules.add(new SemiJoinStatsRule());
         rules.add(new AggregationStatsRule());
 
-        return new ComposableStatsCalculator(rules.build());
+        ImmutableList.Builder<ComposableStatsCalculator.Normalizer> normalizers = ImmutableList.builder();
+
+        return new ComposableStatsCalculator(rules.build(), normalizers.build());
     }
 
     @Provides

@@ -20,9 +20,13 @@ import com.facebook.presto.metadata.TableLayoutHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 
 import javax.inject.Inject;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -53,7 +57,7 @@ public class SplitManager
         splitManagers.remove(connectorId);
     }
 
-    public SplitSource getSplits(Session session, TableLayoutHandle layout)
+    public SplitSource getSplits(Session session, TableLayoutHandle layout, ListenableFuture<List<ConnectorSplitManager.DynamicFilterDescription>> dynamicFilters)
     {
         ConnectorId connectorId = layout.getConnectorId();
         ConnectorSplitManager splitManager = getConnectorSplitManager(connectorId);
@@ -67,6 +71,13 @@ public class SplitManager
             splitSource = new BufferingSplitSource(splitSource, minScheduleSplitBatchSize);
         }
         return splitSource;
+    }
+
+    public SplitSource getSplits(Session session, TableLayoutHandle layout)
+    {
+        SettableFuture<List<ConnectorSplitManager.DynamicFilterDescription>> completedEmptySummaries = SettableFuture.create();
+        completedEmptySummaries.set(ImmutableList.of());
+        return getSplits(session, layout, completedEmptySummaries);
     }
 
     private ConnectorSplitManager getConnectorSplitManager(ConnectorId connectorId)

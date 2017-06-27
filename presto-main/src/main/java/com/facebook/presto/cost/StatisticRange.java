@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.cost;
 
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
 import static java.lang.Double.isFinite;
@@ -148,7 +150,8 @@ public class StatisticRange
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(Object obj)
+    {
         if (this == obj) {
             return true;
         }
@@ -159,5 +162,11 @@ public class StatisticRange
         return low == other.low &&
                 high == other.high &&
                 distinctValues == other.distinctValues;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(low, high, distinctValues);
     }
 }

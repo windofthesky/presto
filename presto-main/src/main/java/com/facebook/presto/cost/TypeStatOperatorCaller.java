@@ -19,6 +19,7 @@ import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.operator.scalar.ScalarFunctionImplementation;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.BooleanType;
 import com.facebook.presto.spi.type.DecimalType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.IntegerType;
@@ -76,6 +77,7 @@ public class TypeStatOperatorCaller
                 || BigintType.BIGINT.equals(type)
                 || IntegerType.INTEGER.equals(type)
                 || SmallintType.SMALLINT.equals(type)
-                || TinyintType.TINYINT.equals(type);
+                || TinyintType.TINYINT.equals(type)
+                || BooleanType.BOOLEAN.equals(type);
     }
 }

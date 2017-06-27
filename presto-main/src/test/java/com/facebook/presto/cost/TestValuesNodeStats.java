@@ -30,7 +30,6 @@ public class TestValuesNodeStats
 
     @BeforeMethod
     public void setUp()
-            throws Exception
     {
         tester = new StatsCalculatorTester();
     }

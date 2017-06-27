@@ -22,7 +22,6 @@ import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.DomainTranslator;
-import com.facebook.presto.sql.planner.ExpressionExtractor;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
@@ -32,11 +31,9 @@ import com.facebook.presto.sql.planner.optimizations.ExpressionEquivalence;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
-import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableBiMap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 
@@ -49,9 +46,8 @@ import static com.facebook.presto.sql.ExpressionUtils.combineConjuncts;
 import static com.facebook.presto.sql.ExpressionUtils.extractConjuncts;
 import static com.facebook.presto.sql.ExpressionUtils.stripDeterministicConjuncts;
 import static com.facebook.presto.sql.ExpressionUtils.stripNonDeterministicConjuncts;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.util.stream.Collectors.toList;
 
 public class PushDownTableConstraints
         implements Rule
@@ -68,22 +64,26 @@ public class PushDownTableConstraints
     @Override
     public Optional<PlanNode> apply(PlanNode node, Lookup lookup, PlanNodeIdAllocator idAllocator, SymbolAllocator symbolAllocator, Session session)
     {
-        if (!(node instanceof FilterNode) || !(lookup.resolve(((FilterNode) node).getSource()) instanceof TableScanNode)) {
+        if (!(node instanceof FilterNode)) {
             return Optional.empty();
         }
 
         FilterNode filter = (FilterNode) node;
+        PlanNode source = lookup.resolve(filter.getSource());
+        if (!(source instanceof TableScanNode)) {
+            return Optional.empty();
+        }
+
         Expression predicate = filter.getPredicate();
         // don't include non-deterministic predicates
         Expression deterministicPredicate = stripNonDeterministicConjuncts(predicate);
-
         DomainTranslator.ExtractionResult decomposedPredicate = DomainTranslator.fromPredicate(
                 metadata,
                 session,
                 deterministicPredicate,
                 symbolAllocator.getTypes());
 
-        TableScanNode tableScan = (TableScanNode) lookup.resolve(filter.getSource());
+        TableScanNode tableScan = (TableScanNode) source;
         TupleDomain<ColumnHandle> simplifiedConstraint = decomposedPredicate.getTupleDomain()
                 .transform(tableScan.getAssignments()::get)
                 .intersect(tableScan.getCurrentConstraint());
@@ -98,15 +98,14 @@ public class PushDownTableConstraints
                         .map(tableScan.getAssignments()::get)
                         .collect(toImmutableSet())));
 
-        if (layouts.isEmpty()) {
-            return Optional.of(new ValuesNode(idAllocator.getNextId(), tableScan.getOutputSymbols(), ImmutableList.of()));
-        }
-
         // Filter out layouts that cannot supply all the required columns
         layouts = layouts.stream()
                 .filter(layoutHasAllNeededOutputs(tableScan))
-                .collect(toList());
-        checkState(!layouts.isEmpty(), "No usable layouts for %s", tableScan);
+                .collect(toImmutableList());
+
+        if (layouts.isEmpty()) {
+            return Optional.empty();
+        }
 
         // At this point we have no way to choose between possible layouts, just take the first one
         TableLayoutResult layout = layouts.get(0);
@@ -150,9 +149,10 @@ public class PushDownTableConstraints
         }
 
         FilterNode rewrittenFilter = (FilterNode) rewrittenPlan;
-        if(!new ExpressionEquivalence(metadata, sqlParser).areExpressionsEquivalent(session, rewrittenFilter.getPredicate(), oldPlan.getPredicate(), symbolAllocator.getTypes()))
-        if (!ImmutableSet.copyOf(extractConjuncts(rewrittenFilter.getPredicate())).equals(ImmutableSet.copyOf(extractConjuncts(oldPlan.getPredicate())))) {
-            return true;
+        if (!new ExpressionEquivalence(metadata, sqlParser).areExpressionsEquivalent(session, rewrittenFilter.getPredicate(), oldPlan.getPredicate(), symbolAllocator.getTypes())) {
+            if (!ImmutableSet.copyOf(extractConjuncts(rewrittenFilter.getPredicate())).equals(ImmutableSet.copyOf(extractConjuncts(oldPlan.getPredicate())))) {
+                return true;
+            }
         }
 
         TableScanNode oldTableScan = (TableScanNode) lookup.resolve(oldPlan.getSource());

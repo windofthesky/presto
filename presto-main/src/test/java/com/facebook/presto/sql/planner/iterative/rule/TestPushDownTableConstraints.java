@@ -18,6 +18,7 @@ import com.facebook.presto.Session;
 import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.predicate.Domain;
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.iterative.rule.test.RuleTester;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.facebook.presto.tpch.TpchColumnHandle;
@@ -58,7 +59,7 @@ public class TestPushDownTableConstraints
                 .put("orderstatus", Domain.singleValue(createVarcharType(1), utf8Slice("P")))
                 .build();
 
-        new RuleTester(queryRunner).assertThat(new PushDownTableConstraints(queryRunner.getMetadata()))
+        new RuleTester(queryRunner).assertThat(new PushDownTableConstraints(queryRunner.getMetadata(), new SqlParser()))
                 .on(p ->
                         p.filter(expression("orderstatus = 'P'"),
                                 p.tableScan(

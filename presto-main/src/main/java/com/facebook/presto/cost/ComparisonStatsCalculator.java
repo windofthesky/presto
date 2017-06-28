@@ -145,6 +145,7 @@ public class ComparisonStatsCalculator
             case EQUAL:
                 return symbolToSymbolEquality(left, right);
             case NOT_EQUAL:
+                return symbolToSymbolNonEquality(left, right);
             case LESS_THAN:
             case LESS_THAN_OR_EQUAL:
             case GREATER_THAN:
@@ -152,6 +153,11 @@ public class ComparisonStatsCalculator
             case IS_DISTINCT_FROM:
         }
         return inputStatistics.mapOutputRowCount(size -> size * 0.5);
+    }
+
+    private PlanNodeStatsEstimate symbolToSymbolNonEquality(Symbol left, Symbol right)
+    {
+        return SimplePlanNodeStatsEstimateMath.subtractStats(inputStatistics, symbolToSymbolEquality(left, right));
     }
 
     private PlanNodeStatsEstimate symbolToSymbolEquality(Symbol left, Symbol right)

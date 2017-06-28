@@ -24,6 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Double.NaN;
 import static java.lang.Double.isNaN;
 
@@ -166,6 +167,7 @@ public class PlanNodeStatsEstimate
 
         public Builder addSymbolStatistics(Symbol symbol, SymbolStatsEstimate statistics)
         {
+            checkArgument(!symbolStatistics.containsKey(symbol), "SymbolStatsEstimate are already added for: %s", symbol);
             this.symbolStatistics.put(symbol, statistics);
             return this;
         }

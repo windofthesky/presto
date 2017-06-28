@@ -14,22 +14,32 @@
 package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.util.AsyncQueue;
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.PrestoException;
+import com.facebook.presto.spi.connector.ConnectorSplitManager;
+import com.facebook.presto.spi.predicate.Domain;
+import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.TypeManager;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.io.FileNotFoundException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_FILE_NOT_FOUND;
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_UNKNOWN_ERROR;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.failedFuture;
+import static java.util.stream.Collectors.toMap;
 
 class HiveSplitSource
         implements ConnectorSplitSource
@@ -37,12 +47,16 @@ class HiveSplitSource
     private final AsyncQueue<ConnectorSplit> queue;
     private final AtomicReference<Throwable> throwable = new AtomicReference<>();
     private final HiveSplitLoader splitLoader;
+    private final Future<List<ConnectorSplitManager.DynamicFilterDescription>> filters;
+    private final TypeManager typeManager;
     private volatile boolean closed;
 
-    HiveSplitSource(int maxOutstandingSplits, HiveSplitLoader splitLoader, Executor executor)
+    HiveSplitSource(int maxOutstandingSplits, HiveSplitLoader splitLoader, Executor executor, Future<List<ConnectorSplitManager.DynamicFilterDescription>> dynamicFilters, TypeManager typeManager)
     {
         this.queue = new AsyncQueue<>(maxOutstandingSplits, executor);
         this.splitLoader = splitLoader;
+        this.filters = dynamicFilters;
+        this.typeManager = typeManager;
     }
 
     @VisibleForTesting
@@ -104,7 +118,61 @@ class HiveSplitSource
             return failedFuture(throwable.get());
         }
 
-        return future;
+        return future.thenApply(this::dynamicallyFilterSplits);
+    }
+
+    private List<ConnectorSplit> dynamicallyFilterSplits(List<ConnectorSplit> splits)
+    {
+        List<ConnectorSplitManager.DynamicFilterDescription> dynamicFilterDescriptions = null;
+        try {
+            dynamicFilterDescriptions = filters.get(5, TimeUnit.SECONDS);
+        }
+        catch (Exception e) {
+            // problems collecting filters, dynamic partition pruning will be skipped
+            // don't have to do anything here to handle the exception
+        }
+        if (dynamicFilterDescriptions == null || dynamicFilterDescriptions.size() == 0) {
+            // dynamic filters not available (e.g. due to timeout), don't filter anything
+            return splits;
+        }
+
+        Iterator<ConnectorSplit> iter = splits.iterator();
+        while (iter.hasNext()) {
+            HiveSplit hiveSplit = (HiveSplit) iter.next();
+            for (ConnectorSplitManager.DynamicFilterDescription dynamicFilter : dynamicFilterDescriptions) {
+                Optional<Map<ColumnHandle, Domain>> domains = dynamicFilter.getTupleDomain().getDomains();
+                if (!domains.isPresent()) {
+                    continue;
+                }
+
+                for (HivePartitionKey partitionKey : hiveSplit.getPartitionKeys()) {
+                    // TODO: optimize this to avoid filtering multiple times for multiple partition keys
+                    Map<HiveColumnHandle, Domain> relevantDomains = domains.get().entrySet().stream().filter(entry -> ((HiveColumnHandle) entry.getKey()).getName().equals(partitionKey.getName())).collect(toMap(e -> (HiveColumnHandle) e.getKey(), e -> e.getValue()));
+                    boolean matched = false;
+                    for (Domain predicateDomain : relevantDomains.values()) {
+                        Type type = partitionKey.getHiveType().getType(typeManager);
+                        Object objectToWrite = getObjectOfString(partitionKey.getHiveType(), partitionKey.getValue());
+                        if (predicateDomain.overlaps(Domain.singleValue(type, objectToWrite))) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        // no relevant predicate matched, so remove that split
+                        iter.remove();
+                    }
+                }
+            }
+        }
+        return splits;
+    }
+
+    private static Object getObjectOfString(HiveType hiveType, String value)
+    {
+        if (hiveType.getHiveTypeName().equals("bigint")) {
+            return Long.valueOf(value).longValue();
+        }
+        throw new IllegalStateException(":(");
     }
 
     @Override

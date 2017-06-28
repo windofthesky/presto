@@ -15,9 +15,12 @@ package com.facebook.presto.hive;
 
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
+import com.facebook.presto.spi.connector.ConnectorSplitManager;
+import com.facebook.presto.type.TypeRegistry;
 import com.google.common.util.concurrent.SettableFuture;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -35,7 +38,9 @@ public class TestHiveSplitSource
     public void testOutstandingSplitCount()
             throws Exception
     {
-        HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5));
+        SettableFuture<List<ConnectorSplitManager.DynamicFilterDescription>> future = SettableFuture.create();
+        future.set(new ArrayList<>());
+        HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5), future, new TypeRegistry());
 
         // add 10 splits
         for (int i = 0; i < 10; i++) {
@@ -60,7 +65,9 @@ public class TestHiveSplitSource
     public void testFail()
             throws Exception
     {
-        HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5));
+        SettableFuture<List<ConnectorSplitManager.DynamicFilterDescription>> future = SettableFuture.create();
+        future.set(new ArrayList<>());
+        HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5), future, new TypeRegistry());
 
         // add some splits
         for (int i = 0; i < 5; i++) {
@@ -108,7 +115,9 @@ public class TestHiveSplitSource
     public void testReaderWaitsForSplits()
             throws Exception
     {
-        final HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5));
+        SettableFuture<List<ConnectorSplitManager.DynamicFilterDescription>> future = SettableFuture.create();
+        future.set(new ArrayList<>());
+        final HiveSplitSource hiveSplitSource = new HiveSplitSource(10, new TestingHiveSplitLoader(), Executors.newFixedThreadPool(5), future, new TypeRegistry());
 
         final SettableFuture<ConnectorSplit> splits = SettableFuture.create();
 

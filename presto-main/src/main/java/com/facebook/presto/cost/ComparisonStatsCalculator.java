@@ -22,7 +22,6 @@ import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Double.isNaN;
 import static java.lang.Math.max;
-import static java.lang.Math.min;
 
 public class ComparisonStatsCalculator
 {
@@ -161,24 +160,31 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate rightStats = inputStatistics.getSymbolStatistics(right);
 
         if (isNaN(leftStats.getDistinctValuesCount()) || isNaN(rightStats.getDistinctValuesCount())) {
-            return inputStatistics.mapOutputRowCount(size -> size * 0.5);
+            filterStatsForUnknownExpression(inputStatistics);
         }
 
-        double maxDistinctValues = max(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
-        double minDistinctValues = min(leftStats.getDistinctValuesCount(), rightStats.getDistinctValuesCount());
+        StatisticRange leftRange = new StatisticRange(leftStats.getLowValue(), leftStats.getHighValue(), leftStats.getDistinctValuesCount());
+        StatisticRange rightRange = new StatisticRange(rightStats.getLowValue(), rightStats.getHighValue(), rightStats.getDistinctValuesCount());
 
-        double filterRate = 1 / maxDistinctValues * (1 - leftStats.getNullsFraction()) * (1 - rightStats.getNullsFraction());
+        StatisticRange intersect = leftRange.intersect(rightRange);
 
         SymbolStatsEstimate newRightStats = buildFrom(rightStats)
                 .setNullsFraction(0)
-                .setDistinctValuesCount(minDistinctValues)
+                .setLowValue(intersect.getLow())
+                .setHighValue(intersect.getHigh())
+                .setDistinctValuesCount(intersect.getDistinctValuesCount())
                 .build();
         SymbolStatsEstimate newLeftStats = buildFrom(leftStats)
                 .setNullsFraction(0)
-                .setDistinctValuesCount(minDistinctValues)
+                .setLowValue(intersect.getLow())
+                .setHighValue(intersect.getHigh())
+                .setDistinctValuesCount(intersect.getDistinctValuesCount())
                 .build();
 
-        return inputStatistics.mapOutputRowCount(size -> size * filterRate)
+        double nullsFilterFactor = max(nullsFilterFactor(leftStats), nullsFilterFactor(rightStats));
+        double filterFactor = 1 / max(leftRange.getDistinctValuesCount(), rightRange.getDistinctValuesCount());
+
+        return inputStatistics.mapOutputRowCount(size -> size * filterFactor * (1 - nullsFilterFactor))
                 .mapSymbolColumnStatistics(left, oldLeftStats -> newLeftStats)
                 .mapSymbolColumnStatistics(right, oldRightStats -> newRightStats);
     }

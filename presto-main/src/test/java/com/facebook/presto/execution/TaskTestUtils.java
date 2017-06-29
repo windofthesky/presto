@@ -128,6 +128,7 @@ public final class TaskTestUtils
                 metadata,
                 new SqlParser(),
                 new CoefficientBasedCostCalculator(metadata),
+                new FeaturesConfig(),
                 Optional.empty(),
                 pageSourceManager,
                 new IndexManager(),
@@ -143,7 +144,8 @@ public final class TaskTestUtils
                 new TestingBlockEncodingSerde(new TestingTypeManager()),
                 new PagesIndex.TestingFactory(),
                 new JoinCompiler(),
-                new LookupJoinOperators(new JoinProbeCompiler()));
+                new LookupJoinOperators(new JoinProbeCompiler()),
+                Optional.empty());
     }
 
     public static TaskInfo updateTask(SqlTask sqlTask, List<TaskSource> taskSources, OutputBuffers outputBuffers)

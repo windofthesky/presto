@@ -221,6 +221,7 @@ public class LocalQueryRunner
     private final PageSinkManager pageSinkManager;
     private final TransactionManager transactionManager;
     private final SpillerFactory spillerFactory;
+    private final FeaturesConfig featuresConfig;
 
     private final ExpressionCompiler expressionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
@@ -363,6 +364,7 @@ public class LocalQueryRunner
 
         SpillerStats spillerStats = new SpillerStats();
         this.spillerFactory = new GenericSpillerFactory(new FileSingleStreamSpillerFactory(blockEncodingSerde, spillerStats, featuresConfig));
+        this.featuresConfig = requireNonNull(featuresConfig, "featuresConfig is null");
     }
 
     public static LocalQueryRunner queryRunnerWithInitialTransaction(Session defaultSession)
@@ -578,6 +580,7 @@ public class LocalQueryRunner
                 metadata,
                 sqlParser,
                 costCalculator,
+                featuresConfig,
                 Optional.empty(),
                 pageSourceManager,
                 indexManager,
@@ -593,7 +596,8 @@ public class LocalQueryRunner
                 blockEncodingSerde,
                 new PagesIndex.TestingFactory(),
                 new JoinCompiler(),
-                new LookupJoinOperators(new JoinProbeCompiler()));
+                new LookupJoinOperators(new JoinProbeCompiler()),
+                Optional.empty());
 
         // plan query
         LocalExecutionPlan localExecutionPlan = executionPlanner.plan(

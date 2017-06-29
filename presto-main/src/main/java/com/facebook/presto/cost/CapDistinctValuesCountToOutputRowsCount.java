@@ -20,7 +20,6 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 
 import java.util.Map;
 
-import static com.facebook.presto.util.MoreMath.rangeMin;
 import static java.lang.Double.isNaN;
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;

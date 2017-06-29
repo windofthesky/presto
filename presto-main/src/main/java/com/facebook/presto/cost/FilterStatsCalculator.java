@@ -36,18 +36,18 @@ import javax.inject.Inject;
 
 import java.util.Map;
 
-import static com.facebook.presto.cost.ComparisonStatsCalculator.nullsFilterFactor;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.addStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractNonRangeStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractStats;
+import static com.facebook.presto.cost.SymbolStatsEstimate.buildFrom;
 import static com.facebook.presto.sql.ExpressionUtils.and;
-import static com.facebook.presto.sql.ExpressionUtils.or;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.EQUAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.GREATER_THAN_OR_EQUAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.LESS_THAN_OR_EQUAL;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
 import static java.lang.Double.isInfinite;
+import static java.lang.Double.min;
 import static java.lang.String.format;
 
 public class FilterStatsCalculator
@@ -88,15 +88,31 @@ public class FilterStatsCalculator
             this.types = types;
         }
 
-        @Override
-        protected PlanNodeStatsEstimate visitExpression(Expression node, Void context)
+        private PlanNodeStatsEstimate filterAllStats()
         {
-            return filterForUnknownExpression();
+            PlanNodeStatsEstimate.Builder falseStatsBuilder = PlanNodeStatsEstimate.builder();
+
+            input.getSymbolsWithKnownStatistics().forEach(
+                    symbol ->
+                            falseStatsBuilder.addSymbolStatistics(symbol,
+                                    buildFrom(input.getSymbolStatistics(symbol))
+                                            .setLowValue(NaN)
+                                            .setHighValue(NaN)
+                                            .setDistinctValuesCount(0.0)
+                                            .setNullsFraction(NaN).build()));
+
+            return falseStatsBuilder.setOutputRowCount(0.0).build();
         }
 
         private PlanNodeStatsEstimate filterForUnknownExpression()
         {
             return filterStatsForUnknownExpression(input);
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitExpression(Expression node, Void context)
+        {
+            return filterForUnknownExpression();
         }
 
         protected PlanNodeStatsEstimate visitNotExpression(NotExpression node, Void context)
@@ -128,7 +144,7 @@ public class FilterStatsCalculator
             if (node.getValue() instanceof SymbolReference) {
                 Symbol symbol = Symbol.from(node.getValue());
                 SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
-                return input.mapOutputRowCount(rowCount -> rowCount * (1 - nullsFilterFactor(symbolStatsEstimate)))
+                return input.mapOutputRowCount(rowCount -> rowCount * (1 - symbolStatsEstimate.getNullsFraction()))
                         .mapSymbolColumnStatistics(symbol, statsEstimate -> statsEstimate.mapNullsFraction(x -> 0.0));
             }
             return visitExpression(node, context);
@@ -140,7 +156,7 @@ public class FilterStatsCalculator
             if (node.getValue() instanceof SymbolReference) {
                 Symbol symbol = Symbol.from(node.getValue());
                 SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
-                return input.mapOutputRowCount(rowCount -> rowCount * nullsFilterFactor(symbolStatsEstimate))
+                return input.mapOutputRowCount(rowCount -> rowCount * symbolStatsEstimate.getNullsFraction())
                         .mapSymbolColumnStatistics(symbol, statsEstimate ->
                                 SymbolStatsEstimate.builder().setNullsFraction(1.0)
                                         .setLowValue(NaN)
@@ -183,16 +199,21 @@ public class FilterStatsCalculator
             }
 
             InListExpression inList = (InListExpression) node.getValueList();
-            PlanNodeStatsEstimate statsOfOr = process(inList.getValues().stream()
-                            .reduce(BooleanLiteral.TRUE_LITERAL,
-                                    (exprLeft, exprRight) -> or(exprLeft, new ComparisonExpression(EQUAL, node.getValue(), exprRight))),
-                    context);
+            PlanNodeStatsEstimate statsSum = inList.getValues().stream()
+                            .map(inValue -> process(new ComparisonExpression(EQUAL, node.getValue(), inValue)))
+                            .reduce(filterAllStats(),
+                                    SimplePlanNodeStatsEstimateMath::addStats);
 
-            if (statsOfOr.getOutputRowCount() > input.getOutputRowCount()) {
-                statsOfOr = statsOfOr.mapOutputRowCount(x -> input.getOutputRowCount());
-            }
+            Symbol inValueSymbol = Symbol.from(node.getValue());
+            SymbolStatsEstimate symbolStat = input.getSymbolStatistics(inValueSymbol);
+            double notNullValuesBeforeIn = input.getOutputRowCount() * (1 - symbolStat.getNullsFraction());
 
-            return statsOfOr;
+            return statsSum.mapOutputRowCount(rowCount -> min(rowCount, notNullValuesBeforeIn))
+                        .mapSymbolColumnStatistics(inValueSymbol,
+                            symbolStats ->
+                                    symbolStats.mapNullsFraction(x -> 0.0)
+                                               .mapDistinctValuesCount(distinctValues ->
+                                                       min(distinctValues, input.getSymbolStatistics(inValueSymbol).getDistinctValuesCount())));
         }
 
         @Override
@@ -202,9 +223,7 @@ public class FilterStatsCalculator
                 return input;
             }
             else {
-                return PlanNodeStatsEstimate.builder()
-                        .setOutputRowCount(0.0)
-                        .build();
+                return filterAllStats();
             }
         }
 

@@ -236,7 +236,7 @@ public class TestReorderJoins
     }
 
     @Test
-    public void testCreatesCrossJoin()
+    public void testDoesNotFireForCrossJoin()
     {
         tester.assertThat(new ReorderJoins(new CostComparator(1, 1, 1)))
                 .on(p ->
@@ -256,14 +256,7 @@ public class TestReorderJoins
                                 .setOutputRowCount(10000)
                                 .setSymbolStatistics(ImmutableMap.of(new Symbol("B1"), new SymbolStatsEstimate(0, 100, 0, 640000, 100)))
                                 .build()))
-                .matches(join(
-                        INNER,
-                        ImmutableList.of(),
-                        Optional.empty(),
-                        Optional.of(REPLICATED),
-                        values(ImmutableMap.of("A1", 0)),
-                        values(ImmutableMap.of("B1", 0))
-                ));
+                .doesNotFire();
     }
 
     @Test

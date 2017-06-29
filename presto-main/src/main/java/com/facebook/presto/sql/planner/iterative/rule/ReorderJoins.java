@@ -101,7 +101,7 @@ public class ReorderJoins
         }
 
         MultiJoinNode multiJoinNode = toMultiJoinNode(joinNode, lookup);
-        JoinEnumerationResult result = new JoinEnumerator(idAllocator, symbolAllocator, session, lookup, multiJoinNode.getFilter(), costComparator).chooseJoinOrder(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols(), false);
+        JoinEnumerationResult result = new JoinEnumerator(idAllocator, symbolAllocator, session, lookup, multiJoinNode.getFilter(), costComparator).chooseJoinOrder(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols());
         return result.getCost().isUnknown() ? Optional.empty() : result.getPlanNode();
     }
 
@@ -147,38 +147,20 @@ public class ReorderJoins
             };
         }
 
-        private JoinEnumerationResult chooseJoinOrder(List<PlanNode> sources, List<Symbol> outputSymbols, boolean isCrossJoinPhase)
+        private JoinEnumerationResult chooseJoinOrder(List<PlanNode> sources, List<Symbol> outputSymbols)
         {
             Set<PlanNode> multiJoinKey = ImmutableSet.copyOf(sources);
             JoinEnumerationResult bestResult = memo.get(multiJoinKey);
             if (bestResult == null) {
                 checkState(sources.size() > 1, "sources size is less than or equal to one");
-                List<Optional<JoinEnumerationResult>> results = generatePartitions(sources.size())
-                        .map(partitioning -> createJoinAccordingToPartitioning(sources, outputSymbols, partitioning, isCrossJoinPhase))
-                        .collect(toImmutableList());
+                bestResult = generatePartitions(sources.size())
+                        .map(partitioning -> createJoinAccordingToPartitioning(sources, outputSymbols, partitioning))
+                        .filter(result -> !result.cost.isUnknown())
+                        .min(resultOrdering).orElse(UNKNOWN_COST_RESULT);
 
-                // If costs are unknown we can't compare them. We return a result with unknown cost.
-                if (results.stream().anyMatch(result -> result.isPresent() && result.get().cost.isUnknown())) {
-                    memo.put(multiJoinKey, UNKNOWN_COST_RESULT);
-                    return UNKNOWN_COST_RESULT;
+                if (bestResult.planNode.isPresent()) {
+                    log.debug("Least cost join was: " + bestResult.planNode.get().toString());
                 }
-                bestResult = results.stream()
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .min(resultOrdering)
-                        .orElseGet(() -> {
-                            if (isCrossJoinPhase) {
-                                throw new IllegalStateException("no results found");
-                            }
-                            return chooseJoinOrder(sources, outputSymbols, true);
-                        });
-
-                // we need to check for empty cost again in case we created a cross join with unknown cost
-                if (bestResult.cost.isUnknown()) {
-                    memo.put(multiJoinKey, UNKNOWN_COST_RESULT);
-                    return UNKNOWN_COST_RESULT;
-                }
-                log.debug("Least cost join was: " + bestResult.planNode.get().toString());
                 memo.put(multiJoinKey, bestResult);
             }
             return bestResult;
@@ -206,16 +188,16 @@ public class ReorderJoins
                     .filter(subSet -> subSet.size() < numbers.size());
         }
 
-        Optional<JoinEnumerationResult> createJoinAccordingToPartitioning(List<PlanNode> sources, List<Symbol> outputSymbols, Set<Integer> partitioning, boolean isCrossJoinPhase)
+        JoinEnumerationResult createJoinAccordingToPartitioning(List<PlanNode> sources, List<Symbol> outputSymbols, Set<Integer> partitioning)
         {
             Set<PlanNode> leftSources = partitioning.stream()
                     .map(sources::get)
                     .collect(toImmutableSet());
             Set<PlanNode> rightSources = Sets.difference(ImmutableSet.copyOf(sources), ImmutableSet.copyOf(leftSources));
-            return createJoin(leftSources, rightSources, outputSymbols, isCrossJoinPhase);
+            return createJoin(leftSources, rightSources, outputSymbols);
         }
 
-        private Optional<JoinEnumerationResult> createJoin(Set<PlanNode> leftSources, Set<PlanNode> rightSources, List<Symbol> outputSymbols, boolean isCrossJoinPhase)
+        private JoinEnumerationResult createJoin(Set<PlanNode> leftSources, Set<PlanNode> rightSources, List<Symbol> outputSymbols)
         {
             Set<Symbol> leftSymbols = leftSources.stream()
                     .flatMap(node -> node.getOutputSymbols().stream())
@@ -245,8 +227,8 @@ public class ReorderJoins
                     .filter(JoinEnumerator::isJoinEqualityCondition)
                     .map(predicate -> toEquiJoinClause((ComparisonExpression) predicate, leftSymbols))
                     .collect(toImmutableList());
-            if (joinConditions.isEmpty() && !isCrossJoinPhase) {
-                return Optional.empty();
+            if (joinConditions.isEmpty()) {
+                return UNKNOWN_COST_RESULT;
             }
             List<Expression> joinFilters = joinPredicates.stream()
                     .filter(predicate -> !isJoinEqualityCondition(predicate))
@@ -260,10 +242,9 @@ public class ReorderJoins
             JoinEnumerationResult leftResult = getJoinSource(
                     idAllocator,
                     ImmutableList.copyOf(leftSources),
-                    requiredJoinSymbols.stream().filter(leftSymbols::contains).collect(toImmutableList()),
-                    isCrossJoinPhase);
+                    requiredJoinSymbols.stream().filter(leftSymbols::contains).collect(toImmutableList()));
             if (leftResult.cost.isUnknown()) {
-                return Optional.of(UNKNOWN_COST_RESULT);
+                return UNKNOWN_COST_RESULT;
             }
             PlanNode left = leftResult.planNode.orElseThrow(() -> new IllegalStateException("no planNode present"));
             JoinEnumerationResult rightResult = getJoinSource(
@@ -271,11 +252,10 @@ public class ReorderJoins
                     ImmutableList.copyOf(rightSources),
                     requiredJoinSymbols.stream()
                             .filter(rightSymbols::contains)
-                            .collect(toImmutableList()),
-                    isCrossJoinPhase);
+                            .collect(toImmutableList()));
             PlanNode right = rightResult.planNode.orElseThrow(() -> new IllegalStateException("no planNode present"));
             if (rightResult.cost.isUnknown()) {
-                return Optional.of(new JoinEnumerationResult(UNKNOWN_COST, Optional.empty()));
+                return UNKNOWN_COST_RESULT;
             }
 
             // sort output symbols so that the left input symbols are first
@@ -309,10 +289,10 @@ public class ReorderJoins
                 result = new JoinEnumerationResult(lookup.getCumulativeCost(resultNode, session, symbolAllocator.getTypes()), Optional.of(resultNode));
             }
 
-            return Optional.of(result);
+            return result;
         }
 
-        private JoinEnumerationResult getJoinSource(PlanNodeIdAllocator idAllocator, List<PlanNode> nodes, List<Symbol> outputSymbols, boolean isCrossJoinPhase)
+        private JoinEnumerationResult getJoinSource(PlanNodeIdAllocator idAllocator, List<PlanNode> nodes, List<Symbol> outputSymbols)
         {
             PlanNode planNode;
             if (nodes.size() == 1) {
@@ -329,7 +309,7 @@ public class ReorderJoins
                 }
                 return new JoinEnumerationResult(lookup.getCumulativeCost(planNode, session, symbolAllocator.getTypes()), Optional.of(planNode));
             }
-            return chooseJoinOrder(nodes, outputSymbols, isCrossJoinPhase);
+            return chooseJoinOrder(nodes, outputSymbols);
         }
 
         private static boolean isJoinEqualityCondition(Expression expression)
@@ -381,6 +361,7 @@ public class ReorderJoins
         {
             this.cost = requireNonNull(cost);
             this.planNode = requireNonNull(planNode);
+            checkArgument(cost.isUnknown() || planNode.isPresent(), "planNode must be present if cost is kno");
         }
 
         public Optional<PlanNode> getPlanNode()

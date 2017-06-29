@@ -46,7 +46,6 @@ import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.values
 import static com.facebook.presto.sql.planner.iterative.rule.ReorderJoins.JoinEnumerator.generatePartitions;
 import static com.facebook.presto.sql.tree.BooleanLiteral.TRUE_LITERAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.EQUAL;
-import static com.facebook.presto.sql.tree.ComparisonExpressionType.GREATER_THAN;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.testing.Closeables.closeAllRuntimeException;
@@ -104,7 +103,7 @@ public class TestJoinEnumerator
                 and(
                         new ComparisonExpression(EQUAL, new SymbolReference("A1"), new SymbolReference("B1")),
                         new ComparisonExpression(EQUAL, new SymbolReference("B1"), new SymbolReference("D1")),
-                        new ComparisonExpression(GREATER_THAN, planBuilder.symbol("A1", BIGINT).toSymbolReference(), planBuilder.symbol("C1", BIGINT).toSymbolReference()));
+                        new ComparisonExpression(EQUAL, planBuilder.symbol("A1", BIGINT).toSymbolReference(), planBuilder.symbol("C1", BIGINT).toSymbolReference()));
         MultiJoinNode multiJoinNode = new MultiJoinNode(
                 ImmutableList.of(
                         planBuilder.values(planBuilder.symbol("A1", BIGINT)),
@@ -120,13 +119,13 @@ public class TestJoinEnumerator
                 queryRunner.getLookup(),
                 multiJoinNode.getFilter(),
                 new CostComparator(1, 1, 1));
-        Optional<JoinEnumerationResult> actual = joinEnumerator.createJoinAccordingToPartitioning(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols(), ImmutableSet.of(0, 2), false);
-        assertTrue(actual.isPresent() && actual.get().getPlanNode().isPresent());
+        JoinEnumerationResult actual = joinEnumerator.createJoinAccordingToPartitioning(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols(), ImmutableSet.of(0, 2));
+        assertTrue(actual.getPlanNode().isPresent());
         assertPlan(
                 session,
                 queryRunner.getMetadata(),
                 queryRunner.getLookup(),
-                new Plan(actual.get().getPlanNode().get(), planBuilder.getSymbols(), queryRunner.getLookup(), queryRunner.getDefaultSession()),
+                new Plan(actual.getPlanNode().get(), planBuilder.getSymbols(), queryRunner.getLookup(), queryRunner.getDefaultSession()),
                 join(
                         JoinNode.Type.INNER,
                         ImmutableList.of(equiJoinClause("A1", "B1")),
@@ -134,8 +133,7 @@ public class TestJoinEnumerator
                         Optional.empty(),
                         join(
                                 JoinNode.Type.INNER,
-                                ImmutableList.of(),
-                                Optional.of("A1 > C1"),
+                                ImmutableList.of(equiJoinClause("A1", "C1")),
                                 values(ImmutableMap.of("A1", 0)),
                                 values(ImmutableMap.of("C1", 0))),
                         join(
@@ -163,7 +161,7 @@ public class TestJoinEnumerator
                 queryRunner.getLookup(),
                 multiJoinNode.getFilter(),
                 new CostComparator(1, 1, 1));
-        Optional<JoinEnumerationResult> actual = joinEnumerator.createJoinAccordingToPartitioning(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols(), ImmutableSet.of(0), false);
-        assertFalse(actual.isPresent());
+        JoinEnumerationResult actual = joinEnumerator.createJoinAccordingToPartitioning(multiJoinNode.getSources(), multiJoinNode.getOutputSymbols(), ImmutableSet.of(0));
+        assertFalse(actual.getPlanNode().isPresent());
     }
 }

@@ -17,8 +17,8 @@ package com.facebook.presto.cost;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.plan.PlanNode;
-import com.google.common.collect.ImmutableMap;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.google.common.base.Predicates.not;
@@ -29,15 +29,16 @@ public class EnsureStatsMatchOutput
     @Override
     public PlanNodeStatsEstimate normalize(PlanNode node, PlanNodeStatsEstimate estimate, Map<Symbol, Type> types)
     {
-        ImmutableMap.Builder<Symbol, SymbolStatsEstimate> symbolSymbolStats = ImmutableMap.builder();
+        Map<Symbol, SymbolStatsEstimate> symbolSymbolStats = new HashMap<>();
         estimate.getSymbolsWithKnownStatistics().stream()
                 .filter(node.getOutputSymbols()::contains)
                 .forEach(symbol -> symbolSymbolStats.put(symbol, estimate.getSymbolStatistics(symbol)));
 
         node.getOutputSymbols().stream()
                 .filter(not(estimate.getSymbolsWithKnownStatistics()::contains))
+                .filter(not(symbolSymbolStats::containsKey))
                 .forEach(symbol -> symbolSymbolStats.put(symbol, SymbolStatsEstimate.UNKNOWN_STATS));
 
-        return PlanNodeStatsEstimate.buildFrom(estimate).setSymbolStatistics(symbolSymbolStats.build()).build();
+        return PlanNodeStatsEstimate.buildFrom(estimate).setSymbolStatistics(symbolSymbolStats).build();
     }
 }

@@ -133,7 +133,8 @@ public class TestFilterStatsCalculator
     }
 
     @Test
-    public void testIsNullFilter() {
+    public void testIsNullFilter()
+    {
         Expression isNullPredicate = new IsNullPredicate(new SymbolReference("x"));
         assertExpression(isNullPredicate)
                 .outputRowsCount(250.0)
@@ -154,7 +155,8 @@ public class TestFilterStatsCalculator
     }
 
     @Test
-    public void testIsNotNullFilter() {
+    public void testIsNotNullFilter()
+    {
         Expression isNotNullPredicate = new IsNotNullPredicate(new SymbolReference("x"));
         assertExpression(isNotNullPredicate)
                 .outputRowsCount(750.0)
@@ -176,7 +178,8 @@ public class TestFilterStatsCalculator
     }
 
     @Test
-    public void testBetweenOperatorFilter() {
+    public void testBetweenOperatorFilter()
+    {
         // Only right side cut
         Expression betweenPredicateRightCut = new BetweenPredicate(new SymbolReference("x"), new DoubleLiteral("7.5"), new DoubleLiteral("12.0"));
         assertExpression(betweenPredicateRightCut)

@@ -124,10 +124,30 @@ public class StatisticRange
         return empty();
     }
 
+    public double minExcludeNaN(double v1, double v2) {
+        if (isNaN(v1)) {
+            return v2;
+        }
+        if (isNaN(v2)) {
+            return v1;
+        }
+        return min(v1, v2);
+    }
+
+    public double maxExcludeNaN(double v1, double v2) {
+        if (isNaN(v1)) {
+            return v2;
+        }
+        if (isNaN(v2)) {
+            return v1;
+        }
+        return max(v1, v2);
+    }
+
     public StatisticRange add(StatisticRange other)
     {
         double newDistinctValues = distinctValues + other.distinctValues;
-        return new StatisticRange(min(low, other.low), max(high, other.high), newDistinctValues);
+        return new StatisticRange(minExcludeNaN(low, other.low), maxExcludeNaN(high, other.high), newDistinctValues);
     }
 
     public StatisticRange subtract(StatisticRange rightRange)

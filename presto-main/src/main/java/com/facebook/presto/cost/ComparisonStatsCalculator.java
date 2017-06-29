@@ -177,10 +177,10 @@ public class ComparisonStatsCalculator
                 .setDistinctValuesCount(intersect.getDistinctValuesCount())
                 .build();
 
-        double nullsFilterFactor = max(leftStats.getNullsFraction(), rightStats.getNullsFraction());
+        double nullsFilterFactor = (1 - leftStats.getNullsFraction()) * (1 - rightStats.getNullsFraction());
         double filterFactor = 1 / max(leftRange.getDistinctValuesCount(), rightRange.getDistinctValuesCount());
 
-        return inputStatistics.mapOutputRowCount(size -> size * filterFactor * (1 - nullsFilterFactor))
+        return inputStatistics.mapOutputRowCount(size -> size * filterFactor * nullsFilterFactor)
                 .mapSymbolColumnStatistics(left, oldLeftStats -> newLeftStats)
                 .mapSymbolColumnStatistics(right, oldRightStats -> newRightStats);
     }

@@ -160,7 +160,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
 
         // Literal in left open range
@@ -203,7 +203,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
     }
 
@@ -283,7 +283,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
     }
 
@@ -330,7 +330,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
 
         // Literal in left open range
@@ -373,7 +373,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
     }
 
@@ -420,7 +420,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
 
         // Literal in left open range
@@ -463,7 +463,7 @@ public class TestComparisonStatsCalculator
                     symbolAssert.averageRowSize(4.0)
                             .distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
     }
 }

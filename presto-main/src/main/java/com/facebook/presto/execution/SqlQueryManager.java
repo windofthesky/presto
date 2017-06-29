@@ -23,6 +23,7 @@ import com.facebook.presto.memory.ClusterMemoryManager;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.security.AccessControl;
+import com.facebook.presto.server.DynamicFilterService;
 import com.facebook.presto.server.SessionSupplier;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.QueryId;
@@ -124,6 +125,8 @@ public class SqlQueryManager
 
     private final SqlQueryManagerStats stats = new SqlQueryManagerStats();
 
+    private final DynamicFilterService dynamicFilterService;
+
     @Inject
     public SqlQueryManager(
             SqlParser sqlParser,
@@ -137,7 +140,8 @@ public class SqlQueryManager
             QueryIdGenerator queryIdGenerator,
             SessionPropertyManager sessionPropertyManager,
             Map<Class<? extends Statement>, QueryExecutionFactory<?>> executionFactories,
-            Metadata metadata)
+            Metadata metadata,
+            DynamicFilterService dynamicFilterService)
     {
         this.sqlParser = requireNonNull(sqlParser, "sqlParser is null");
 
@@ -166,6 +170,8 @@ public class SqlQueryManager
         this.maxQueryHistory = config.getMaxQueryHistory();
         this.clientTimeout = config.getClientTimeout();
         this.maxQueryLength = config.getMaxQueryLength();
+
+        this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
 
         queryManagementExecutor = Executors.newScheduledThreadPool(config.getQueryManagerExecutorPoolSize(), threadsNamed("query-management-%s"));
         queryManagementExecutorMBean = new ThreadPoolExecutorMBean((ThreadPoolExecutor) queryManagementExecutor);
@@ -395,6 +401,8 @@ public class SqlQueryManager
             finally {
                 // execution MUST be added to the expiration queue or there will be a leak
                 expirationQueue.add(execution);
+                // query MUST be removed from dynamic filter service or there will be a leak
+                dynamicFilterService.removeQuery(queryInfo.getQueryId().toString());
             }
 
             return queryInfo;
@@ -412,6 +420,8 @@ public class SqlQueryManager
                 finally {
                     // execution MUST be added to the expiration queue or there will be a leak
                     expirationQueue.add(queryExecution);
+                    // query MUST be removed from dynamic filter service or there will be a leak
+                    dynamicFilterService.removeQuery(queryInfo.getQueryId().toString());
                 }
         });
 

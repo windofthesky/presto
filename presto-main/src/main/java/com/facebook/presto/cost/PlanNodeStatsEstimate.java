@@ -167,7 +167,6 @@ public class PlanNodeStatsEstimate
 
         public Builder addSymbolStatistics(Symbol symbol, SymbolStatsEstimate statistics)
         {
-            checkArgument(!symbolStatistics.containsKey(symbol), "SymbolStatsEstimate are already added for: %s", symbol);
             this.symbolStatistics.put(symbol, statistics);
             return this;
         }

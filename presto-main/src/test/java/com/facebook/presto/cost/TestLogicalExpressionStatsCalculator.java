@@ -161,6 +161,19 @@ public class TestLogicalExpressionStatsCalculator
                         .distinctValuesCount(20.0)
                         .nullsFraction(0.0)
                 );
+
+        Expression leftExpressionSingleValue = new ComparisonExpression(ComparisonExpressionType.EQUAL, new SymbolReference("x"), new DoubleLiteral("0.0"));
+        Expression rightExpressionSingleValue = new ComparisonExpression(ComparisonExpressionType.EQUAL, new SymbolReference("x"), new DoubleLiteral("-7.5"));
+
+        assertOr(leftExpressionSingleValue, rightExpressionSingleValue)
+                .outputRowsCount(37.5)
+                .symbolStats(new Symbol("x"), symbolAssert ->
+                        symbolAssert.averageRowSize(4.0)
+                                .lowValue(-7.5)
+                                .highValue(0.0)
+                                .distinctValuesCount(2.0)
+                                .nullsFraction(0.0)
+                );
     }
 
     @Test

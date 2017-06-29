@@ -16,12 +16,18 @@ package com.facebook.presto.cost;
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.sql.ExpressionUtils;
 import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
+import com.facebook.presto.sql.tree.BetweenPredicate;
 import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.InListExpression;
+import com.facebook.presto.sql.tree.InPredicate;
+import com.facebook.presto.sql.tree.IsNotNullPredicate;
+import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.Literal;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.NotExpression;
@@ -34,6 +40,9 @@ import java.util.Map;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.addStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractNonRangeStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractStats;
+import static com.facebook.presto.sql.ExpressionUtils.and;
+import static com.facebook.presto.sql.tree.ComparisonExpressionType.GREATER_THAN_OR_EQUAL;
+import static com.facebook.presto.sql.tree.ComparisonExpressionType.LESS_THAN_OR_EQUAL;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
 import static java.lang.String.format;
@@ -108,6 +117,52 @@ public class FilterStatsCalculator
                     checkState(false, format("Unimplemented logical binary operator expression %s", node.getType()));
                     return PlanNodeStatsEstimate.UNKNOWN_STATS;
             }
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitIsNotNullPredicate(IsNotNullPredicate node, Void context)
+        {
+            if (node.getValue() instanceof SymbolReference) {
+                Symbol symbol = Symbol.from(node.getValue());
+                SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
+                return input.mapOutputRowCount(rowCount -> rowCount * (1 - symbolStatsEstimate.getNullsFraction()))
+                        .mapSymbolColumnStatistics(symbol, statsEstimate -> statsEstimate.mapNullsFraction(x -> 0.0));
+            }
+            return visitExpression(node, context);
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitIsNullPredicate(IsNullPredicate node, Void context)
+        {
+            if (node.getValue() instanceof SymbolReference) {
+                Symbol symbol = Symbol.from(node.getValue());
+                SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
+                return input.mapOutputRowCount(rowCount -> rowCount * symbolStatsEstimate.getNullsFraction())
+                        .mapSymbolColumnStatistics(symbol, statsEstimate -> statsEstimate.mapNullsFraction(x -> 1.0));
+            }
+            return visitExpression(node, context);
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitBetweenPredicate(BetweenPredicate node, Void context)
+        {
+            if (!(node.getValue() instanceof SymbolReference) || !(node.getMin() instanceof Literal) || !(node.getMax() instanceof Literal)) {
+                return visitExpression(node, context);
+            }
+
+            return process(and(new ComparisonExpression(GREATER_THAN_OR_EQUAL, node.getValue(), node.getMin()),
+                    new ComparisonExpression(LESS_THAN_OR_EQUAL, node.getValue(), node.getMax())));
+        }
+
+        @Override
+        protected PlanNodeStatsEstimate visitInPredicate(InPredicate node, Void context)
+        {
+            if (!(node.getValueList() instanceof InListExpression) || !(node.getValue() instanceof SymbolReference)) {
+                return visitExpression(node, context);
+            }
+
+            InListExpression inList = (InListExpression) node.getValueList();
+            return process(inList.getValues().stream().reduce(BooleanLiteral.TRUE_LITERAL, ExpressionUtils::and), context);
         }
 
         @Override

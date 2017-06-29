@@ -186,7 +186,7 @@ public class TestLogicalExpressionStatsCalculator
         Expression innerExpression = new ComparisonExpression(ComparisonExpressionType.LESS_THAN, new SymbolReference("x"), new DoubleLiteral("0.0"));
 
         assertNot(innerExpression)
-                .outputRowsCount(625) // FIXME - nulls shouldn't be restored
+                .outputRowsCount(625) // FIXME - nulls shouldn't bew
                 .symbolStats(new Symbol("x"), symbolAssert ->
                         symbolAssert.averageRowSize(4.0)
                                 .lowValue(0.0)

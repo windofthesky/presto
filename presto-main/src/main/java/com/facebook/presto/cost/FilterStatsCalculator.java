@@ -16,7 +16,6 @@ package com.facebook.presto.cost;
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.sql.ExpressionUtils;
 import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
@@ -37,14 +36,18 @@ import javax.inject.Inject;
 
 import java.util.Map;
 
+import static com.facebook.presto.cost.ComparisonStatsCalculator.nullsFilterFactor;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.addStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractNonRangeStats;
 import static com.facebook.presto.cost.SimplePlanNodeStatsEstimateMath.subtractStats;
 import static com.facebook.presto.sql.ExpressionUtils.and;
+import static com.facebook.presto.sql.ExpressionUtils.or;
+import static com.facebook.presto.sql.tree.ComparisonExpressionType.EQUAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.GREATER_THAN_OR_EQUAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.LESS_THAN_OR_EQUAL;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Double.NaN;
+import static java.lang.Double.isInfinite;
 import static java.lang.String.format;
 
 public class FilterStatsCalculator
@@ -106,7 +109,7 @@ public class FilterStatsCalculator
         {
             PlanNodeStatsEstimate leftStats = process(node.getLeft());
             PlanNodeStatsEstimate rightStats = process(node.getRight());
-            PlanNodeStatsEstimate andStats = new FilterExpressionStatsCalculatingVisitor(rightStats, session, types).process(node.getLeft());
+            PlanNodeStatsEstimate andStats = new FilterExpressionStatsCalculatingVisitor(leftStats, session, types).process(node.getRight());
 
             switch (node.getType()) {
                 case AND:
@@ -125,7 +128,7 @@ public class FilterStatsCalculator
             if (node.getValue() instanceof SymbolReference) {
                 Symbol symbol = Symbol.from(node.getValue());
                 SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
-                return input.mapOutputRowCount(rowCount -> rowCount * (1 - symbolStatsEstimate.getNullsFraction()))
+                return input.mapOutputRowCount(rowCount -> rowCount * (1 - nullsFilterFactor(symbolStatsEstimate)))
                         .mapSymbolColumnStatistics(symbol, statsEstimate -> statsEstimate.mapNullsFraction(x -> 0.0));
             }
             return visitExpression(node, context);
@@ -137,8 +140,12 @@ public class FilterStatsCalculator
             if (node.getValue() instanceof SymbolReference) {
                 Symbol symbol = Symbol.from(node.getValue());
                 SymbolStatsEstimate symbolStatsEstimate = input.getSymbolStatistics(symbol);
-                return input.mapOutputRowCount(rowCount -> rowCount * symbolStatsEstimate.getNullsFraction())
-                        .mapSymbolColumnStatistics(symbol, statsEstimate -> statsEstimate.mapNullsFraction(x -> 1.0));
+                return input.mapOutputRowCount(rowCount -> rowCount * nullsFilterFactor(symbolStatsEstimate))
+                        .mapSymbolColumnStatistics(symbol, statsEstimate ->
+                                SymbolStatsEstimate.builder().setNullsFraction(1.0)
+                                        .setLowValue(NaN)
+                                        .setHighValue(NaN)
+                                        .setDistinctValuesCount(0.0).build());
             }
             return visitExpression(node, context);
         }
@@ -150,8 +157,22 @@ public class FilterStatsCalculator
                 return visitExpression(node, context);
             }
 
-            return process(and(new ComparisonExpression(GREATER_THAN_OR_EQUAL, node.getValue(), node.getMin()),
-                    new ComparisonExpression(LESS_THAN_OR_EQUAL, node.getValue(), node.getMax())));
+            SymbolStatsEstimate valueStats = input.getSymbolStatistics(Symbol.from((SymbolReference) node.getValue()));
+            Expression leftComparison;
+            Expression rightComparison;
+
+            // We want to do heuristic cut (infinite range to finite range) ASAP and than do filtering on finite range.
+            if (isInfinite(valueStats.getLowValue())) {
+                leftComparison = new ComparisonExpression(GREATER_THAN_OR_EQUAL, node.getValue(), node.getMin());
+                rightComparison = new ComparisonExpression(LESS_THAN_OR_EQUAL, node.getValue(), node.getMax());
+            }
+            else {
+                rightComparison = new ComparisonExpression(GREATER_THAN_OR_EQUAL, node.getValue(), node.getMin());
+                leftComparison = new ComparisonExpression(LESS_THAN_OR_EQUAL, node.getValue(), node.getMax());
+            }
+
+            // we relay on and processing left to right
+            return process(and(leftComparison, rightComparison));
         }
 
         @Override
@@ -162,7 +183,16 @@ public class FilterStatsCalculator
             }
 
             InListExpression inList = (InListExpression) node.getValueList();
-            return process(inList.getValues().stream().reduce(BooleanLiteral.TRUE_LITERAL, ExpressionUtils::and), context);
+            PlanNodeStatsEstimate statsOfOr = process(inList.getValues().stream()
+                            .reduce(BooleanLiteral.TRUE_LITERAL,
+                                    (exprLeft, exprRight) -> or(exprLeft, new ComparisonExpression(EQUAL, node.getValue(), exprRight))),
+                    context);
+
+            if (statsOfOr.getOutputRowCount() > input.getOutputRowCount()) {
+                statsOfOr = statsOfOr.mapOutputRowCount(x -> input.getOutputRowCount());
+            }
+
+            return statsOfOr;
         }
 
         @Override
@@ -183,7 +213,6 @@ public class FilterStatsCalculator
         {
             ComparisonStatsCalculator comparisonStatsCalculator = new ComparisonStatsCalculator(input);
 
-            // FIXME left and right might not be exactly SymbolReference and Literal
             if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof SymbolReference) {
                 return comparisonStatsCalculator.comparisonSymbolToSymbolStats(
                         Symbol.from(node.getLeft()),

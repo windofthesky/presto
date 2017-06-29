@@ -124,7 +124,8 @@ public class StatisticRange
         return empty();
     }
 
-    public double minExcludeNaN(double v1, double v2) {
+    public double minExcludeNaN(double v1, double v2)
+    {
         if (isNaN(v1)) {
             return v2;
         }
@@ -134,7 +135,8 @@ public class StatisticRange
         return min(v1, v2);
     }
 
-    public double maxExcludeNaN(double v1, double v2) {
+    public double maxExcludeNaN(double v1, double v2)
+    {
         if (isNaN(v1)) {
             return v2;
         }

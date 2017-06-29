@@ -51,8 +51,16 @@ public class SymbolStatsEstimate
         return highValue;
     }
 
+    public boolean hasEmptyRange()
+    {
+        return isNaN(lowValue) && isNaN(highValue);
+    }
+
     public double getNullsFraction()
     {
+        if (hasEmptyRange()) {
+            return 1.0;
+        }
         return nullsFraction;
     }
 

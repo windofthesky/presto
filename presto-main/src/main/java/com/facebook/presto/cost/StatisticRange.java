@@ -107,11 +107,8 @@ public class StatisticRange
         double overlapPercentOfRight = other.overlapPercentWith(this);
         double overlapDistinctValuesLeft = overlapPercentOfLeft * distinctValues;
         double overlapDistinctValuesRight = overlapPercentOfRight * other.distinctValues;
-        double overlapDistinctValues = min(overlapDistinctValuesLeft, overlapDistinctValuesRight);
-        if (isNaN(overlapDistinctValues)) {
-            overlapDistinctValues = isNaN(overlapDistinctValuesLeft) ? overlapDistinctValuesRight : overlapDistinctValuesLeft;
-        }
-        return overlapDistinctValues;
+
+        return maxExcludeNaN(overlapDistinctValuesLeft, overlapDistinctValuesRight);
     }
 
     public StatisticRange intersect(StatisticRange other)
@@ -168,7 +165,7 @@ public class StatisticRange
             newHigh = NaN;
         }
 
-        return new StatisticRange(newLow, newHigh, getDistinctValuesCount() - intersect.getDistinctValuesCount());
+        return new StatisticRange(newLow, newHigh, max(getDistinctValuesCount(), rightRange.getDistinctValuesCount()) - intersect.getDistinctValuesCount());
     }
 
     @Override

@@ -19,6 +19,7 @@ import com.facebook.presto.sql.tree.ComparisonExpressionType;
 import static com.facebook.presto.cost.FilterStatsCalculator.filterStatsForUnknownExpression;
 import static com.facebook.presto.cost.SymbolStatsEstimate.buildFrom;
 import static java.lang.Double.NEGATIVE_INFINITY;
+import static java.lang.Double.NaN;
 import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Double.isNaN;
 import static java.lang.Math.max;
@@ -57,7 +58,7 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate symbolStats = inputStatistics.getSymbolStatistics(symbol);
 
         StatisticRange range = new StatisticRange(symbolStats.getLowValue(), symbolStats.getHighValue(), symbolStats.getDistinctValuesCount());
-        StatisticRange intersectRange = range.intersect(new StatisticRange(literal, POSITIVE_INFINITY, POSITIVE_INFINITY));
+        StatisticRange intersectRange = range.intersect(new StatisticRange(literal, POSITIVE_INFINITY, NaN));
 
         double filterFactor = range.overlapPercentWith(intersectRange);
         SymbolStatsEstimate symbolNewEstimate =
@@ -77,7 +78,7 @@ public class ComparisonStatsCalculator
         SymbolStatsEstimate symbolStats = inputStatistics.getSymbolStatistics(symbol);
 
         StatisticRange range = new StatisticRange(symbolStats.getLowValue(), symbolStats.getHighValue(), symbolStats.getDistinctValuesCount());
-        StatisticRange intersectRange = range.intersect(new StatisticRange(NEGATIVE_INFINITY, literal, POSITIVE_INFINITY));
+        StatisticRange intersectRange = range.intersect(new StatisticRange(NEGATIVE_INFINITY, literal, NaN));
 
         double filterFactor = range.overlapPercentWith(intersectRange);
         SymbolStatsEstimate symbolNewEstimate =

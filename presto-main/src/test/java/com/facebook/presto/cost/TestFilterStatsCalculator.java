@@ -21,9 +21,12 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.BetweenPredicate;
 import com.facebook.presto.sql.tree.DoubleLiteral;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.InListExpression;
+import com.facebook.presto.sql.tree.InPredicate;
 import com.facebook.presto.sql.tree.IsNotNullPredicate;
 import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -166,7 +169,7 @@ public class TestFilterStatsCalculator
                 .symbolStats(new Symbol("emptyRange"), symbolStats -> {
                     symbolStats.distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
     }
 
@@ -245,7 +248,7 @@ public class TestFilterStatsCalculator
                 .symbolStats(new Symbol("y"), symbolStats -> {
                     symbolStats.distinctValuesCount(0.0)
                             .emptyRange()
-                            .nullsFraction(0.0);
+                            .nullsFraction(1.0);
                 });
 
         // Filter nothing
@@ -274,6 +277,113 @@ public class TestFilterStatsCalculator
     @Test
     public void testInPredicateFilter()
     {
+        // One value in range
+        Expression singleValueInIn = new InPredicate(new SymbolReference("x"), new InListExpression(ImmutableList.of(new DoubleLiteral("7.5"))));
+        assertExpression(singleValueInIn)
+                .outputRowsCount(18.75)
+                .symbolStats(new Symbol("x"), symbolStats -> {
+                    symbolStats.distinctValuesCount(1.0)
+                            .lowValue(7.5)
+                            .highValue(7.5)
+                            .nullsFraction(0.0);
+                });
 
+        // Multiple values in range
+        Expression multipleValuesInIn = new InPredicate(new SymbolReference("x"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("1.5"),
+                        new DoubleLiteral("2.5"),
+                        new DoubleLiteral("7.5"))));
+        assertExpression(multipleValuesInIn)
+                .outputRowsCount(56.25)
+                .symbolStats(new Symbol("x"), symbolStats -> {
+                    symbolStats.distinctValuesCount(3.0)
+                            .lowValue(1.5)
+                            .highValue(7.5)
+                            .nullsFraction(0.0);
+                });
+
+        // Multiple values some in some out of range
+        Expression multipleValuesInInSomeOutOfRange = new InPredicate(new SymbolReference("x"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("-42.0"),
+                        new DoubleLiteral("1.5"),
+                        new DoubleLiteral("2.5"),
+                        new DoubleLiteral("7.5"),
+                        new DoubleLiteral("314.0"))));
+        assertExpression(multipleValuesInInSomeOutOfRange)
+                .outputRowsCount(56.25)
+                .symbolStats(new Symbol("x"), symbolStats -> {
+                    symbolStats.distinctValuesCount(3.0)
+                            .lowValue(1.5)
+                            .highValue(7.5)
+                            .nullsFraction(0.0);
+                });
+
+        // Multiple values in unknown range
+        Expression multipleValuesInUnknownRange = new InPredicate(new SymbolReference("unknownRange"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("-42.0"),
+                        new DoubleLiteral("1.5"),
+                        new DoubleLiteral("2.5"),
+                        new DoubleLiteral("7.5"),
+                        new DoubleLiteral("314.0"))));
+        assertExpression(multipleValuesInUnknownRange)
+                .outputRowsCount(90.0)
+                .symbolStats(new Symbol("unknownRange"), symbolStats -> {
+                    symbolStats.distinctValuesCount(5.0)
+                            .lowValue(-42.0)
+                            .highValue(314.0)
+                            .nullsFraction(0.0);
+                });
+
+        // No value in range
+        Expression noValuesInRange = new InPredicate(new SymbolReference("y"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("-42.0"),
+                        new DoubleLiteral("6.0"),
+                        new DoubleLiteral("31.1341"),
+                        new DoubleLiteral("-0.000000002"),
+                        new DoubleLiteral("314.0"))));
+        assertExpression(noValuesInRange)
+                .outputRowsCount(0.0)
+                .symbolStats(new Symbol("y"), symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                });
+
+        // More values in range than distinct values
+        Expression ndvOverflowInIn = new InPredicate(new SymbolReference("z"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("-1.0"),
+                        new DoubleLiteral("3.14"),
+                        new DoubleLiteral("0.0"),
+                        new DoubleLiteral("1.0"),
+                        new DoubleLiteral("2.0"),
+                        new DoubleLiteral("3.0"),
+                        new DoubleLiteral("4.0"),
+                        new DoubleLiteral("5.0"),
+                        new DoubleLiteral("6.0"),
+                        new DoubleLiteral("7.0"),
+                        new DoubleLiteral("8.0"),
+                        new DoubleLiteral("-2.0"))));
+        assertExpression(ndvOverflowInIn)
+                .outputRowsCount(900.0)
+                .symbolStats(new Symbol("z"), symbolStats -> {
+                    symbolStats.distinctValuesCount(5.0)
+                            .lowValue(-2.0)
+                            .highValue(8.0)
+                            .nullsFraction(0.0);
+                });
+
+        // Values in weird order
+        Expression ndvOverflowInNotSortedValues = new InPredicate(new SymbolReference("z"), new InListExpression(
+                ImmutableList.of(new DoubleLiteral("-1.0"),
+                        new DoubleLiteral("1.0"),
+                        new DoubleLiteral("0.0"))));
+        assertExpression(ndvOverflowInNotSortedValues)
+                .outputRowsCount(540.0)
+                .symbolStats(new Symbol("z"), symbolStats -> {
+                    symbolStats.distinctValuesCount(3.0)
+                            .lowValue(-1.0)
+                            .highValue(1.0)
+                            .nullsFraction(0.0);
+                });
     }
 }

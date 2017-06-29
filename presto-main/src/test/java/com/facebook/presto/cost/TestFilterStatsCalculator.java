@@ -125,7 +125,8 @@ public class TestFilterStatsCalculator
         statsCalculator = new FilterStatsCalculator(MetadataManager.createTestMetadataManager());
     }
 
-    public PlanNodeStatsAssertion assertExpression(Expression expression) {
+    public PlanNodeStatsAssertion assertExpression(Expression expression)
+    {
         return PlanNodeStatsAssertion.assertThat(statsCalculator.filterStats(standardInputStatistics,
                 expression,
                 session,

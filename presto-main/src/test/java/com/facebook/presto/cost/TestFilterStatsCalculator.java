@@ -33,6 +33,8 @@ import org.testng.annotations.Test;
 
 import java.util.Map;
 
+import static com.facebook.presto.sql.tree.BooleanLiteral.FALSE_LITERAL;
+import static com.facebook.presto.sql.tree.BooleanLiteral.TRUE_LITERAL;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.NaN;
@@ -384,6 +386,49 @@ public class TestFilterStatsCalculator
                             .lowValue(-1.0)
                             .highValue(1.0)
                             .nullsFraction(0.0);
+                });
+    }
+
+    @Test
+    public void testBooleanLiteralStas()
+    {
+        assertExpression(TRUE_LITERAL).equals(standardInputStatistics);
+
+        assertExpression(FALSE_LITERAL).outputRowsCount(0.0)
+                .symbolStats("x", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("y", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("z", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("leftOpen", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("rightOpen", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("emptyRange", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
+                })
+                .symbolStats("unknownRange", symbolStats -> {
+                    symbolStats.distinctValuesCount(0.0)
+                            .emptyRange()
+                            .nullsFraction(1.0);
                 });
     }
 }

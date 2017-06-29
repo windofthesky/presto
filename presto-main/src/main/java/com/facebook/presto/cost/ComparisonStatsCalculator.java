@@ -32,16 +32,6 @@ public class ComparisonStatsCalculator
         this.inputStatistics = inputStatistics;
     }
 
-    public static double nullsFilterFactor(SymbolStatsEstimate symbolStats)
-    {
-        StatisticRange statisticRange = new StatisticRange(symbolStats.getLowValue(), symbolStats.getHighValue(), symbolStats.getDistinctValuesCount());
-
-        if (statisticRange.isEmpty()) {
-            return 1.0; // If there are no values at all, we can avoid making output row count NaN as we know 1.0 is best value we can serve
-        }
-        return symbolStats.getNullsFraction();
-    }
-
     public PlanNodeStatsEstimate comparisonSymbolToLiteralStats(Symbol symbol, double doubleLiteral, ComparisonExpressionType type)
     {
         switch (type) {
@@ -78,7 +68,7 @@ public class ComparisonStatsCalculator
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - nullsFilterFactor(symbolStats)) * rowCount)
+        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - symbolStats.getNullsFraction()) * rowCount)
                 .mapSymbolColumnStatistics(symbol, oldStats -> symbolNewEstimate);
     }
 
@@ -98,7 +88,7 @@ public class ComparisonStatsCalculator
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - nullsFilterFactor(symbolStats)) * rowCount)
+        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - symbolStats.getNullsFraction()) * rowCount)
                 .mapSymbolColumnStatistics(symbol, oldStats -> symbolNewEstimate);
     }
 
@@ -111,7 +101,7 @@ public class ComparisonStatsCalculator
 
         double filterFactor = 1 - range.overlapPercentWith(intersectRange);
 
-        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - nullsFilterFactor(symbolStats)) * rowCount)
+        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - symbolStats.getNullsFraction()) * rowCount)
                 .mapSymbolColumnStatistics(symbol, oldStats -> buildFrom(oldStats)
                         .setNullsFraction(0.0)
                         .setDistinctValuesCount(max(oldStats.getDistinctValuesCount() - 1, 0))
@@ -135,7 +125,7 @@ public class ComparisonStatsCalculator
                         .setLowValue(intersectRange.getLow())
                         .setNullsFraction(0.0).build();
 
-        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - nullsFilterFactor(symbolStats)) * rowCount)
+        return inputStatistics.mapOutputRowCount(rowCount -> filterFactor * (1 - symbolStats.getNullsFraction()) * rowCount)
                 .mapSymbolColumnStatistics(symbol, oldStats -> symbolNewEstimate);
     }
 
@@ -187,7 +177,7 @@ public class ComparisonStatsCalculator
                 .setDistinctValuesCount(intersect.getDistinctValuesCount())
                 .build();
 
-        double nullsFilterFactor = max(nullsFilterFactor(leftStats), nullsFilterFactor(rightStats));
+        double nullsFilterFactor = max(leftStats.getNullsFraction(), rightStats.getNullsFraction());
         double filterFactor = 1 / max(leftRange.getDistinctValuesCount(), rightRange.getDistinctValuesCount());
 
         return inputStatistics.mapOutputRowCount(size -> size * filterFactor * (1 - nullsFilterFactor))

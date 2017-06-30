@@ -624,9 +624,19 @@ public class TestWindowOperator
     }
 
     @Test
-    public void testEvictPartitions()
+    public void testEvictPartitionsPresorted()
     {
+        // todo: add a test that actually makes sure that we evict and use less memory
+        // todo: do we need to do anything additional for memory accounting in the PagesIndex?
+        // todo: should the evictor be a separate class? that does this? probably. pass in a partition
+        // and you can evict it. just check correctness right now
+        // that object can be passed a memory context so it can keep track of how big it is
+        // it can also have jmx beans exposed about evictions (or in PagesIndex?) look at how that works.
+    }
 
+    @Test
+    public void testEvictPartitionsUnsorted()
+    {
     }
 
     private static void assertFindEndPosition(String values, int expected)

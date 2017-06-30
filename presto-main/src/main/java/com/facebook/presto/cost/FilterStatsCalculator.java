@@ -19,7 +19,6 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.BooleanLiteral;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.Literal;
@@ -107,19 +106,6 @@ public class FilterStatsCalculator
                 default:
                     checkState(false, format("Unimplemented logical binary operator expression %s", node.getType()));
                     return PlanNodeStatsEstimate.UNKNOWN_STATS;
-            }
-        }
-
-        @Override
-        protected PlanNodeStatsEstimate visitBooleanLiteral(BooleanLiteral node, Void context)
-        {
-            if (node.equals(BooleanLiteral.TRUE_LITERAL)) {
-                return input;
-            }
-            else {
-                return PlanNodeStatsEstimate.builder()
-                        .setOutputRowCount(0.0)
-                        .build();
             }
         }
 

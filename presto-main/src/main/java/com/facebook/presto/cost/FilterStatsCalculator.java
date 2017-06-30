@@ -16,19 +16,13 @@ package com.facebook.presto.cost;
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.sql.planner.LiteralInterpreter;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.AstVisitor;
-import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
-import com.facebook.presto.sql.tree.Literal;
-import com.facebook.presto.sql.tree.SymbolReference;
 
 import javax.inject.Inject;
 
 import java.util.Map;
-
-import static java.lang.Double.NaN;
 
 public class FilterStatsCalculator
 {
@@ -77,47 +71,6 @@ public class FilterStatsCalculator
         private PlanNodeStatsEstimate filterForUnknownExpression()
         {
             return filterStatsForUnknownExpression(input);
-        }
-
-        @Override
-        protected PlanNodeStatsEstimate visitComparisonExpression(ComparisonExpression node, Void context)
-        {
-            ComparisonStatsCalculator comparisonStatsCalculator = new ComparisonStatsCalculator(input);
-
-            // FIXME left and right might not be exactly SymbolReference and Literal
-            if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof SymbolReference) {
-                return comparisonStatsCalculator.comparisonSymbolToSymbolStats(
-                        Symbol.from(node.getLeft()),
-                        Symbol.from(node.getRight()),
-                        node.getType()
-                );
-            }
-            else if (node.getLeft() instanceof SymbolReference && node.getRight() instanceof Literal) {
-                Symbol symbol = Symbol.from(node.getLeft());
-                return comparisonStatsCalculator.comparisonSymbolToLiteralStats(
-                        symbol,
-                        doubleValueFromLiteral(types.get(symbol), (Literal) node.getRight()),
-                        node.getType()
-                );
-            }
-            else if (node.getLeft() instanceof Literal && node.getRight() instanceof SymbolReference) {
-                Symbol symbol = Symbol.from(node.getRight());
-                return comparisonStatsCalculator.comparisonSymbolToLiteralStats(
-                        symbol,
-                        doubleValueFromLiteral(types.get(symbol), (Literal) node.getLeft()),
-                        node.getType().flip()
-                );
-            }
-            else {
-                return filterStatsForUnknownExpression(input);
-            }
-        }
-
-        private double doubleValueFromLiteral(Type type, Literal literal)
-        {
-            Object literalValue = LiteralInterpreter.evaluate(metadata, session.toConnectorSession(), literal);
-            DomainConverter domainConverter = new DomainConverter(type, metadata.getFunctionRegistry(), session.toConnectorSession());
-            return domainConverter.translateToDouble(literalValue).orElse(NaN);
         }
     }
 }

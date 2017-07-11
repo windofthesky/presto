@@ -13,30 +13,27 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
-import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.WindowNode;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.Iterator;
 import java.util.Optional;
 
-import static com.facebook.presto.matching.Capture.newCapture;
+import static com.facebook.presto.sql.planner.iterative.rule.Util.pullUnaryNodeAboveProjects;
+import static com.facebook.presto.sql.planner.iterative.rule.Util.restrictOutputs;
 import static com.facebook.presto.sql.planner.iterative.rule.Util.transpose;
 import static com.facebook.presto.sql.planner.optimizations.WindowNodeUtil.dependsOn;
-import static com.facebook.presto.sql.planner.plan.Patterns.source;
 import static com.facebook.presto.sql.planner.plan.Patterns.window;
 
 public class SwapAdjacentWindowsBySpecifications
         implements Rule<WindowNode>
 {
-    private static final Capture<WindowNode> CHILD = newCapture();
-
-    private static final Pattern<WindowNode> PATTERN = window()
-            .with(source().matching(window().capturedAs(CHILD)));
+    private static final Pattern<WindowNode> PATTERN = window();
 
     @Override
     public Pattern<WindowNode> getPattern()
@@ -47,10 +44,22 @@ public class SwapAdjacentWindowsBySpecifications
     @Override
     public Optional<PlanNode> apply(WindowNode parent, Captures captures, Context context)
     {
-        WindowNode windowNode = captures.get(CHILD);
+        // Pulling the descendant WindowNode above projects is done as a part of this rule, as opposed in a
+        // separate rule, because that pullup is not useful on its own, and could be undone by other rules.
+        // For example, a rule could insert a project-off node between adjacent WindowNodes that use different
+        // input symbols.
+        Optional<WindowNode> childOption = pullUnaryNodeAboveProjects(context.getLookup(), WindowNode.class, parent.getSource());
+        if (!childOption.isPresent()) {
+            return Optional.empty();
+        }
 
-        if ((compare(parent, windowNode) < 0) && (!dependsOn(parent, windowNode))) {
-            return Optional.of(transpose(parent, windowNode));
+        WindowNode child = childOption.get();
+
+        if ((compare(parent, child) < 0) && (!dependsOn(parent, child))) {
+            PlanNode transposedWindows = transpose(parent, child);
+            return Optional.of(
+                    restrictOutputs(context.getIdAllocator(), transposedWindows, ImmutableSet.copyOf(parent.getOutputSymbols()))
+                            .orElse(transposedWindows));
         }
         else {
             return Optional.empty();

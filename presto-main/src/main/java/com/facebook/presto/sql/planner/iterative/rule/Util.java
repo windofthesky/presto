@@ -16,16 +16,21 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
+import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.facebook.presto.sql.tree.Expression;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import java.util.Collection;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -114,5 +119,74 @@ class Util
             return Optional.empty();
         }
         return Optional.of(node.replaceChildren(newChildrenBuilder.build()));
+    }
+
+    /**
+     * Looks for the pattern (ProjectNode*)TargetNode, and rewrites it to TargetNode(ProjectNode*),
+     * returning an empty option if the pattern doesn't match, or if it can't rewrite the projects,
+     * for example because they rely on the output of the TargetNode.
+     */
+    public static <N extends PlanNode> Optional<N> pullUnaryNodeAboveProjects(
+            Lookup lookup,
+            Class<N> targetNodeClass,
+            PlanNode root)
+    {
+        Deque<ProjectNode> projectStack = new LinkedList<>();
+
+        PlanNode current = lookup.resolve(root);
+
+        while (current instanceof ProjectNode) {
+            ProjectNode currentProject = (ProjectNode) current;
+            projectStack.push(currentProject);
+            current = lookup.resolve(currentProject.getSource());
+        }
+
+        if (!targetNodeClass.isInstance(current)) {
+            return Optional.empty();
+        }
+
+        N target = targetNodeClass.cast(current);
+        PlanNode targetChild = lookup.resolve(target.getSources().get(0));
+
+        Set<Symbol> targetInputs = ImmutableSet.copyOf(targetChild.getOutputSymbols());
+        Set<Symbol> targetOutputs = ImmutableSet.copyOf(target.getOutputSymbols());
+
+        PlanNode newTargetChild = targetChild;
+
+        while (!projectStack.isEmpty()) {
+            ProjectNode project = projectStack.pop();
+            Set<Symbol> newTargetChildOutputs = ImmutableSet.copyOf(newTargetChild.getOutputSymbols());
+
+            // The only kind of use of the output of the target that we can safely ignore is a simple identity propagation.
+            // The target node, when hoisted above the projections, will provide the symbols directly.
+            Map<Symbol, Expression> assignmentsWithoutTargetOutputIdentities = Maps.filterKeys(
+                    project.getAssignments().getMap(),
+                    output -> !(project.getAssignments().isIdentity(output) && targetOutputs.contains(output)));
+
+            if (targetInputs.stream().anyMatch(assignmentsWithoutTargetOutputIdentities::containsKey)) {
+                // Redefinition of an input to the target -- can't handle this case.
+                return Optional.empty();
+            }
+
+            Assignments newAssignments = Assignments.builder()
+                    .putAll(assignmentsWithoutTargetOutputIdentities)
+                    .putIdentities(targetInputs)
+                    .build();
+
+            if (!newTargetChildOutputs.containsAll(SymbolsExtractor.extractUnique(newAssignments.getExpressions()))) {
+                // Projection uses an output of the target -- can't move the target above this projection.
+                return Optional.empty();
+            }
+
+            newTargetChild = new ProjectNode(project.getId(), newTargetChild, newAssignments);
+        }
+
+        N newTarget = targetNodeClass.cast(target.replaceChildren(ImmutableList.of(newTargetChild)));
+        Set<Symbol> newTargetOutputs = ImmutableSet.copyOf(newTarget.getOutputSymbols());
+        if (!newTargetOutputs.containsAll(root.getOutputSymbols())) {
+            // The new target node is hiding some of the projections, which makes this rewrite incorrect.
+            return Optional.empty();
+        }
+        return Optional.of(newTarget);
     }
 }

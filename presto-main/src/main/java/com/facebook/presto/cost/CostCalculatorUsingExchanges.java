@@ -125,6 +125,7 @@ public class CostCalculatorUsingExchanges
             return PlanNodeCostEstimate.builder()
                     .setCpuCost(sourceStats.getOutputSizeInBytes())
                     .setMemoryCost(aggregationStats.getOutputSizeInBytes())
+                    .setNetworkCost(0)
                     .build();
         }
 
@@ -155,6 +156,7 @@ public class CostCalculatorUsingExchanges
             return PlanNodeCostEstimate.builder()
                     .setCpuCost(cpuCost)
                     .setMemoryCost(memoryCost)
+                    .setNetworkCost(0)
                     .build();
         }
 
@@ -231,6 +233,7 @@ public class CostCalculatorUsingExchanges
         return PlanNodeCostEstimate.builder()
                 .setNetworkCost(network)
                 .setCpuCost(cpu)
+                .setMemoryCost(0)
                 .build();
     }
 }

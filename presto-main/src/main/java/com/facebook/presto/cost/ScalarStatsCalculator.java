@@ -263,7 +263,7 @@ public class ScalarStatsCalculator
                         .setDistinctValuesCount(left.getDistinctValuesCount() +
                                 min(right.getDistinctValuesCount(), input.getOutputRowCount() * left.getNullsFraction()))
                         .setNullsFraction(left.getNullsFraction() * right.getNullsFraction())
-                        // TODO check if dataSize estimatation method is correct
+                        // TODO check if dataSize estimation method is correct
                         .setAverageRowSize(max(left.getAverageRowSize(), right.getAverageRowSize()))
                         .build();
             }

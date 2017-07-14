@@ -323,6 +323,7 @@ public class WindowNode
                 @JsonProperty("frame") Frame frame)
         {
             this.functionCall = requireNonNull(functionCall, "functionCall is null");
+            checkArgument(functionCall.getWindow().isPresent(), "WindowNode.Function.functionCall must have a window");
             this.signature = requireNonNull(signature, "Signature is null");
             this.frame = requireNonNull(frame, "Frame is null");
         }

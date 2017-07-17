@@ -16,7 +16,9 @@ package com.facebook.presto.cost;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkState;
+import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.NaN;
+import static java.lang.Double.POSITIVE_INFINITY;
 import static java.lang.Double.isFinite;
 import static java.lang.Double.isInfinite;
 import static java.lang.Double.isNaN;
@@ -36,8 +38,8 @@ public class StatisticRange
     {
         checkState(low <= high || (isNaN(low) && isNaN(high)), "Low must be smaller or equal to high or range must be empty (NaN, NaN)");
         checkState(distinctValues >= 0 || isNaN(distinctValues), "Distinct values count cannot be negative");
-        this.low = low;
-        this.high = high;
+        this.low = isNaN(low) ? NEGATIVE_INFINITY : low;
+        this.high = isNaN(high) ? POSITIVE_INFINITY : high;
         this.distinctValues = distinctValues;
     }
 

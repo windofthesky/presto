@@ -39,28 +39,6 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Coordinates consumption of a resource by multiple consumers
- * in a partition-by-partition manner.
- * <p>
- * The partitions to consume can be obtained by consumers using the
- * {@code Iterable<Partition<T>> getPartitions()} method.
- * <p>
- * A {@code Partition} is only loaded after at least one consumer has called
- * {@code Partition#load()} on it and all the {@code consumersCount} consumers
- * have {@code release()}-d the previous {@code Partition} (if any).
- * <p>
- * The loaded object is {@code close()}-d when all the consumers have released
- * its {@code Partition} and thus must implement {@code Closable}.
- * <p>
- * The partitions contents are loaded using the {@code Function<Integer, CompletableFuture<T>> loader} passed
- * upon construction. The integer argument in the loader function is the number of the partition to load.
- * <p>
- * The partition number can be accessed using {@code Partition#number()} and - for a given partition -
- * it takes the value of the respective element of {@code partitionNumbers} passed upon construction.
- *
- * @param <T> type of the object loaded for each {@code Partition}. Must be {@code Closable}.
- */
 @ThreadSafe
 public final class PartitionedConsumption<T>
 {

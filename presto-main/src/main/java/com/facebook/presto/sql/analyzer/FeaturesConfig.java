@@ -29,7 +29,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static com.facebook.presto.sql.analyzer.FeaturesConfig.JoinDistributionType.AUTOMATIC;
 import static com.facebook.presto.sql.analyzer.FeaturesConfig.JoinDistributionType.REPARTITIONED;
+import static com.facebook.presto.sql.analyzer.FeaturesConfig.JoinReorderingStrategy.COST_BASED;
 import static com.facebook.presto.sql.analyzer.FeaturesConfig.JoinReorderingStrategy.ELIMINATE_CROSS_JOINS;
 import static com.facebook.presto.sql.analyzer.RegexLibrary.JONI;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -51,7 +53,7 @@ public class FeaturesConfig
     private boolean distributedIndexJoinsEnabled;
     private boolean colocatedJoinsEnabled;
     private boolean fastInequalityJoins = true;
-    private JoinReorderingStrategy joinReorderingStrategy = ELIMINATE_CROSS_JOINS;
+    private JoinReorderingStrategy joinReorderingStrategy = COST_BASED;
     private boolean redistributeWrites = true;
     private boolean optimizeMetadataQueries;
     private boolean optimizeHashGeneration = true;
@@ -66,7 +68,7 @@ public class FeaturesConfig
     private boolean optimizeMixedDistinctAggregations;
     private boolean distributedSort = false;
     private boolean redistributeSort = true;
-    private JoinDistributionType joinDistributionType = REPARTITIONED;
+    private JoinDistributionType joinDistributionType = AUTOMATIC;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;

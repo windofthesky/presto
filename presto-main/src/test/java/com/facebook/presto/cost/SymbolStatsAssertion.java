@@ -73,7 +73,7 @@ public class SymbolStatsAssertion
     {
         assertTrue(isNaN(statistics.getLowValue()) && isNaN(statistics.getHighValue()),
                 "expected empty range (NaN, NaN) but got (" + statistics.getLowValue() + ", " + statistics.getHighValue() + ") instead");
-        return this;
+        return this.distinctValuesCount(0);
     }
 
     public SymbolStatsAssertion unknownRange()

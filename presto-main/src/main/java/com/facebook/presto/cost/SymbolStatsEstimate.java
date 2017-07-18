@@ -52,6 +52,9 @@ public class SymbolStatsEstimate
 
         checkArgument(distinctValuesCount >= 0 || isNaN(distinctValuesCount), "Distinct values count should be non-negative, got: %s", distinctValuesCount);
         this.distinctValuesCount = distinctValuesCount;
+
+        checkArgument(!isRangeEmpty() || distinctValuesCount == 0, "Empty range cannot have non-zero distinct values: %s", distinctValuesCount);
+        checkArgument(isRangeEmpty() || isNaN(distinctValuesCount) || distinctValuesCount > 0, "Non-empty range [%s-%s] cannot have zero distinct values: %s", lowValue, highValue, distinctValuesCount);
     }
 
     public double getLowValue()

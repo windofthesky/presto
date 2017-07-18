@@ -39,6 +39,18 @@ public class PlanNodeStatsEstimate
     {
         checkArgument(isNaN(outputRowCount) || outputRowCount >= 0, "outputRowCount cannot be negative");
         this.outputRowCount = outputRowCount;
+
+        if (!isNaN(outputRowCount)) {
+            symbolStatistics.entrySet().forEach(entry -> {
+                SymbolStatsEstimate symbolStatsEstimate = entry.getValue();
+                checkArgument(
+                        isNaN(symbolStatsEstimate.getDistinctValuesCount()) || symbolStatsEstimate.getDistinctValuesCount() <= outputRowCount,
+                        "NDV for %s (%s) is more than row count (%s)",
+                        entry.getKey(),
+                        symbolStatsEstimate.getDistinctValuesCount(),
+                        outputRowCount);
+            });
+        }
         this.symbolStatistics = symbolStatistics;
     }
 

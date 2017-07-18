@@ -47,6 +47,9 @@ public class StatisticRange
 
         checkArgument(distinctValues >= 0 || isNaN(distinctValues), "Distinct values count should be non-negative, got: %s", distinctValues);
         this.distinctValues = distinctValues;
+
+        checkArgument(!isEmpty() || distinctValues == 0, "Empty range cannot have non-zero distinct values: %s", distinctValues);
+        checkArgument(isEmpty() || isNaN(distinctValues) || distinctValues > 0, "Non-empty range [%s-%s] cannot have zero distinct values: %s", low, high, distinctValues);
     }
 
     public static StatisticRange empty()

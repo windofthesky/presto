@@ -19,8 +19,8 @@ import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
@@ -53,7 +53,7 @@ final class SemiJoinMatcher
         SemiJoinNode semiJoinNode = (SemiJoinNode) node;
         if (!(symbolAliases.get(sourceSymbolAlias).equals(semiJoinNode.getSourceJoinSymbol().toSymbolReference()) &&
                 symbolAliases.get(filteringSymbolAlias).equals(semiJoinNode.getFilteringSourceJoinSymbol().toSymbolReference()))) {
-            return NO_MATCH;
+            return noMatch("SemiJoinNode.sourceJoinSymbol");
         }
 
         return match(outputAlias, semiJoinNode.getSemiJoinOutput().toSymbolReference());

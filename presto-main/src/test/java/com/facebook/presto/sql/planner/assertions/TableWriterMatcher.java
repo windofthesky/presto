@@ -23,8 +23,8 @@ import com.facebook.presto.sql.planner.plan.TableWriterNode;
 
 import java.util.List;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -54,14 +54,14 @@ public class TableWriterMatcher
 
         TableWriterNode tableWriterNode = (TableWriterNode) node;
         if (!tableWriterNode.getColumnNames().equals(columnNames)) {
-            return NO_MATCH;
+            return noMatch("TableWriterNode.columnNames");
         }
 
         if (!columns.stream()
                 .map(s -> Symbol.from(symbolAliases.get(s)))
                 .collect(toImmutableList())
                 .equals(tableWriterNode.getColumns())) {
-            return NO_MATCH;
+            return noMatch("TableWriterNode.columns");
         }
 
         return match();

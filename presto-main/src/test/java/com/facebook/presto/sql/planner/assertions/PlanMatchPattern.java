@@ -63,7 +63,6 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static com.facebook.presto.sql.ExpressionUtils.rewriteIdentifiersToSymbolReferences;
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
 import static com.facebook.presto.sql.planner.assertions.StrictAssignedSymbolsMatcher.actualAssignments;
 import static com.facebook.presto.sql.planner.assertions.StrictSymbolsMatcher.actualOutputs;
@@ -438,9 +437,9 @@ public final class PlanMatchPattern
         for (Matcher matcher : matchers) {
             MatchResult matchResult = matcher.detailMatches(node, planNodeCost, session, metadata, symbolAliases);
             if (!matchResult.isMatch()) {
-                return NO_MATCH;
+                return matchResult;
             }
-            newAliases.putAll(matchResult.getAliases());
+            newAliases.putAll(((MatchResult.Match) matchResult).getAliases());
         }
 
         return match(newAliases.build());

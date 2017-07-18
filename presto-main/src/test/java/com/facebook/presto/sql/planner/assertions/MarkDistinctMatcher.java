@@ -24,8 +24,9 @@ import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Optional;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.testMatch;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -57,16 +58,16 @@ public class MarkDistinctMatcher
         checkState(shapeMatches(node), "Plan testing framework error: shapeMatches returned false in detailMatches in %s", this.getClass().getName());
         MarkDistinctNode markDistinctNode = (MarkDistinctNode) node;
 
-        if (!markDistinctNode.getHashSymbol().equals(hashSymbol.map(alias -> alias.toSymbol(symbolAliases)))) {
-            return NO_MATCH;
-        }
-
-        if (!ImmutableSet.copyOf(markDistinctNode.getDistinctSymbols())
-                .equals(distinctSymbols.stream().map(alias -> alias.toSymbol(symbolAliases)).collect(toImmutableSet()))) {
-            return NO_MATCH;
-        }
-
-        return match(markerSymbol.toString(), markDistinctNode.getMarkerSymbol().toSymbolReference());
+        return match()
+                .and(testMatch(
+                        "MarkDistinctNode.hashSymbol",
+                        hashSymbol.map(alias -> alias.toSymbol(symbolAliases)),
+                        markDistinctNode.getHashSymbol()))
+                .and(testMatch(
+                        "MarkDistinctNode.distinctSymbols",
+                        distinctSymbols.stream().map(alias -> alias.toSymbol(symbolAliases)).collect(toImmutableSet()),
+                        ImmutableSet.copyOf(markDistinctNode.getDistinctSymbols())))
+                .and(match(markerSymbol.toString(), markDistinctNode.getMarkerSymbol().toSymbolReference()));
     }
 
     @Override

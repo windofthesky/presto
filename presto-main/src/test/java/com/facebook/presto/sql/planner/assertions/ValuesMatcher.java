@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
@@ -63,7 +63,7 @@ public class ValuesMatcher
         ValuesNode valuesNode = (ValuesNode) node;
 
         if (!expectedRows.map(rows -> rows.equals(valuesNode.getRows())).orElse(true)) {
-            return NO_MATCH;
+            return noMatch("ValuesNode.rows");
         }
 
         return match(SymbolAliases.builder()

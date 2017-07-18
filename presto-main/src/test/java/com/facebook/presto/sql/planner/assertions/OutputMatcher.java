@@ -23,8 +23,8 @@ import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +47,7 @@ public class OutputMatcher
     @Override
     public MatchResult detailMatches(PlanNode node, PlanNodeCost cost, Session session, Metadata metadata, SymbolAliases symbolAliases)
     {
+        // TODO make the member List<PlanTestSymbol>, and do a simple set containment test here.
         int i = 0;
         for (String alias : aliases) {
             Expression expression = symbolAliases.get(alias);
@@ -59,7 +60,7 @@ public class OutputMatcher
                 }
             }
             if (!found) {
-                return NO_MATCH;
+                return noMatch("Can't find output " + expression.toString());
             }
         }
         return match();

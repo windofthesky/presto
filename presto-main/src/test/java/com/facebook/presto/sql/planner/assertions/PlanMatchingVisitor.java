@@ -28,9 +28,10 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -63,7 +64,7 @@ final class PlanMatchingVisitor
             return result;
         }
 
-        SymbolAliases newAliases = result.getAliases();
+        SymbolAliases newAliases = ((MatchResult.Match) result).getAliases();
         for (List<Symbol> inputs : allInputs) {
             Assignments.Builder assignments = Assignments.builder();
             for (int i = 0; i < inputs.size(); ++i) {
@@ -84,7 +85,7 @@ final class PlanMatchingVisitor
             return result;
         }
 
-        return match(result.getAliases().replaceAssignments(node.getAssignments()));
+        return match(((MatchResult.Match) result).getAliases().replaceAssignments(node.getAssignments()));
     }
 
     @Override
@@ -104,7 +105,7 @@ final class PlanMatchingVisitor
 
         // No shape match; don't need to check the internals of any of the nodes.
         if (states.isEmpty()) {
-            return NO_MATCH;
+            return noMatch("Shape didn't match");
         }
 
         // Leaf node in the plan.
@@ -112,29 +113,32 @@ final class PlanMatchingVisitor
             return matchLeaf(node, pattern, states);
         }
 
-        MatchResult result = NO_MATCH;
+        Optional<MatchResult> result = Optional.empty();
         for (PlanMatchingState state : states) {
             // Traverse down the tree, checking to see if the sources match the source patterns in state.
             MatchResult sourcesMatch = matchSources(node, state);
 
             if (!sourcesMatch.isMatch()) {
+                if (!result.isPresent()) result = Optional.of(sourcesMatch);
                 continue;
             }
 
             // Try upMatching this node with the the aliases gathered from the source nodes.
-            SymbolAliases allSourceAliases = sourcesMatch.getAliases();
+            SymbolAliases allSourceAliases = ((MatchResult.Match) sourcesMatch).getAliases();
             MatchResult matchResult = pattern.detailMatches(node, planCost.get(node.getId()), session, metadata, allSourceAliases);
             if (matchResult.isMatch()) {
-                checkState(result == NO_MATCH, format("Ambiguous match on node %s", node));
-                result = match(allSourceAliases.withNewAliases(matchResult.getAliases()));
+                checkState(!result.get().isMatch(), format("Ambiguous match on node %s", node));
+                result = Optional.of(match(allSourceAliases.withNewAliases(((MatchResult.Match) matchResult).getAliases())));
+            } else {
+                if (!result.isPresent()) result = Optional.of(matchResult);
             }
         }
-        return result;
+        return result.get();
     }
 
     private MatchResult matchLeaf(PlanNode node, PlanMatchPattern pattern, List<PlanMatchingState> states)
     {
-        MatchResult result = NO_MATCH;
+        Optional<MatchResult> result = Optional.empty();
 
         for (PlanMatchingState state : states) {
             // Don't consider un-terminated PlanMatchingStates.
@@ -150,12 +154,15 @@ final class PlanMatchingVisitor
                  */
             MatchResult matchResult = pattern.detailMatches(node, planCost.get(node.getId()), session, metadata, new SymbolAliases());
             if (matchResult.isMatch()) {
-                checkState(result == NO_MATCH, format("Ambiguous match on leaf node %s", node));
-                result = matchResult;
+                checkState(!(result.isPresent() && result.get().isMatch()), format("Ambiguous match on leaf node %s", node));
+                result = Optional.of(matchResult);
+            }
+            if (!result.isPresent()) {
+                result = Optional.of(matchResult);
             }
         }
 
-        return result;
+        return result.orElse(noMatch("All PlanMatchingStates were un-terminated"));
     }
 
     /*
@@ -186,11 +193,11 @@ final class PlanMatchingVisitor
             // Match sources to patterns 1:1
             MatchResult matchResult = source.accept(this, sourcePatterns.get(i++));
             if (!matchResult.isMatch()) {
-                return NO_MATCH;
+                return matchResult;
             }
 
             // Add the per-source aliases to the per-state aliases.
-            allSourceAliases.putAll(matchResult.getAliases());
+            allSourceAliases.putAll(((MatchResult.Match) matchResult).getAliases());
         }
 
         return match(allSourceAliases.build());

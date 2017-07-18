@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.facebook.presto.sql.planner.assertions.MatchResult.NO_MATCH;
 import static com.facebook.presto.sql.planner.assertions.MatchResult.match;
+import static com.facebook.presto.sql.planner.assertions.MatchResult.noMatch;
 import static com.facebook.presto.sql.planner.assertions.PlanMatchPattern.node;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
@@ -78,7 +78,7 @@ public final class WindowMatcher
                         .collect(toImmutableSet())
                         .equals(windowNode.getPrePartitionedInputs()))
                 .orElse(true)) {
-            return NO_MATCH;
+            return noMatch("WindowNode.prePartitionedInputs");
         }
 
         if (!specification
@@ -86,13 +86,13 @@ public final class WindowMatcher
                         expectedSpecification.getExpectedValue(symbolAliases)
                         .equals(windowNode.getSpecification()))
                 .orElse(true)) {
-            return NO_MATCH;
+            return noMatch("WindowNode.specification");
         }
 
         if (!preSortedOrderPrefix
                 .map(Integer.valueOf(windowNode.getPreSortedOrderPrefix())::equals)
                 .orElse(true)) {
-            return NO_MATCH;
+            return noMatch("WindowNode.preSortedOrderPrefix");
         }
 
         if (!hashSymbol
@@ -100,7 +100,7 @@ public final class WindowMatcher
                         .map(alias -> alias.toSymbol(symbolAliases))
                         .equals(windowNode.getHashSymbol()))
                 .orElse(true)) {
-            return NO_MATCH;
+            return noMatch("WindowNode.hashSymbol");
         }
 
         /*

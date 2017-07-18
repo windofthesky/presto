@@ -15,6 +15,7 @@ package com.facebook.presto.cost;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.metadata.MetadataManager;
+import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.DoubleType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
@@ -54,6 +55,7 @@ import static java.lang.Double.POSITIVE_INFINITY;
 public class TestFilterStatsCalculator
 {
     private static final VarcharType MEDIUM_VARCHAR_TYPE = VarcharType.createVarcharType(100);
+    private static final int STANDARD_ROW_COUNT = 1000;
 
     private FilterStatsCalculator statsCalculator;
     private PlanNodeStatsEstimate standardInputStatistics;
@@ -84,6 +86,13 @@ public class TestFilterStatsCalculator
                 .setLowValue(-100.0)
                 .setHighValue(100.0)
                 .setNullsFraction(0.1)
+                .build();
+        SymbolStatsEstimate keyStats = SymbolStatsEstimate.builder()
+                .setAverageRowSize(8.0)
+                .setDistinctValuesCount(STANDARD_ROW_COUNT)
+                .setLowValue(13)
+                .setHighValue(STANDARD_ROW_COUNT * 3 + 37) // non-consecutive
+                .setNullsFraction(0.0)
                 .build();
         SymbolStatsEstimate leftOpenStats = SymbolStatsEstimate.builder()
                 .setAverageRowSize(4.0)
@@ -124,18 +133,20 @@ public class TestFilterStatsCalculator
                 .addSymbolStatistics(new Symbol("x"), xStats)
                 .addSymbolStatistics(new Symbol("y"), yStats)
                 .addSymbolStatistics(new Symbol("z"), zStats)
+                .addSymbolStatistics(new Symbol("key"), keyStats)
                 .addSymbolStatistics(new Symbol("leftOpen"), leftOpenStats)
                 .addSymbolStatistics(new Symbol("rightOpen"), rightOpenStats)
                 .addSymbolStatistics(new Symbol("unknownRange"), unknownRangeStats)
                 .addSymbolStatistics(new Symbol("emptyRange"), emptyRangeStats)
                 .addSymbolStatistics(new Symbol("mediumVarchar"), mediumVarcharStats)
-                .setOutputRowCount(1000.0)
+                .setOutputRowCount(STANDARD_ROW_COUNT)
                 .build();
 
         standardTypes = ImmutableMap.<Symbol, Type>builder()
                 .put(new Symbol("x"), DoubleType.DOUBLE)
                 .put(new Symbol("y"), DoubleType.DOUBLE)
                 .put(new Symbol("z"), DoubleType.DOUBLE)
+                .put(new Symbol("key"), BigintType.BIGINT)
                 .put(new Symbol("leftOpen"), DoubleType.DOUBLE)
                 .put(new Symbol("rightOpen"), DoubleType.DOUBLE)
                 .put(new Symbol("unknownRange"), DoubleType.DOUBLE)
@@ -469,6 +480,10 @@ public class TestFilterStatsCalculator
                             .lowValue(0.0)
                             .highValue(5)
                             .nullsFraction(0.5);
+                })
+                .symbolStats("key", symbolStats -> {
+                    // High-cardinality symbol should have NDV capped
+                    symbolStats.distinctValuesCount(56.25);
                 });
 
         // Multiple values some in some out of range

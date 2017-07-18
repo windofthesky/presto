@@ -20,6 +20,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Double.NaN;
 import static java.lang.Double.isNaN;
+import static java.lang.Math.min;
 import static java.lang.String.format;
 
 public class SymbolStatsEstimate
@@ -114,6 +115,12 @@ public class SymbolStatsEstimate
     public SymbolStatsEstimate mapDistinctValuesCount(Function<Double, Double> mappingFunction)
     {
         return buildFrom(this).setDistinctValuesCount(mappingFunction.apply(distinctValuesCount)).build();
+    }
+
+    public SymbolStatsEstimate capToRowCount(double rowCount)
+    {
+        checkArgument(!isNaN(rowCount), "Can't cap to NaN");
+        return buildFrom(this).setDistinctValuesCount(min(distinctValuesCount, rowCount * getValuesFraction())).build();
     }
 
     @Override

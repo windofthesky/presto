@@ -79,7 +79,21 @@ public class PlanNodeStatsEstimate
 
     public PlanNodeStatsEstimate mapOutputRowCount(Function<Double, Double> mappingFunction)
     {
-        return buildFrom(this).setOutputRowCount(mappingFunction.apply(outputRowCount)).build();
+        double newOutputRowCount = mappingFunction.apply(outputRowCount);
+
+        Builder builder = builder().setOutputRowCount(newOutputRowCount);
+        if (newOutputRowCount > outputRowCount || isNaN(newOutputRowCount)) {
+            builder.addSymbolStatistics(symbolStatistics);
+        }
+        else {
+            symbolStatistics.entrySet().forEach(entry -> {
+                Symbol symbol = entry.getKey();
+                SymbolStatsEstimate symbolStatsEstimate = entry.getValue();
+                builder.addSymbolStatistics(symbol, symbolStatsEstimate.capToRowCount(newOutputRowCount));
+            });
+        }
+
+        return builder.build();
     }
 
     public PlanNodeStatsEstimate mapSymbolColumnStatistics(Symbol symbol, Function<SymbolStatsEstimate, SymbolStatsEstimate> mappingFunction)

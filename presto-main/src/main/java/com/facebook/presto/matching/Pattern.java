@@ -14,7 +14,6 @@
 
 package com.facebook.presto.matching;
 
-import static com.facebook.presto.matching.v2.DefaultMatcher.DEFAULT_MATCHER;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
@@ -85,7 +84,7 @@ public abstract class Pattern
         @Override
         public boolean matches(Object object)
         {
-            return DEFAULT_MATCHER.match(pattern, object).isPresent();
+            throw new UnsupportedOperationException("a matcher should be used for matching the v2 pattern");
         }
 
         public com.facebook.presto.matching.v2.Pattern<?> getPattern()

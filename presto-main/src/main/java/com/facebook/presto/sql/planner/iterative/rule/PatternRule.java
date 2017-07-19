@@ -22,7 +22,6 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 import java.util.Optional;
 
 import static com.facebook.presto.matching.Pattern.v2Adapter;
-import static com.facebook.presto.matching.v2.DefaultMatcher.DEFAULT_MATCHER;
 
 public interface PatternRule<T>
         extends Rule
@@ -38,7 +37,11 @@ public interface PatternRule<T>
 
     default Optional<PlanNode> apply(PlanNode node, Context context)
     {
-        Match<T> match = DEFAULT_MATCHER.match(pattern(), node);
+        //TODO could be stored in Context, or we could move the pattern matcher usage to IterativeOptimizer.
+        //creating the matcher here is temporary for the migration to new pattern matcher
+        //and will disappear later in the PR
+        PrestoMatcher prestoMatcher = new PrestoMatcher(context.getLookup());
+        Match<T> match = prestoMatcher.match(pattern(), node);
         return match
                 .map(value -> apply(value, match.captures(), context))
                 .orElse(Optional.empty());

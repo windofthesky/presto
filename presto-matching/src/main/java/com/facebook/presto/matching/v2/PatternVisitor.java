@@ -14,12 +14,15 @@
 package com.facebook.presto.matching.v2;
 
 import com.facebook.presto.matching.v2.pattern.CapturePattern;
+import com.facebook.presto.matching.v2.pattern.FilterPattern;
 import com.facebook.presto.matching.v2.pattern.TypeOfPattern;
 import com.facebook.presto.matching.v2.pattern.WithPattern;
 
 public interface PatternVisitor
 {
     void visitCapture(CapturePattern<?> pattern);
+
+    void visitFilter(FilterPattern<?> pattern);
 
     void visitTypeOf(TypeOfPattern<?> pattern);
 

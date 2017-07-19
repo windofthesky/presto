@@ -52,6 +52,10 @@ public class MatcherTest
         assertMatch(typeOf(Integer.class), 42);
         assertMatch(typeOf(Number.class), 42);
         assertNoMatch(typeOf(Integer.class), "John Doe");
+
+        //predicate-based
+        assertMatch(typeOf(Integer.class).matching(x -> x > 0), 42);
+        assertNoMatch(typeOf(Integer.class).matching(x -> x > 0), -1);
     }
 
     @Test
@@ -70,9 +74,13 @@ public class MatcherTest
 
         assertMatch(project().with(source().matching(scan())), new ProjectNode(new ScanNode("T")));
         assertMatch(aString.with(length.matching(any())), string);
+        assertMatch(aString.with(length.matching(x -> x > 0)), string);
+        assertMatch(aString.with(length.matching((Number x) -> x.intValue() > 0)), string);
 
         assertNoMatch(project().with(source().matching(scan())), new ProjectNode(new ProjectNode(new ScanNode("T"))));
         assertNoMatch(aString.with(length.matching(typeOf(Void.class))), string);
+        assertNoMatch(aString.with(length.matching(x -> x < 1)), string);
+        assertNoMatch(aString.with(length.matching((Number x) -> x.intValue() < 1)), string);
     }
 
     @Test
@@ -86,6 +94,18 @@ public class MatcherTest
         //Optional does not allow null values.
         //assertNoMatch(pattern, new ProjectNode(null));
         assertNoMatch(pattern, new ProjectNode(new ProjectNode(null)));
+    }
+
+    @Test
+    void match_additional_properties()
+    {
+        String matchedValue = "A little string.";
+
+        Pattern<String> pattern = typeOf(String.class)
+                .matching(s -> s.startsWith("A"))
+                .matching((CharSequence s) -> s.length() > 7);
+
+        assertMatch(pattern, matchedValue);
     }
 
     @Test

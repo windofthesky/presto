@@ -36,8 +36,8 @@ public class TestEnsureStatsMatchOutput
 
         PlanNodeStatsEstimate estimate = PlanNodeStatsEstimate.builder()
                 .setOutputRowCount(10)
-                .addSymbolStatistics(a, SymbolStatsEstimate.builder().setDistinctValuesCount(20).build())
-                .addSymbolStatistics(b, SymbolStatsEstimate.builder().setDistinctValuesCount(20).build())
+                .addSymbolStatistics(a, SymbolStatsEstimate.builder().setDistinctValuesCount(7).build())
+                .addSymbolStatistics(b, SymbolStatsEstimate.builder().setDistinctValuesCount(8).build())
                 .build();
 
         ComposableStatsCalculator.Normalizer normalizer = new EnsureStatsMatchOutput();
@@ -45,7 +45,7 @@ public class TestEnsureStatsMatchOutput
         PlanNodeStatsEstimate normalized = normalizer.normalize(node, estimate, null);
 
         assertEquals(normalized.getSymbolsWithKnownStatistics(), ImmutableList.of(a, c));
-        assertThat(normalized.getSymbolStatistics(a)).distinctValuesCount(20);
+        assertThat(normalized.getSymbolStatistics(a)).distinctValuesCount(7);
         assertThat(normalized.getSymbolStatistics(c)).distinctValuesCountUnknown();
     }
 }

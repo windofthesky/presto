@@ -14,6 +14,7 @@
 
 package com.facebook.presto.matching;
 
+import static com.facebook.presto.matching.v2.DefaultMatcher.DEFAULT_MATCHER;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
@@ -33,6 +34,12 @@ public abstract class Pattern
     public static <T> Pattern typeOf(Class<T> objectClass)
     {
         return new TypeOf(objectClass);
+    }
+
+    //TODO remove this Pattern class along with this method once the migration is complete
+    public static Pattern v2Adapter(com.facebook.presto.matching.v2.Pattern<?> pattern)
+    {
+        return new V2Adapter(pattern);
     }
 
     static class TypeOf<T>
@@ -62,6 +69,28 @@ public abstract class Pattern
             return toStringHelper(this)
                     .add("type", type)
                     .toString();
+        }
+    }
+
+    static class V2Adapter
+            extends Pattern
+    {
+        V2Adapter(com.facebook.presto.matching.v2.Pattern<?> pattern)
+        {
+            this.pattern = pattern;
+        }
+
+        private com.facebook.presto.matching.v2.Pattern<?> pattern;
+
+        @Override
+        public boolean matches(Object object)
+        {
+            return DEFAULT_MATCHER.match(pattern, object).isPresent();
+        }
+
+        public com.facebook.presto.matching.v2.Pattern<?> getPattern()
+        {
+            return pattern;
         }
     }
 }

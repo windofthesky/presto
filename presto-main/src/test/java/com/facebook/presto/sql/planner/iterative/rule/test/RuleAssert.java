@@ -27,6 +27,7 @@ import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Memo;
 import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.rule.PatternRule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.facebook.presto.sql.planner.planPrinter.PlanPrinter;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static com.facebook.presto.matching.v2.DefaultMatcher.DEFAULT_MATCHER;
 import static com.facebook.presto.sql.planner.assertions.PlanAssert.assertPlan;
 import static com.facebook.presto.transaction.TransactionBuilder.transaction;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -146,8 +148,16 @@ public class RuleAssert
         Memo memo = new Memo(idAllocator, plan);
         Lookup lookup = Lookup.from(memo::resolve);
 
-        if (!rule.getPattern().matches(plan)) {
-            return new RuleApplication(lookup, symbolAllocator.getTypes(), Optional.empty());
+        if (rule instanceof PatternRule) {
+            PatternRule<?> rule = (PatternRule<?>) this.rule;
+            if (DEFAULT_MATCHER.match(rule.pattern(), plan).isEmpty()) {
+                return new RuleApplication(lookup, symbolAllocator.getTypes(), Optional.empty());
+            }
+        }
+        else {
+            if (!rule.getPattern().matches(plan)) {
+                return new RuleApplication(lookup, symbolAllocator.getTypes(), Optional.empty());
+            }
         }
 
         Optional<PlanNode> result = inTransaction(session -> rule.apply(memo.getNode(memo.getRootGroup()), ruleContext(symbolAllocator, lookup, session)));

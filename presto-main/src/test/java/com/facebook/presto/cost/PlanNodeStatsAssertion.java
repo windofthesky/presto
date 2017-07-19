@@ -19,6 +19,7 @@ import java.util.function.Consumer;
 
 import static com.facebook.presto.cost.EstimateAssertion.assertEstimateEquals;
 import static com.google.common.collect.Sets.union;
+import static java.lang.String.format;
 import static org.testng.Assert.assertTrue;
 
 public class PlanNodeStatsAssertion
@@ -54,9 +55,14 @@ public class PlanNodeStatsAssertion
 
     public PlanNodeStatsAssertion symbolStats(Symbol symbol, Consumer<SymbolStatsAssertion> columnAssertionConsumer)
     {
-        SymbolStatsAssertion columnAssertion = SymbolStatsAssertion.assertThat(actual.getSymbolStatistics(symbol));
-        columnAssertionConsumer.accept(columnAssertion);
-        return this;
+        try {
+            SymbolStatsAssertion columnAssertion = SymbolStatsAssertion.assertThat(actual.getSymbolStatistics(symbol));
+            columnAssertionConsumer.accept(columnAssertion);
+            return this;
+        }
+        catch (AssertionError e) {
+            throw new AssertionError(format("For symbol '%s': %s", symbol, e.getMessage()), e);
+        }
     }
 
     public PlanNodeStatsAssertion symbolStatsUnknown(String symbolName)

@@ -17,9 +17,12 @@ import com.facebook.presto.matching.v2.Pattern;
 import com.facebook.presto.matching.v2.Property;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.facebook.presto.matching.v2.Pattern.typeOf;
+import static com.facebook.presto.matching.v2.Property.optionalProperty;
 import static com.facebook.presto.matching.v2.Property.property;
+import static java.util.Optional.empty;
 
 //FIXME add patterns and properties for all current plan nodes
 public class Patterns
@@ -81,11 +84,20 @@ public class Patterns
         return typeOf(ValuesNode.class);
     }
 
-    public static Property<SingleSourcePlanNode, PlanNode> source() {
+    public static Property<SingleSourcePlanNode, PlanNode> source()
+    {
         return property(SingleSourcePlanNode::getSource);
     }
 
-    public static Property<PlanNode, List<PlanNode>> sources() {
+    public static Property<PlanNode, List<PlanNode>> sources()
+    {
         return property(PlanNode::getSources);
+    }
+
+    public static Property<PlanNode, PlanNode> onlySource()
+    {
+        return optionalProperty(node -> node.getSources().size() == 1 ?
+                Optional.of(node.getSources().get(0)) :
+                empty());
     }
 }

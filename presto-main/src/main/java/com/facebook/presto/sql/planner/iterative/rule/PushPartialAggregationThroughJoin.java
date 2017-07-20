@@ -75,9 +75,7 @@ public class PushPartialAggregationThroughJoin
             return Optional.empty();
         }
 
-        if (joinNode.getType() != JoinNode.Type.INNER || joinNode.getFilter().isPresent()) {
-            // TODO: add support for filter function.
-            // All availableSymbols used in filter function could be added to pushedDownGroupingSet
+        if (joinNode.getType() != JoinNode.Type.INNER) {
             return Optional.empty();
         }
 

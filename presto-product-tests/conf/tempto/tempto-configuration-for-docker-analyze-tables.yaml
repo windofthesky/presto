@@ -1,0 +1,7 @@
+databases:
+  hive:
+    host: hadoop-master
+    analyze_immutable_tables: true
+  presto:
+    host: presto-master
+    configured_hdfs_user: hive

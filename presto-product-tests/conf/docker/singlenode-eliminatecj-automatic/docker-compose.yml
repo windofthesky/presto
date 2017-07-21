@@ -1,0 +1,5 @@
+version: '2'
+
+services:
+  presto-master:
+    command: /docker/volumes/conf/docker/files/presto-launcher-wrapper.sh singlenode-eliminatecj-automatic run

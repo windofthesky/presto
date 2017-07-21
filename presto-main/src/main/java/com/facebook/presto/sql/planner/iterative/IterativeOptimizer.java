@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.facebook.presto.matching.DefaultMatcher.DEFAULT_MATCHER;
 import static com.facebook.presto.spi.StandardErrorCode.OPTIMIZER_TIMEOUT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -76,25 +75,27 @@ public class IterativeOptimizer
 
         Memo memo = new Memo(idAllocator, plan);
         Lookup lookup = Lookup.from(memo::resolve);
+        PlanNodeMatcher planNodeMatcher = new PlanNodeMatcher(lookup);
 
         Duration timeout = SystemSessionProperties.getOptimizerTimeout(session);
-        exploreGroup(memo.getRootGroup(), new Context(memo, lookup, idAllocator, symbolAllocator, System.nanoTime(), timeout.toMillis(), session));
+        final Context context = new Context(memo, lookup, idAllocator, symbolAllocator, System.nanoTime(), timeout.toMillis(), session);
+        exploreGroup(memo.getRootGroup(), context, planNodeMatcher);
 
         return memo.extract();
     }
 
-    private boolean exploreGroup(int group, Context context)
+    private boolean exploreGroup(int group, Context context, PlanNodeMatcher planNodeMatcher)
     {
         // tracks whether this group or any children groups change as
         // this method executes
-        boolean progress = exploreNode(group, context);
+        boolean progress = exploreNode(group, context, planNodeMatcher);
 
-        while (exploreChildren(group, context)) {
+        while (exploreChildren(group, context, planNodeMatcher)) {
             progress = true;
 
             // if children changed, try current group again
             // in case we can match additional rules
-            if (!exploreNode(group, context)) {
+            if (!exploreNode(group, context, planNodeMatcher)) {
                 // no additional matches, so bail out
                 break;
             }
@@ -103,7 +104,7 @@ public class IterativeOptimizer
         return progress;
     }
 
-    private boolean exploreNode(int group, Context context)
+    private boolean exploreNode(int group, Context context, PlanNodeMatcher planNodeMatcher)
     {
         PlanNode node = context.getMemo().getNode(group);
 
@@ -121,7 +122,7 @@ public class IterativeOptimizer
                 Rule rule = possiblyMatchingRules.next();
                 Optional<PlanNode> transformed;
 
-                if (DEFAULT_MATCHER.match(rule.getPattern(), node).isEmpty()) {
+                if (!planNodeMatcher.match(rule.getPattern(), node).isPresent()) {
                     continue;
                 }
 
@@ -154,7 +155,7 @@ public class IterativeOptimizer
         return ((System.nanoTime() - context.getStartTimeInNanos()) / 1_000_000) >= context.getTimeoutInMilliseconds();
     }
 
-    private boolean exploreChildren(int group, Context context)
+    private boolean exploreChildren(int group, Context context, PlanNodeMatcher planNodeMatcher)
     {
         boolean progress = false;
 
@@ -162,7 +163,7 @@ public class IterativeOptimizer
         for (PlanNode child : expression.getSources()) {
             checkState(child instanceof GroupReference, "Expected child to be a group reference. Found: " + child.getClass().getName());
 
-            if (exploreGroup(((GroupReference) child).getGroupId(), context)) {
+            if (exploreGroup(((GroupReference) child).getGroupId(), context, planNodeMatcher)) {
                 progress = true;
             }
         }

@@ -26,6 +26,7 @@ import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.assertions.PlanMatchPattern;
 import com.facebook.presto.sql.planner.iterative.Lookup;
 import com.facebook.presto.sql.planner.iterative.Memo;
+import com.facebook.presto.sql.planner.iterative.PlanNodeMatcher;
 import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
@@ -37,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.facebook.presto.matching.DefaultMatcher.DEFAULT_MATCHER;
 import static com.facebook.presto.sql.planner.assertions.PlanAssert.assertPlan;
 import static com.facebook.presto.transaction.TransactionBuilder.transaction;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -147,7 +147,8 @@ public class RuleAssert
         Memo memo = new Memo(idAllocator, plan);
         Lookup lookup = Lookup.from(memo::resolve);
 
-        if (DEFAULT_MATCHER.match(rule.getPattern(), plan).isEmpty()) {
+        PlanNodeMatcher planNodeMatcher = new PlanNodeMatcher(lookup);
+        if (planNodeMatcher.match(rule.getPattern(), plan).isEmpty()) {
             return new RuleApplication(lookup, symbolAllocator.getTypes(), Optional.empty());
         }
 

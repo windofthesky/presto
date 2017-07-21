@@ -20,8 +20,6 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 
 import java.util.Optional;
 
-import static com.facebook.presto.matching.DefaultMatcher.DEFAULT_MATCHER;
-
 public interface PatternBasedRule<T>
         extends Rule
 {
@@ -29,7 +27,8 @@ public interface PatternBasedRule<T>
 
     default Optional<PlanNode> apply(PlanNode node, Context context)
     {
-        Match<T> match = DEFAULT_MATCHER.match(getPattern(), node);
+        PlanNodeMatcher planNodeMatcher = new PlanNodeMatcher(context.getLookup());
+        Match<T> match = planNodeMatcher.match(getPattern(), node);
         return match
                 .map(value -> apply(value, match.captures(), context))
                 .orElse(Optional.empty());

@@ -15,6 +15,7 @@ package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.SystemSessionProperties;
+import com.facebook.presto.matching.Match;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
@@ -36,6 +37,7 @@ import static com.facebook.presto.spi.StandardErrorCode.OPTIMIZER_TIMEOUT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
+import static java.util.Optional.empty;
 
 public class IterativeOptimizer
         implements PlanOptimizer
@@ -120,23 +122,8 @@ public class IterativeOptimizer
             Iterator<Rule<?>> possiblyMatchingRules = ruleIndex.getCandidates(node).iterator();
             while (possiblyMatchingRules.hasNext()) {
                 Rule<?> rule = possiblyMatchingRules.next();
-                Optional<PlanNode> transformed;
 
-                if (!planNodeMatcher.match(rule.getPattern(), node).isPresent()) {
-                    continue;
-                }
-
-                long duration;
-                try {
-                    long start = System.nanoTime();
-                    transformed = rule.apply(node, context);
-                    duration = System.nanoTime() - start;
-                }
-                catch (RuntimeException e) {
-                    stats.recordFailure(rule);
-                    throw e;
-                }
-                stats.record(rule, duration, transformed.isPresent());
+                Optional<PlanNode> transformed = transform(node, rule, planNodeMatcher, context);
 
                 if (transformed.isPresent()) {
                     node = context.getMemo().replace(group, transformed.get(), rule.getClass().getName());
@@ -148,6 +135,31 @@ public class IterativeOptimizer
         }
 
         return progress;
+    }
+
+    private <T> Optional<PlanNode> transform(PlanNode node, Rule<T> rule, PlanNodeMatcher planNodeMatcher, Context context)
+    {
+        Optional<PlanNode> transformed;
+
+        Match<T> match = planNodeMatcher.match(rule.getPattern(), node);
+
+        if (match.isEmpty()) {
+            return empty();
+        }
+
+        long duration;
+        try {
+            long start = System.nanoTime();
+            transformed = rule.apply(match.value(), match.captures(), context);
+            duration = System.nanoTime() - start;
+        }
+        catch (RuntimeException e) {
+            stats.recordFailure(rule);
+            throw e;
+        }
+        stats.record(rule, duration, transformed.isPresent());
+
+        return transformed;
     }
 
     private boolean isTimeLimitExhausted(Context context)

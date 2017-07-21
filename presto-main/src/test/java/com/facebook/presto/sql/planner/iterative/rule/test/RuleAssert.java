@@ -16,6 +16,7 @@ package com.facebook.presto.sql.planner.iterative.rule.test;
 import com.facebook.presto.Session;
 import com.facebook.presto.cost.CostCalculator;
 import com.facebook.presto.cost.PlanNodeCost;
+import com.facebook.presto.matching.Match;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.security.AccessControl;
 import com.facebook.presto.spi.type.Type;
@@ -146,15 +147,25 @@ public class RuleAssert
         SymbolAllocator symbolAllocator = new SymbolAllocator(symbols);
         Memo memo = new Memo(idAllocator, plan);
         Lookup lookup = Lookup.from(memo::resolve);
-
         PlanNodeMatcher planNodeMatcher = new PlanNodeMatcher(lookup);
-        if (planNodeMatcher.match(rule.getPattern(), plan).isEmpty()) {
-            return new RuleApplication(lookup, symbolAllocator.getTypes(), Optional.empty());
+        Rule.Context context = ruleContext(symbolAllocator, lookup, session);
+        PlanNode memoRoot = memo.getNode(memo.getRootGroup());
+        return applyRule(rule, memoRoot, context, planNodeMatcher);
+    }
+
+    private <T> RuleApplication applyRule(Rule<T> rule, PlanNode node, Rule.Context context, PlanNodeMatcher planNodeMatcher)
+    {
+        Match<T> match = planNodeMatcher.match(rule.getPattern(), node);
+
+        Map<Symbol, Type> types = context.getSymbolAllocator().getTypes();
+
+        if (match.isEmpty()) {
+            return new RuleApplication(context.getLookup(), types, Optional.empty());
         }
 
-        Optional<PlanNode> result = inTransaction(session -> rule.apply(memo.getNode(memo.getRootGroup()), ruleContext(symbolAllocator, lookup, session)));
+        Optional<PlanNode> result = inTransaction(session -> rule.apply(match.value(), match.captures(), context));
 
-        return new RuleApplication(lookup, symbolAllocator.getTypes(), result);
+        return new RuleApplication(context.getLookup(), types, result);
     }
 
     private String formatPlan(PlanNode plan, Map<Symbol, Type> types)

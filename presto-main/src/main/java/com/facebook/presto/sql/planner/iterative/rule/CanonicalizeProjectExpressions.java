@@ -22,10 +22,12 @@ import com.facebook.presto.sql.planner.plan.ProjectNode;
 
 import java.util.Optional;
 
+import static com.facebook.presto.sql.planner.plan.Patterns.project;
+
 public class CanonicalizeProjectExpressions
         implements Rule
 {
-    private static final Pattern PATTERN = Pattern.typeOf(ProjectNode.class);
+    private static final Pattern PATTERN = project();
 
     @Override
     public Pattern getPattern()

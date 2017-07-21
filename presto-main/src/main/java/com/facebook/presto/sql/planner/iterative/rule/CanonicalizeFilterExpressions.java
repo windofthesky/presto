@@ -22,11 +22,12 @@ import com.facebook.presto.sql.tree.Expression;
 import java.util.Optional;
 
 import static com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions.canonicalizeExpression;
+import static com.facebook.presto.sql.planner.plan.Patterns.filter;
 
 public class CanonicalizeFilterExpressions
         implements Rule
 {
-    private static final Pattern PATTERN = Pattern.typeOf(FilterNode.class);
+    private static final Pattern PATTERN = filter();
 
     @Override
     public Pattern getPattern()

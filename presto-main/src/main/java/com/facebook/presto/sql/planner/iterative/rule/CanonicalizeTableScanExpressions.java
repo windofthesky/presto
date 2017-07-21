@@ -23,11 +23,12 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions.canonicalizeExpression;
+import static com.facebook.presto.sql.planner.plan.Patterns.tableScan;
 
 public class CanonicalizeTableScanExpressions
         implements Rule
 {
-    private static final Pattern PATTERN = Pattern.typeOf(TableScanNode.class);
+    private static final Pattern PATTERN = tableScan();
 
     @Override
     public Pattern getPattern()

@@ -38,6 +38,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 
 import static com.facebook.presto.sql.planner.iterative.rule.Util.restrictOutputs;
+import static com.facebook.presto.sql.planner.plan.Patterns.join;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -47,7 +48,7 @@ import static java.util.Objects.requireNonNull;
 public class EliminateCrossJoins
         implements Rule
 {
-    private static final Pattern PATTERN = Pattern.typeOf(JoinNode.class);
+    private static final Pattern PATTERN = join();
 
     @Override
     public Pattern getPattern()

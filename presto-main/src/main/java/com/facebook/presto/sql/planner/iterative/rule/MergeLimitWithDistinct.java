@@ -48,7 +48,7 @@ public class MergeLimitWithDistinct
     {
         AggregationNode child = captures.get(CHILD);
 
-        if (isDistinct(child)) {
+        if (!isDistinct(child)) {
             return Optional.empty();
         }
 
@@ -67,8 +67,8 @@ public class MergeLimitWithDistinct
      */
     private boolean isDistinct(AggregationNode node)
     {
-        return !node.getAggregations().isEmpty() ||
-                node.getOutputSymbols().size() != node.getGroupingKeys().size() ||
-                !node.getOutputSymbols().containsAll(node.getGroupingKeys());
+        return node.getAggregations().isEmpty() &&
+                node.getOutputSymbols().size() == node.getGroupingKeys().size() &&
+                node.getOutputSymbols().containsAll(node.getGroupingKeys());
     }
 }

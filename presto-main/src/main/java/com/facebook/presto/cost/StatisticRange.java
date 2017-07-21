@@ -159,12 +159,17 @@ public class StatisticRange
         if (intersect.getHigh() == getHigh()) {
             newHigh = intersect.getLow();
         }
+        double remainingDistinctValues;
         if (newLow > newHigh) {
             newLow = NaN;
             newHigh = NaN;
+            remainingDistinctValues = 0;
+        }
+        else {
+            remainingDistinctValues = max(getDistinctValuesCount(), rightRange.getDistinctValuesCount()) - intersect.getDistinctValuesCount();
         }
 
-        return new StatisticRange(newLow, newHigh, max(getDistinctValuesCount(), rightRange.getDistinctValuesCount()) - intersect.getDistinctValuesCount());
+        return new StatisticRange(newLow, newHigh, remainingDistinctValues);
     }
 
     private static double minExcludeNaN(double v1, double v2)

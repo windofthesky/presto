@@ -26,6 +26,13 @@ import static java.lang.String.format;
 public class SymbolStatsEstimate
 {
     public static final SymbolStatsEstimate UNKNOWN_STATS = builder().build();
+    public static final SymbolStatsEstimate EMPTY_STATS = builder()
+            .setLowValue(NaN)
+            .setHighValue(NaN)
+            .setDistinctValuesCount(0)
+            .setNullsFraction(1)
+            .setAverageRowSize(0)
+            .build();
 
     // for now we support only types which map to real domain naturally and keep low/high value as double in stats.
     private final double lowValue;
@@ -53,8 +60,13 @@ public class SymbolStatsEstimate
         checkArgument(distinctValuesCount >= 0 || isNaN(distinctValuesCount), "Distinct values count should be non-negative, got: %s", distinctValuesCount);
         this.distinctValuesCount = distinctValuesCount;
 
-        checkArgument(!isRangeEmpty() || distinctValuesCount == 0, "Empty range cannot have non-zero distinct values: %s", distinctValuesCount);
-        checkArgument(isRangeEmpty() || isNaN(distinctValuesCount) || distinctValuesCount > 0, "Non-empty range [%s-%s] cannot have zero distinct values: %s", lowValue, highValue, distinctValuesCount);
+        if (isRangeEmpty()) {
+            checkArgument(distinctValuesCount == 0, "Empty range cannot have non-zero distinct values: %s", distinctValuesCount);
+            checkArgument(nullsFraction == 1, "Empty range should have nulls fraction 1, got: %s", nullsFraction);
+        }
+        else {
+            checkArgument(isNaN(distinctValuesCount) || distinctValuesCount > 0, "Non-empty range [%s-%s] cannot have zero distinct values: %s", lowValue, highValue, distinctValuesCount);
+        }
     }
 
     public double getLowValue()
@@ -74,9 +86,9 @@ public class SymbolStatsEstimate
 
     public double getNullsFraction()
     {
-        if (isRangeEmpty()) {
-            return 1.0;
-        }
+//        if (isRangeEmpty()) {
+//            return 1.0;
+//        }
         return nullsFraction;
     }
 
@@ -123,7 +135,14 @@ public class SymbolStatsEstimate
     public SymbolStatsEstimate capToRowCount(double rowCount)
     {
         checkArgument(!isNaN(rowCount), "Can't cap to NaN");
-        return buildFrom(this).setDistinctValuesCount(min(distinctValuesCount, rowCount * getValuesFraction())).build();
+        if (isNaN(distinctValuesCount) || distinctValuesCount < rowCount) {
+            return this;
+        }
+        double newDistinctValuesCount = min(distinctValuesCount, rowCount * getValuesFraction());
+        if (newDistinctValuesCount == 0) {
+            return EMPTY_STATS;
+        }
+        return buildFrom(this).setDistinctValuesCount(newDistinctValuesCount).build();
     }
 
     @Override

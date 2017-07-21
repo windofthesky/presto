@@ -118,7 +118,7 @@ public class TestComparisonStatsCalculator
                 .setDistinctValuesCount(0.0)
                 .setLowValue(NaN)
                 .setHighValue(NaN)
-                .setNullsFraction(NaN)
+                .setNullsFraction(1)
                 .build();
         SymbolStatsEstimate varcharStats = SymbolStatsEstimate.builder()
                 .setAverageRowSize(4.0)

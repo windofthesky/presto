@@ -22,7 +22,7 @@ import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
 import com.facebook.presto.sql.planner.iterative.Lookup;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.optimizations.TransformCorrelatedScalarAggregationToJoin;
 import com.facebook.presto.sql.planner.optimizations.TransformUncorrelatedInPredicateSubqueryToSemiJoin;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
@@ -94,7 +94,7 @@ import static java.util.Objects.requireNonNull;
  * @see TransformUncorrelatedInPredicateSubqueryToSemiJoin
  */
 public class TransformCorrelatedInPredicateToJoin
-        implements PatternBasedRule<ApplyNode>
+        implements Rule<ApplyNode>
 {
     private static final Pattern<ApplyNode> PATTERN = applyNode();
 

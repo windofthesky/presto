@@ -19,7 +19,7 @@ import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.spi.type.StandardTypes;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -45,7 +45,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.project;
 import static com.facebook.presto.sql.planner.plan.Patterns.source;
 
 public class SimplifyCountOverConstant
-        implements PatternBasedRule<AggregationNode>
+        implements Rule<AggregationNode>
 {
     private static final Capture<ProjectNode> CHILD = newCapture();
 

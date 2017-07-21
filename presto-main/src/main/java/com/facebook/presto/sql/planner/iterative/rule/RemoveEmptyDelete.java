@@ -16,7 +16,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableFinishNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
@@ -52,7 +52,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.values;
  */
 // TODO split into multiple rules (https://github.com/prestodb/presto/issues/7292)
 public class RemoveEmptyDelete
-        implements PatternBasedRule<TableFinishNode>
+        implements Rule<TableFinishNode>
 {
     private static final Capture<ValuesNode> VALUES = newCapture();
 

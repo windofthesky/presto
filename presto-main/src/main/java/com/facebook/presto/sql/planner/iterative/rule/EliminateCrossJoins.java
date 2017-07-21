@@ -18,7 +18,7 @@ import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.optimizations.joins.JoinGraph;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.FilterNode;
@@ -47,7 +47,7 @@ import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 
 public class EliminateCrossJoins
-        implements PatternBasedRule<JoinNode>
+        implements Rule<JoinNode>
 {
     private static final Pattern<JoinNode> PATTERN = join();
 

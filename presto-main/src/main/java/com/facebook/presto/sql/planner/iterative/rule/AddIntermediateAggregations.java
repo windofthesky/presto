@@ -23,7 +23,7 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
 import com.facebook.presto.sql.planner.iterative.Lookup;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.ExchangeNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -66,7 +66,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
  * <p>
  */
 public class AddIntermediateAggregations
-        implements PatternBasedRule<AggregationNode>
+        implements Rule<AggregationNode>
 {
     private static final Pattern<AggregationNode> PATTERN = aggregation();
 

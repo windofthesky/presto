@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
@@ -29,7 +29,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.sample;
  * Replaces 0% sample node with empty values node.
  */
 public class EvaluateZeroSample
-        implements PatternBasedRule<SampleNode>
+        implements Rule<SampleNode>
 {
     private static final Pattern<SampleNode> PATTERN = sample();
 

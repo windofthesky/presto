@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -26,7 +26,7 @@ import java.util.Optional;
 import static com.facebook.presto.sql.planner.plan.Patterns.project;
 
 public class CanonicalizeProjectExpressions
-        implements PatternBasedRule<ProjectNode>
+        implements Rule<ProjectNode>
 {
     private static final Pattern<ProjectNode> PATTERN = project();
 

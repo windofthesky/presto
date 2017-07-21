@@ -17,7 +17,7 @@ import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.optimizations.SymbolMapper;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TopNNode;
@@ -37,7 +37,7 @@ import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Sets.intersection;
 
 public class PushTopNThroughUnion
-        implements PatternBasedRule<TopNNode>
+        implements Rule<TopNNode>
 {
     private static final Capture<UnionNode> CHILD = newCapture();
 

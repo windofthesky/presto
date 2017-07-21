@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.OutputNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.google.common.collect.ImmutableSet;
@@ -26,7 +26,7 @@ import static com.facebook.presto.sql.planner.iterative.rule.Util.restrictChildO
 import static com.facebook.presto.sql.planner.plan.Patterns.output;
 
 public class PruneOutputColumns
-        implements PatternBasedRule<OutputNode>
+        implements Rule<OutputNode>
 {
     private static final Pattern<OutputNode> PATTERN = output();
 

@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.tree.Expression;
@@ -27,7 +27,7 @@ import static com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressi
 import static com.facebook.presto.sql.planner.plan.Patterns.tableScan;
 
 public class CanonicalizeTableScanExpressions
-        implements PatternBasedRule<TableScanNode>
+        implements Rule<TableScanNode>
 {
     private static final Pattern<TableScanNode> PATTERN = tableScan();
 

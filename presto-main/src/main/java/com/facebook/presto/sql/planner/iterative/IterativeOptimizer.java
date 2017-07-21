@@ -44,12 +44,12 @@ public class IterativeOptimizer
     private final RuleIndex ruleIndex;
     private final StatsRecorder stats;
 
-    public IterativeOptimizer(StatsRecorder stats, Set<Rule> rules)
+    public IterativeOptimizer(StatsRecorder stats, Set<Rule<?>> rules)
     {
         this(stats, ImmutableList.of(), rules);
     }
 
-    public IterativeOptimizer(StatsRecorder stats, List<PlanOptimizer> legacyRules, Set<Rule> newRules)
+    public IterativeOptimizer(StatsRecorder stats, List<PlanOptimizer> legacyRules, Set<Rule<?>> newRules)
     {
         this.legacyRules = ImmutableList.copyOf(legacyRules);
         this.ruleIndex = RuleIndex.builder()
@@ -117,9 +117,9 @@ public class IterativeOptimizer
             }
 
             done = true;
-            Iterator<Rule> possiblyMatchingRules = ruleIndex.getCandidates(node).iterator();
+            Iterator<Rule<?>> possiblyMatchingRules = ruleIndex.getCandidates(node).iterator();
             while (possiblyMatchingRules.hasNext()) {
-                Rule rule = possiblyMatchingRules.next();
+                Rule<?> rule = possiblyMatchingRules.next();
                 Optional<PlanNode> transformed;
 
                 if (!planNodeMatcher.match(rule.getPattern(), node).isPresent()) {

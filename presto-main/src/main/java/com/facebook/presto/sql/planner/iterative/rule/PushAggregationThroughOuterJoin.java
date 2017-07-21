@@ -21,7 +21,7 @@ import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolAllocator;
 import com.facebook.presto.sql.planner.iterative.Lookup;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.JoinNode;
@@ -89,7 +89,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * </pre>
  */
 public class PushAggregationThroughOuterJoin
-        implements PatternBasedRule<AggregationNode>
+        implements Rule<AggregationNode>
 {
     private static final Capture<JoinNode> JOIN = newCapture();
 

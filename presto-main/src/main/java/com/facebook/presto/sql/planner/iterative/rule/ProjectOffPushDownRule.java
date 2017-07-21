@@ -18,7 +18,7 @@ import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
 import com.google.common.collect.ImmutableList;
@@ -37,7 +37,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.source;
  * Given that situation, invokes the pushDownProjectOff helper to possibly rewrite the child to produce fewer outputs.
  */
 public abstract class ProjectOffPushDownRule<N extends PlanNode>
-        implements PatternBasedRule<ProjectNode>
+        implements Rule<ProjectNode>
 {
     private final Capture<N> targetCapture = newCapture();
 

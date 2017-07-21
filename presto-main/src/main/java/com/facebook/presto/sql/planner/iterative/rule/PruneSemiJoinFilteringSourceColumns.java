@@ -16,7 +16,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.google.common.collect.ImmutableList;
@@ -31,7 +31,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.semiJoin;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
 public class PruneSemiJoinFilteringSourceColumns
-        implements PatternBasedRule<SemiJoinNode>
+        implements Rule<SemiJoinNode>
 {
     private static final Pattern<SemiJoinNode> PATTERN = semiJoin();
 

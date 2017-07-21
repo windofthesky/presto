@@ -17,7 +17,7 @@ import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableWriterNode;
 import com.facebook.presto.sql.planner.plan.UnionNode;
@@ -34,7 +34,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.union;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class PushTableWriteThroughUnion
-        implements PatternBasedRule<TableWriterNode>
+        implements Rule<TableWriterNode>
 {
     private static final Capture<UnionNode> CHILD = newCapture();
 

@@ -19,7 +19,7 @@ import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.ExpressionSymbolInliner;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ProjectNode;
@@ -48,7 +48,7 @@ import static java.util.stream.Collectors.toSet;
  * within a TRY block (to avoid changing semantics).
  */
 public class InlineProjections
-        implements PatternBasedRule<ProjectNode>
+        implements Rule<ProjectNode>
 {
     private static final Capture<ProjectNode> CHILD = newCapture();
 

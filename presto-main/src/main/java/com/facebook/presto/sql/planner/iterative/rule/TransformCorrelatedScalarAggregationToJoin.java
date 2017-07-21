@@ -17,7 +17,7 @@ import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.sql.planner.iterative.Lookup;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.optimizations.ScalarAggregationToJoinRewriter;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.EnforceSingleRowNode;
@@ -62,7 +62,7 @@ import static java.util.Objects.requireNonNull;
  * Note that only conjunction predicates in FilterNode are supported
  */
 public class TransformCorrelatedScalarAggregationToJoin
-        implements PatternBasedRule<LateralJoinNode>
+        implements Rule<LateralJoinNode>
 {
     private static final Pattern<LateralJoinNode> PATTERN = lateralJoin();
 

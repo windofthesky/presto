@@ -18,7 +18,7 @@ import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.AggregationNode.Aggregation;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
@@ -55,7 +55,7 @@ import static java.util.Objects.requireNonNull;
  * </pre>
  */
 public class TransformExistsApplyToLateralNode
-        implements PatternBasedRule<ApplyNode>
+        implements Rule<ApplyNode>
 {
     private static final Pattern<ApplyNode> PATTERN = applyNode();
 

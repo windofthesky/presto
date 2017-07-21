@@ -17,7 +17,7 @@ import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.AggregationNode.Aggregation;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
@@ -55,7 +55,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * Remove Distincts in the original AggregationNode
  */
 public class SingleMarkDistinctToGroupBy
-        implements PatternBasedRule<AggregationNode>
+        implements Rule<AggregationNode>
 {
     private static final Capture<MarkDistinctNode> CHILD = newCapture();
 

@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TopNNode;
 
@@ -27,7 +27,7 @@ import static com.facebook.presto.sql.planner.plan.TopNNode.Step.PARTIAL;
 import static com.facebook.presto.sql.planner.plan.TopNNode.Step.SINGLE;
 
 public class CreatePartialTopN
-        implements PatternBasedRule<TopNNode>
+        implements Rule<TopNNode>
 {
     private static final Pattern<TopNNode> PATTERN = topN();
 

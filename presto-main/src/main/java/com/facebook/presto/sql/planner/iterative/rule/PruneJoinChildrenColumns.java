@@ -17,7 +17,7 @@ import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.google.common.collect.ImmutableSet;
@@ -32,7 +32,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.join;
  * Non-Cross joins support output symbol selection, so make any project-off of child columns explicit in project nodes.
  */
 public class PruneJoinChildrenColumns
-        implements PatternBasedRule<JoinNode>
+        implements Rule<JoinNode>
 {
     private static final Pattern<JoinNode> PATTERN = join();
 

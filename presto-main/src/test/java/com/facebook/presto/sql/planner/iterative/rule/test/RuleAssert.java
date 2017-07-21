@@ -49,7 +49,7 @@ public class RuleAssert
     private final Metadata metadata;
     private final CostCalculator costCalculator;
     private Session session;
-    private final Rule rule;
+    private final Rule<?> rule;
 
     private final PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
 

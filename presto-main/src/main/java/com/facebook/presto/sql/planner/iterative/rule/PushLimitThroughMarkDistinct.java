@@ -16,7 +16,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.LimitNode;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -30,7 +30,7 @@ import static com.facebook.presto.sql.planner.plan.Patterns.markDistinct;
 import static com.facebook.presto.sql.planner.plan.Patterns.source;
 
 public class PushLimitThroughMarkDistinct
-        implements PatternBasedRule<LimitNode>
+        implements Rule<LimitNode>
 {
     private static final Capture<MarkDistinctNode> CHILD = newCapture();
 

@@ -15,7 +15,7 @@ package com.facebook.presto.sql.planner.iterative.rule;
 
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
+import com.facebook.presto.sql.planner.iterative.Rule;
 import com.facebook.presto.sql.planner.plan.FilterNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.ValuesNode;
@@ -30,7 +30,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Optional.empty;
 
 public class RemoveTrivialFilters
-        implements PatternBasedRule<FilterNode>
+        implements Rule<FilterNode>
 {
     private static final Pattern<FilterNode> PATTERN = filter();
 

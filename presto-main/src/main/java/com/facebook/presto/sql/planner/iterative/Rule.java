@@ -14,6 +14,8 @@
 package com.facebook.presto.sql.planner.iterative;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.matching.Captures;
+import com.facebook.presto.matching.Match;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.PlanNodeIdAllocator;
 import com.facebook.presto.sql.planner.SymbolAllocator;
@@ -21,17 +23,23 @@ import com.facebook.presto.sql.planner.plan.PlanNode;
 
 import java.util.Optional;
 
-public interface Rule
+public interface Rule<T>
 {
     /**
      * Returns a pattern to which plan nodes this rule applies.
      */
-    default Pattern getPattern()
+    Pattern<T> getPattern();
+
+    default Optional<PlanNode> apply(PlanNode node, Context context)
     {
-        return Pattern.any();
+        PlanNodeMatcher planNodeMatcher = new PlanNodeMatcher(context.getLookup());
+        Match<T> match = planNodeMatcher.match(getPattern(), node);
+        return match
+                .map(value -> apply(value, match.captures(), context))
+                .orElse(Optional.empty());
     }
 
-    Optional<PlanNode> apply(PlanNode node, Context context);
+    Optional<PlanNode> apply(T node, Captures captures, Context context);
 
     interface Context
     {

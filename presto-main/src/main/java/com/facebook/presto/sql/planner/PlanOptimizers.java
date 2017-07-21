@@ -137,11 +137,11 @@ public class PlanOptimizers
         this.exporter = exporter;
         ImmutableList.Builder<PlanOptimizer> builder = ImmutableList.builder();
 
-        Set<Rule> predicatePushDownRules = ImmutableSet.of(
+        Set<Rule<?>> predicatePushDownRules = ImmutableSet.of(
                 new MergeFilters());
 
         // TODO: Once we've migrated handling all the plan node types, replace uses of PruneUnreferencedOutputs with an IterativeOptimizer containing these rules.
-        Set<Rule> columnPruningRules = ImmutableSet.of(
+        Set<Rule<?>> columnPruningRules = ImmutableSet.of(
                 new PruneCrossJoinColumns(),
                 new PruneIndexSourceColumns(),
                 new PruneJoinChildrenColumns(),
@@ -182,7 +182,7 @@ public class PlanOptimizers
                 ),
                 new IterativeOptimizer(
                         stats,
-                        ImmutableSet.<Rule>builder()
+                        ImmutableSet.<Rule<?>>builder()
                                 .addAll(predicatePushDownRules)
                                 .addAll(columnPruningRules)
                                 .addAll(ImmutableSet.of(

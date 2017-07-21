@@ -13,8 +13,9 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressions;
 import com.facebook.presto.sql.planner.plan.Assignments;
 import com.facebook.presto.sql.planner.plan.PlanNode;
@@ -25,21 +26,19 @@ import java.util.Optional;
 import static com.facebook.presto.sql.planner.plan.Patterns.project;
 
 public class CanonicalizeProjectExpressions
-        implements Rule
+        implements PatternBasedRule<ProjectNode>
 {
-    private static final Pattern PATTERN = project();
+    private static final Pattern<ProjectNode> PATTERN = project();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<ProjectNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(ProjectNode projectNode, Captures captures, Context context)
     {
-        ProjectNode projectNode = (ProjectNode) node;
-
         Assignments assignments = projectNode.getAssignments()
                 .rewrite(CanonicalizeExpressions::canonicalizeExpression);
 
@@ -47,7 +46,7 @@ public class CanonicalizeProjectExpressions
             return Optional.empty();
         }
 
-        PlanNode replacement = new ProjectNode(node.getId(), projectNode.getSource(), assignments);
+        PlanNode replacement = new ProjectNode(projectNode.getId(), projectNode.getSource(), assignments);
 
         return Optional.of(replacement);
     }

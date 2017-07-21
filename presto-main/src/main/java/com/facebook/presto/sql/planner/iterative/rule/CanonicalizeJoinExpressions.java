@@ -13,8 +13,9 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.tree.Expression;
@@ -25,21 +26,19 @@ import static com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressi
 import static com.facebook.presto.sql.planner.plan.Patterns.join;
 
 public class CanonicalizeJoinExpressions
-        implements Rule
+        implements PatternBasedRule<JoinNode>
 {
-    private static final Pattern PATTERN = join();
+    private static final Pattern<JoinNode> PATTERN = join();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<JoinNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(JoinNode joinNode, Captures captures, Context context)
     {
-        JoinNode joinNode = (JoinNode) node;
-
         if (!joinNode.getFilter().isPresent()) {
             return Optional.empty();
         }

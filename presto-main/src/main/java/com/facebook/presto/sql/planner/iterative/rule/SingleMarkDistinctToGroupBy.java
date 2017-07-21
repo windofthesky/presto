@@ -13,9 +13,10 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.AggregationNode.Aggregation;
 import com.facebook.presto.sql.planner.plan.MarkDistinctNode;
@@ -50,21 +51,19 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  * Remove Distincts in the original AggregationNode
  */
 public class SingleMarkDistinctToGroupBy
-        implements Rule
+        implements PatternBasedRule<AggregationNode>
 {
-    private static final Pattern PATTERN = aggregation();
+    private static final Pattern<AggregationNode> PATTERN = aggregation();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<AggregationNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(AggregationNode parent, Captures captures, Context context)
     {
-        AggregationNode parent = (AggregationNode) node;
-
         PlanNode source = context.getLookup().resolve(parent.getSource());
         if (!(source instanceof MarkDistinctNode)) {
             return Optional.empty();

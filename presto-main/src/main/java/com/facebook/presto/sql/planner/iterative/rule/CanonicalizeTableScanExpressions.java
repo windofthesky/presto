@@ -13,8 +13,9 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
 import com.facebook.presto.sql.tree.Expression;
@@ -26,21 +27,19 @@ import static com.facebook.presto.sql.planner.optimizations.CanonicalizeExpressi
 import static com.facebook.presto.sql.planner.plan.Patterns.tableScan;
 
 public class CanonicalizeTableScanExpressions
-        implements Rule
+        implements PatternBasedRule<TableScanNode>
 {
-    private static final Pattern PATTERN = tableScan();
+    private static final Pattern<TableScanNode> PATTERN = tableScan();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<TableScanNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(TableScanNode tableScanNode, Captures captures, Context context)
     {
-        TableScanNode tableScanNode = (TableScanNode) node;
-
         Expression originalConstraint = null;
         if (tableScanNode.getOriginalConstraint() != null) {
             originalConstraint = canonicalizeExpression(tableScanNode.getOriginalConstraint());

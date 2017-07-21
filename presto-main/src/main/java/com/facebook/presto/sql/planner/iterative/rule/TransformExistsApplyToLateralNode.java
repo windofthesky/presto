@@ -13,11 +13,12 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.metadata.Signature;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.AggregationNode.Aggregation;
 import com.facebook.presto.sql.planner.plan.ApplyNode;
@@ -54,9 +55,9 @@ import static java.util.Objects.requireNonNull;
  * </pre>
  */
 public class TransformExistsApplyToLateralNode
-        implements Rule
+        implements PatternBasedRule<ApplyNode>
 {
-    private static final Pattern PATTERN = applyNode();
+    private static final Pattern<ApplyNode> PATTERN = applyNode();
 
     private static final QualifiedName COUNT = QualifiedName.of("count");
     private static final FunctionCall COUNT_CALL = new FunctionCall(COUNT, ImmutableList.of());
@@ -69,16 +70,14 @@ public class TransformExistsApplyToLateralNode
     }
 
     @Override
-    public Pattern getPattern()
+    public Pattern<ApplyNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(ApplyNode parent, Captures captures, Context context)
     {
-        ApplyNode parent = (ApplyNode) node;
-
         if (parent.getSubqueryAssignments().size() != 1) {
             return Optional.empty();
         }
@@ -93,7 +92,7 @@ public class TransformExistsApplyToLateralNode
 
         return Optional.of(
                 new LateralJoinNode(
-                        node.getId(),
+                        parent.getId(),
                         parent.getInput(),
                         new ProjectNode(
                                 context.getIdAllocator().getNextId(),

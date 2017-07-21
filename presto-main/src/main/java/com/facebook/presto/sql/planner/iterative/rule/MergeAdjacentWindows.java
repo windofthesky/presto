@@ -13,9 +13,10 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.WindowNode;
 import com.google.common.collect.ImmutableMap;
@@ -26,25 +27,19 @@ import static com.facebook.presto.sql.planner.optimizations.WindowNodeUtil.depen
 import static com.facebook.presto.sql.planner.plan.Patterns.window;
 
 public class MergeAdjacentWindows
-        implements Rule
+        implements PatternBasedRule<WindowNode>
 {
-    private static final Pattern PATTERN = window();
+    private static final Pattern<WindowNode> PATTERN = window();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<WindowNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(WindowNode parent, Captures captures, Context context)
     {
-        if (!(node instanceof WindowNode)) {
-            return Optional.empty();
-        }
-
-        WindowNode parent = (WindowNode) node;
-
         PlanNode source = context.getLookup().resolve(parent.getSource());
         if (!(source instanceof WindowNode)) {
             return Optional.empty();

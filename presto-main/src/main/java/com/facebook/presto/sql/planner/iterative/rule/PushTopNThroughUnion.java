@@ -13,9 +13,10 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.Symbol;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.optimizations.SymbolMapper;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.TopNNode;
@@ -32,25 +33,19 @@ import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Sets.intersection;
 
 public class PushTopNThroughUnion
-        implements Rule
+        implements PatternBasedRule<TopNNode>
 {
-    private static final Pattern PATTERN = topN();
+    private static final Pattern<TopNNode> PATTERN = topN();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<TopNNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(TopNNode topNNode, Captures captures, Context context)
     {
-        if (!(node instanceof TopNNode)) {
-            return Optional.empty();
-        }
-
-        TopNNode topNNode = (TopNNode) node;
-
         if (!topNNode.getStep().equals(PARTIAL)) {
             return Optional.empty();
         }

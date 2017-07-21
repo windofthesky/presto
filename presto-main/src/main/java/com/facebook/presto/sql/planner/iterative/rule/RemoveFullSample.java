@@ -13,8 +13,9 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.sql.planner.iterative.Rule;
+import com.facebook.presto.sql.planner.iterative.PatternBasedRule;
 import com.facebook.presto.sql.planner.plan.PlanNode;
 import com.facebook.presto.sql.planner.plan.SampleNode;
 
@@ -26,21 +27,19 @@ import static com.facebook.presto.sql.planner.plan.Patterns.sample;
  * Removes 100% sample nodes.
  */
 public class RemoveFullSample
-        implements Rule
+        implements PatternBasedRule<SampleNode>
 {
-    private static final Pattern PATTERN = sample();
+    private static final Pattern<SampleNode> PATTERN = sample();
 
     @Override
-    public Pattern getPattern()
+    public Pattern<SampleNode> getPattern()
     {
         return PATTERN;
     }
 
     @Override
-    public Optional<PlanNode> apply(PlanNode node, Context context)
+    public Optional<PlanNode> apply(SampleNode sample, Captures captures, Context context)
     {
-        SampleNode sample = (SampleNode) node;
-
         //noinspection FloatingPointEquality
         if (sample.getSampleRatio() != 1.0) {
             return Optional.empty();

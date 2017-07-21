@@ -77,10 +77,6 @@ Properties controlling spilling
 
     Be aware that this is an experimental feature and should be used with care.
 
-    Currently, all queries with aggregations will slow down after enabling spilling. It is recommended
-    to use the spill session property to selectively turn on spilling only for queries that would run
-    out of memory otherwise.
-
     This config property can be overridden by the ``spill_enabled`` session property.
 
 

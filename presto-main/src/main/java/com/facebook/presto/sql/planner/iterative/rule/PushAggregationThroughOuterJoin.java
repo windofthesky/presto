@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner.iterative.rule;
 
+import com.facebook.presto.matching.Capture;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.sql.planner.ExpressionSymbolInliner;
@@ -41,8 +42,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.facebook.presto.SystemSessionProperties.shouldPushAggregationThroughJoin;
+import static com.facebook.presto.matching.Capture.newCapture;
 import static com.facebook.presto.sql.planner.optimizations.DistinctOutputQueryUtil.isDistinct;
 import static com.facebook.presto.sql.planner.plan.Patterns.aggregation;
+import static com.facebook.presto.sql.planner.plan.Patterns.join;
+import static com.facebook.presto.sql.planner.plan.Patterns.source;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
@@ -87,7 +91,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 public class PushAggregationThroughOuterJoin
         implements PatternBasedRule<AggregationNode>
 {
-    private static final Pattern<AggregationNode> PATTERN = aggregation();
+    private static final Capture<JoinNode> JOIN = newCapture();
+
+    private static final Pattern<AggregationNode> PATTERN = aggregation()
+            .with(source().matching(join().capturedAs(JOIN)));
 
     @Override
     public Pattern<AggregationNode> getPattern()
@@ -101,11 +108,7 @@ public class PushAggregationThroughOuterJoin
         if (!shouldPushAggregationThroughJoin(context.getSession())) {
             return Optional.empty();
         }
-        PlanNode source = context.getLookup().resolve(aggregation.getSource());
-        if (!(source instanceof JoinNode)) {
-            return Optional.empty();
-        }
-        JoinNode join = (JoinNode) source;
+        JoinNode join = captures.get(JOIN);
         if (join.getFilter().isPresent()
                 || !(join.getType() == JoinNode.Type.LEFT || join.getType() == JoinNode.Type.RIGHT)
                 || !groupsOnAllOuterTableColumns(aggregation, context.getLookup().resolve(getOuterTable(join)))

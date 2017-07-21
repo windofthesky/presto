@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.facebook.presto.matching.DefaultMatcher.DEFAULT_MATCHER;
 import static com.facebook.presto.spi.StandardErrorCode.OPTIMIZER_TIMEOUT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -120,7 +121,7 @@ public class IterativeOptimizer
                 Rule rule = possiblyMatchingRules.next();
                 Optional<PlanNode> transformed;
 
-                if (!rule.getPattern().matches(node)) {
+                if (DEFAULT_MATCHER.match(rule.getPattern(), node).isEmpty()) {
                     continue;
                 }
 

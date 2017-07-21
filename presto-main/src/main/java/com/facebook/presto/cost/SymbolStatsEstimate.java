@@ -24,7 +24,7 @@ import static java.lang.String.format;
 
 public class SymbolStatsEstimate
 {
-    public static final SymbolStatsEstimate UNKNOWN_STATS = SymbolStatsEstimate.builder().build();
+    public static final SymbolStatsEstimate UNKNOWN_STATS = builder().build();
 
     // for now we support only types which map to real domain naturally and keep low/high value as double in stats.
     private final double lowValue;

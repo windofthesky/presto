@@ -24,6 +24,8 @@ import com.google.common.collect.ImmutableList;
 
 import java.util.Optional;
 
+import static com.facebook.presto.matching.Pattern.empty;
+import static com.facebook.presto.sql.planner.plan.Patterns.Values.rows;
 import static com.facebook.presto.sql.planner.plan.Patterns.delete;
 import static com.facebook.presto.sql.planner.plan.Patterns.exchange;
 import static com.facebook.presto.sql.planner.plan.Patterns.onlySource;
@@ -60,7 +62,7 @@ public class RemoveEmptyDelete
 
     private static Pattern<ValuesNode> emptyValues()
     {
-        return values().matching(values -> values.getRows().isEmpty());
+        return values().with(empty(rows()));
     }
 
     @Override

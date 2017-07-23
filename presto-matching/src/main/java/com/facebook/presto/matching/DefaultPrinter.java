@@ -65,7 +65,7 @@ public class DefaultPrinter
     public void visitFilter(FilterPattern<?> pattern)
     {
         visitPrevious(pattern);
-        appendLine("filter(%s)", pattern.predicate());
+        appendLine("filter(%s) at %s", pattern.description(), pattern.usageCallSite());
     }
 
     private void appendLine(String template, Object... arguments)

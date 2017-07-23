@@ -70,6 +70,11 @@ public class Property<F, T>
 
     public PropertyPattern<F, T> matching(Predicate<? super T> predicate)
     {
-        return matching(new FilterPattern<>(predicate, null));
+        return matching("", predicate);
+    }
+
+    public PropertyPattern<F, T> matching(String description, Predicate<? super T> predicate)
+    {
+        return matching(new FilterPattern<>(description, UsageCallSite.get(), predicate, null));
     }
 }

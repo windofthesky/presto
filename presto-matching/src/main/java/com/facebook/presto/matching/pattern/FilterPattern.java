@@ -18,18 +18,33 @@ import com.facebook.presto.matching.Match;
 import com.facebook.presto.matching.Matcher;
 import com.facebook.presto.matching.Pattern;
 import com.facebook.presto.matching.PatternVisitor;
+import com.facebook.presto.matching.UsageCallSite;
 
 import java.util.function.Predicate;
 
 public class FilterPattern<T>
         extends Pattern<T>
 {
+    private final String description;
+    private final UsageCallSite usageCallSite;
     private final Predicate<? super T> predicate;
 
-    public FilterPattern(Predicate<? super T> predicate, Pattern<T> previous)
+    public FilterPattern(String description, UsageCallSite usageCallSite, Predicate<? super T> predicate, Pattern<T> previous)
     {
         super(previous);
+        this.description = description;
+        this.usageCallSite = usageCallSite;
         this.predicate = predicate;
+    }
+
+    public String description()
+    {
+        return description;
+    }
+
+    public UsageCallSite usageCallSite()
+    {
+        return usageCallSite;
     }
 
     public Predicate<? super T> predicate()

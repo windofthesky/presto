@@ -47,17 +47,14 @@ public abstract class Pattern<T>
         this.previous = previous;
     }
 
-    //FIXME make sure there's a proper toString,
-    // like with(propName)\n\tfilter(isEmpty)
-    // or with(propName) map(isEmpty) equalTo(true)
     public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> empty(Property<F, T> property)
     {
-        return PropertyPattern.upcast(property.matching(Iterables::isEmpty));
+        return PropertyPattern.upcast(property.matching("empty", Iterables::isEmpty));
     }
 
     public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> nonEmpty(Property<F, T> property)
     {
-        return PropertyPattern.upcast(property.matching(not(Iterables::isEmpty)));
+        return PropertyPattern.upcast(property.matching("nonEmpty", not(Iterables::isEmpty)));
     }
 
     public Pattern<T> capturedAs(Capture<T> capture)
@@ -67,7 +64,12 @@ public abstract class Pattern<T>
 
     public Pattern<T> matching(Predicate<? super T> predicate)
     {
-        return new FilterPattern<>(predicate, this);
+        return matching("", predicate);
+    }
+
+    public Pattern<T> matching(String description, Predicate<? super T> predicate)
+    {
+        return new FilterPattern<>(description, UsageCallSite.get(), predicate, this);
     }
 
     public Pattern<T> with(PropertyPattern<? super T, ?> pattern)

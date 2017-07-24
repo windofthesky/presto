@@ -15,6 +15,7 @@ package com.facebook.presto.matching;
 
 import com.facebook.presto.matching.pattern.CapturePattern;
 import com.facebook.presto.matching.pattern.EqualsPattern;
+import com.facebook.presto.matching.pattern.ExtractPattern;
 import com.facebook.presto.matching.pattern.FilterPattern;
 import com.facebook.presto.matching.pattern.TypeOfPattern;
 import com.facebook.presto.matching.pattern.WithPattern;
@@ -66,6 +67,13 @@ public class DefaultPrinter
     {
         visitPrevious(pattern);
         appendLine("filter(%s) at %s", pattern.description(), pattern.usageCallSite());
+    }
+
+    @Override
+    public void visitExtract(ExtractPattern<?, ?> pattern)
+    {
+        visitPrevious(pattern);
+        appendLine("extract(%s) at %s", pattern.description(), pattern.usageCallSite());
     }
 
     private void appendLine(String template, Object... arguments)

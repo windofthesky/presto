@@ -14,6 +14,7 @@
 package com.facebook.presto.matching;
 
 import com.facebook.presto.matching.pattern.EqualsPattern;
+import com.facebook.presto.matching.pattern.ExtractPattern;
 import com.facebook.presto.matching.pattern.FilterPattern;
 
 import java.util.Optional;
@@ -76,5 +77,15 @@ public class Property<F, T>
     public PropertyPattern<F, T> matching(String description, Predicate<? super T> predicate)
     {
         return matching(new FilterPattern<>(description, UsageCallSite.get(), predicate, null));
+    }
+
+    public <R> PropertyPattern<F, R> matching(Extractor<T, R> extractor)
+    {
+        return matching("", extractor);
+    }
+
+    public <R> PropertyPattern<F, R> matching(String description, Extractor<T, R> extractor)
+    {
+        return matching(new ExtractPattern<>(description, UsageCallSite.get(), extractor, null));
     }
 }

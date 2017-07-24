@@ -15,6 +15,7 @@ package com.facebook.presto.matching;
 
 import com.facebook.presto.matching.pattern.CapturePattern;
 import com.facebook.presto.matching.pattern.EqualsPattern;
+import com.facebook.presto.matching.pattern.ExtractPattern;
 import com.facebook.presto.matching.pattern.FilterPattern;
 import com.facebook.presto.matching.pattern.TypeOfPattern;
 import com.facebook.presto.matching.pattern.WithPattern;
@@ -30,6 +31,8 @@ public interface PatternVisitor
     void visitEquals(EqualsPattern<?> equalsPattern);
 
     void visitFilter(FilterPattern<?> pattern);
+
+    void visitExtract(ExtractPattern<?, ?> pattern);
 
     default void visitPrevious(Pattern pattern)
     {

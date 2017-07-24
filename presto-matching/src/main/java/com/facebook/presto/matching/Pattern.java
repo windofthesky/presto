@@ -14,6 +14,7 @@
 package com.facebook.presto.matching;
 
 import com.facebook.presto.matching.pattern.CapturePattern;
+import com.facebook.presto.matching.pattern.ExtractPattern;
 import com.facebook.presto.matching.pattern.FilterPattern;
 import com.facebook.presto.matching.pattern.TypeOfPattern;
 import com.facebook.presto.matching.pattern.WithPattern;
@@ -70,6 +71,36 @@ public abstract class Pattern<T>
     public Pattern<T> matching(String description, Predicate<? super T> predicate)
     {
         return new FilterPattern<>(description, UsageCallSite.get(), predicate, this);
+    }
+
+    public <R> Pattern<R> matching(Extractor<? super T, R> extractor)
+    {
+        return matching("", extractor);
+    }
+
+    /**
+     * For cases when evaluating a property is needed to check
+     * if it's possible to construct an object and that object's
+     * construction largely repeats checking the property.
+     * <p>
+     * E.g. let's say we have a set and we'd like to match
+     * other sets having a non-empty intersection with it.
+     * If the intersection is not empty, we'd like to use it
+     * in further computations. Extractors allow for exactly that.
+     * <p>
+     * An adequate extractor for the example above would compute
+     * the intersection and return it wrapped in a Match
+     * (think: null-capable Optional with a field for storing captures).
+     * If the intersection would be empty, the extractor should
+     * would signal a non-match by returning Match.empty().
+     *
+     * @param <R> type of the extracted value
+     * @param description
+     * @param extractor @return
+     */
+    public <R> Pattern<R> matching(String description, Extractor<? super T, R> extractor)
+    {
+        return new ExtractPattern<>(description, UsageCallSite.get(), extractor, this);
     }
 
     public Pattern<T> with(PropertyPattern<? super T, ?> pattern)

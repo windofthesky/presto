@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.TimeZone;
 
 import static com.facebook.presto.orc.metadata.Stream.StreamKind.DATA;
 import static com.facebook.presto.orc.metadata.Stream.StreamKind.PRESENT;
@@ -242,7 +243,7 @@ public class TimestampStreamReader
             millis -= 1000;
         }
         // Truncate nanos to millis and add to mills
-        return millis + (nanos / 1_000_000);
+        return millis + (nanos / 1_000_000) + TimeZone.getDefault().getOffset(millis + (nanos / 1_000_000));
     }
 
     // This comes from the Apache Hive ORC code

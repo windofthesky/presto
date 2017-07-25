@@ -118,7 +118,7 @@ public enum FileFormat
             return new PrestoRcFileFormatWriter(
                     targetFile,
                     columnTypes,
-                    new TextRcFileEncoding(DateTimeZone.forID(session.getTimeZoneKey().getId())),
+                    new TextRcFileEncoding(session.isLegacyTimestamp() ? DateTimeZone.forID(session.getTimeZoneKey().getId()) : DateTimeZone.UTC),
                     compressionCodec);
         }
     },

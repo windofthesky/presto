@@ -105,7 +105,7 @@ public class RcFilePageSourceFactory
             rcFileEncoding = new BinaryRcFileEncoding();
         }
         else if (deserializerClassName.equals(ColumnarSerDe.class.getName())) {
-            rcFileEncoding = createTextVectorEncoding(schema, hiveStorageTimeZone);
+            rcFileEncoding = createTextVectorEncoding(schema, session.isLegacyTimestamp() ? hiveStorageTimeZone : DateTimeZone.UTC);
         }
         else {
             return Optional.empty();

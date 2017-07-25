@@ -22,6 +22,8 @@ import com.facebook.presto.spi.type.Type;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 
+import java.util.TimeZone;
+
 import static com.facebook.presto.rcfile.RcFileDecoderUtils.decodeVIntSize;
 import static com.facebook.presto.rcfile.RcFileDecoderUtils.isNegativeVInt;
 import static com.facebook.presto.rcfile.RcFileDecoderUtils.readVInt;
@@ -70,6 +72,7 @@ public class TimestampEncoding
             if (length != 0) {
                 int offset = columnData.getOffset(i);
                 long millis = getTimestamp(slice, offset);
+                millis += TimeZone.getDefault().getOffset(millis);
                 type.writeLong(builder, millis);
             }
             else {

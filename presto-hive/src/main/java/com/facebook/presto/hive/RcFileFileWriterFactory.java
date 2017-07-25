@@ -106,7 +106,7 @@ public class RcFileFileWriterFactory
             rcFileEncoding = new BinaryRcFileEncoding();
         }
         else if (ColumnarSerDe.class.getName().equals(storageFormat.getSerDe())) {
-            rcFileEncoding = createTextVectorEncoding(schema, hiveStorageTimeZone);
+            rcFileEncoding = createTextVectorEncoding(schema, session.isLegacyTimestamp() ? hiveStorageTimeZone : DateTimeZone.UTC);
         }
         else {
             return Optional.empty();

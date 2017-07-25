@@ -14,11 +14,13 @@
 package com.facebook.presto.spi;
 
 import com.facebook.presto.spi.block.BlockBuilder;
+import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
 import io.airlift.slice.Slice;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimeZone;
 
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
@@ -114,7 +116,12 @@ public class RecordPageSource
                             type.writeBoolean(output, cursor.getBoolean(column));
                         }
                         else if (javaType == long.class) {
-                            type.writeLong(output, cursor.getLong(column));
+                            if (TimestampType.TIMESTAMP.equals(type)) {
+                                type.writeLong(output, cursor.getLong(column) + TimeZone.getDefault().getOffset(cursor.getLong(column)));
+                            }
+                            else {
+                                type.writeLong(output, cursor.getLong(column));
+                            }
                         }
                         else if (javaType == double.class) {
                             type.writeDouble(output, cursor.getDouble(column));

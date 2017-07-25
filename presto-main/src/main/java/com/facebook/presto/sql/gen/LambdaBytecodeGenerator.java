@@ -28,6 +28,7 @@ import com.facebook.presto.metadata.FunctionRegistry;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.sql.relational.CallExpression;
 import com.facebook.presto.sql.relational.ConstantExpression;
+import com.facebook.presto.sql.relational.DeferredSymbolReferenceExpression;
 import com.facebook.presto.sql.relational.InputReferenceExpression;
 import com.facebook.presto.sql.relational.LambdaDefinitionExpression;
 import com.facebook.presto.sql.relational.RowExpression;
@@ -276,6 +277,12 @@ public class LambdaBytecodeGenerator
                 return new BytecodeBlock()
                         .append(parameter)
                         .append(unboxPrimitiveIfNecessary(context, type));
+            }
+
+            @Override
+            public BytecodeNode visitDeferredSymbolReference(DeferredSymbolReferenceExpression reference, Scope context)
+            {
+                throw new UnsupportedOperationException();
             }
         };
     }

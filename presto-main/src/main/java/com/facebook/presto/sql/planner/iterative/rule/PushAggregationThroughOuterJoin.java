@@ -147,7 +147,8 @@ public class PushAggregationThroughOuterJoin
                     join.getFilter(),
                     join.getLeftHashSymbol(),
                     join.getRightHashSymbol(),
-                    join.getDistributionType());
+                    join.getDistributionType(),
+                    join.getDynamicFilterAssignments());
         }
         else {
             rewrittenJoin = new JoinNode(
@@ -163,7 +164,8 @@ public class PushAggregationThroughOuterJoin
                     join.getFilter(),
                     join.getLeftHashSymbol(),
                     join.getRightHashSymbol(),
-                    join.getDistributionType());
+                    join.getDistributionType(),
+                    join.getDynamicFilterAssignments());
         }
 
         return Optional.of(coalesceWithNullAggregation(rewrittenAggregation, rewrittenJoin, context.getSymbolAllocator(), context.getIdAllocator(), context.getLookup()));
@@ -226,7 +228,8 @@ public class PushAggregationThroughOuterJoin
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                Optional.empty());
+                Optional.empty(),
+                Assignments.of());
 
         // Add coalesce expressions for all aggregation functions
         Assignments.Builder assignmentsBuilder = Assignments.builder();

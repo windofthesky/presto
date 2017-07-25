@@ -51,6 +51,8 @@ public class LateralJoinNode
     private final List<Symbol> correlation;
     private final Type type;
 
+    private final List<Symbol> outputSymbols;
+
     @JsonCreator
     public LateralJoinNode(
             @JsonProperty("id") PlanNodeId id,
@@ -70,6 +72,14 @@ public class LateralJoinNode
         this.subquery = subquery;
         this.correlation = ImmutableList.copyOf(correlation);
         this.type = type;
+
+        ImmutableList.Builder<Symbol> outputSymbols = ImmutableList.builder();
+        outputSymbols.addAll(input.getOutputSymbols());
+        subquery.getOutputSymbols()
+                .stream()
+                .filter(symbol -> !input.getOutputSymbols().contains(symbol))
+                .forEach(outputSymbols::add);
+        this.outputSymbols = outputSymbols.build();
     }
 
     @JsonProperty("input")
@@ -106,10 +116,7 @@ public class LateralJoinNode
     @JsonProperty("outputSymbols")
     public List<Symbol> getOutputSymbols()
     {
-        return ImmutableList.<Symbol>builder()
-                .addAll(input.getOutputSymbols())
-                .addAll(subquery.getOutputSymbols())
-                .build();
+        return outputSymbols;
     }
 
     @Override

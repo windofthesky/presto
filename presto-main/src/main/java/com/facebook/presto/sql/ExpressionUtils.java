@@ -17,20 +17,25 @@ import com.facebook.presto.sql.planner.DeterminismEvaluator;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.planner.SymbolsExtractor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
+import com.facebook.presto.sql.tree.DeferredSymbolReference;
 import com.facebook.presto.sql.tree.Expression;
 import com.facebook.presto.sql.tree.ExpressionRewriter;
 import com.facebook.presto.sql.tree.ExpressionTreeRewriter;
+import com.facebook.presto.sql.tree.FunctionCall;
 import com.facebook.presto.sql.tree.Identifier;
 import com.facebook.presto.sql.tree.IsNullPredicate;
 import com.facebook.presto.sql.tree.LambdaExpression;
 import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.NotExpression;
+import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.SymbolReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -43,7 +48,9 @@ import java.util.function.Predicate;
 import static com.facebook.presto.sql.tree.BooleanLiteral.FALSE_LITERAL;
 import static com.facebook.presto.sql.tree.BooleanLiteral.TRUE_LITERAL;
 import static com.facebook.presto.sql.tree.ComparisonExpressionType.IS_DISTINCT_FROM;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
@@ -243,6 +250,14 @@ public final class ExpressionUtils
                 .collect(toImmutableList()));
     }
 
+    public static Expression stripDynamicFilters(Expression expression)
+    {
+        return combineConjuncts(extractConjuncts(expression)
+                .stream()
+                .filter((conjunct) -> !isDynamicFilter(conjunct))
+                .collect(toImmutableList()));
+    }
+
     public static Function<Expression, Expression> expressionOrNullSymbols(final Predicate<Symbol>... nullSymbolScopes)
     {
         return expression -> {
@@ -309,8 +324,7 @@ public final class ExpressionUtils
 
     public static Expression rewriteIdentifiersToSymbolReferences(Expression expression)
     {
-        return ExpressionTreeRewriter.rewriteWith(new ExpressionRewriter<Void>()
-        {
+        return ExpressionTreeRewriter.rewriteWith(new ExpressionRewriter<Void>() {
             @Override
             public Expression rewriteIdentifier(Identifier node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
             {
@@ -322,6 +336,73 @@ public final class ExpressionUtils
             {
                 return new LambdaExpression(node.getArguments(), treeRewriter.rewrite(node.getBody(), context));
             }
+
+            @Override
+            public Expression rewriteFunctionCall(FunctionCall node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
+            {
+                if (node.getName().equals(QualifiedName.of("$INTERNAL$DEFERRED_SYMBOL_REFERENCE"))) {
+                    List<Expression> arguments = node.getArguments();
+                    checkArgument(arguments.size() == 2, "2 arguments are expected");
+                    checkArgument(arguments.stream().allMatch(argument -> argument instanceof Identifier), "arguments are expected to be identifiers");
+                    String sourceId = ((Identifier) arguments.get(0)).getName();
+                    String symbol = ((Identifier) arguments.get(1)).getName();
+                    return new DeferredSymbolReference(sourceId, symbol);
+                }
+                return super.rewriteFunctionCall(node, context, treeRewriter);
+            }
         }, expression);
+    }
+
+    public static boolean isDynamicFilter(Expression expression)
+    {
+        if (!(expression instanceof ComparisonExpression)) {
+            return false;
+        }
+
+        ComparisonExpression comparison = (ComparisonExpression) expression;
+        return comparison.getLeft() instanceof DeferredSymbolReference || comparison.getRight() instanceof DeferredSymbolReference;
+    }
+
+    public static ExtractDynamicFiltersResult extractDynamicFilters(Expression expression)
+    {
+        List<Expression> filters = extractConjuncts(expression);
+
+        List<Expression> staticFilters = new ArrayList<>(filters.size());
+        List<Expression> dynamicFilters = new ArrayList<>(filters.size());
+
+        for (Expression filter : filters) {
+            if (isDynamicFilter(filter)) {
+                dynamicFilters.add(filter);
+            }
+            else {
+                staticFilters.add(filter);
+            }
+        }
+
+        return new ExtractDynamicFiltersResult(
+                combineConjuncts(staticFilters),
+                dynamicFilters.stream().map(DynamicFilter::from).collect(toImmutableSet()));
+    }
+
+    public static class ExtractDynamicFiltersResult
+    {
+        private final Expression staticFilters;
+        private final Set<DynamicFilter> dynamicFilters;
+
+        public ExtractDynamicFiltersResult(Expression staticFilters, Set<DynamicFilter> dynamicFilters)
+        {
+            this.staticFilters = requireNonNull(staticFilters, "staticFilters is null");
+            this.dynamicFilters = ImmutableSet.copyOf(requireNonNull(dynamicFilters, "dynamicFilters is null"));
+        }
+
+        public Expression getStaticFilters()
+        {
+            return staticFilters;
+        }
+
+        public Set<DynamicFilter> getDynamicFilters()
+        {
+            return dynamicFilters;
+        }
     }
 }

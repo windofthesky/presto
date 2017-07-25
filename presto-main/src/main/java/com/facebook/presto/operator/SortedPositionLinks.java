@@ -44,13 +44,14 @@ import static java.util.Objects.requireNonNull;
  * <p>
  * To use lessThanFunction in this class, it must be an expression in form of:
  * <p>
- * {@code f(probeColumn1, probeColumn2, ..., probeColumnN) COMPARE g(buildColumn1, ..., buildColumnN)}
+ * {@code f(probeColumn1, probeColumn2, ..., probeColumnN) COMPARE buildSymbolRef}
  * <p>
  * where {@code COMPARE} is one of: {@code < <= > >=}
  * <p>
- * That allows us to define an order of the elements in positionLinks (this defining which
- * element is smaller) using {@code g(...)} function and to perform a binary search using
- * {@code f(probePosition)} value.
+ * and buildSymbolRef is a symbol reference on the build side of join.
+ *
+ * That allows us to define an order of the elements in positionLinks by sorting them by
+ * {@code buildSymbolRef} and then perform a binary search using {@code f(probePosition)}.
  */
 public final class SortedPositionLinks
         implements PositionLinks

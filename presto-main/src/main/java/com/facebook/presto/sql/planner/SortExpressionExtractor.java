@@ -32,7 +32,10 @@ import static java.util.Objects.requireNonNull;
 /**
  * Currently this class handles only simple expressions like:
  * <p>
- * A.a < B.x
+ * A.a < f(B.x, B.y, B.z)
+ * <p>
+ * where a is the build side symbol reference and x,y,z are probe
+ * side symbol references.
  * <p>
  * It could be extended to handle any expressions like:
  * <p>

@@ -34,6 +34,9 @@ import static java.util.Objects.requireNonNull;
  * <p>
  * A.a < B.x
  * <p>
+ * where a is the build side symbol reference mapping to any expression
+ * which has been pushed down to the corresponding Scan node.
+ * <p>
  * It could be extended to handle any expressions like:
  * <p>
  * A.a * sin(A.b) / log(B.x) < cos(B.z)

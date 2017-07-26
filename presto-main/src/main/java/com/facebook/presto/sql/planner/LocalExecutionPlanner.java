@@ -1593,13 +1593,15 @@ public class LocalExecutionPlanner
                             probeLayout,
                             buildSource.getLayout()));
 
-            Optional<JoinFilterFunctionFactory> searchFunctionFactory = node.getSearchExpression()
-                    .map(searchExpression -> compileJoinFilterFunction(
-                            searchExpression,
-                            probeLayout,
-                            buildSource.getLayout(),
-                            context.getTypes(),
-                            context.getSession()));
+            List<JoinFilterFunctionFactory> searchFunctionFactories = node.getSearchExpressions()
+                            .stream()
+                            .map(searchExpression -> compileJoinFilterFunction(
+                                    searchExpression,
+                                    probeLayout,
+                                    buildSource.getLayout(),
+                                    context.getTypes(),
+                                    context.getSession()))
+                            .collect(toImmutableList());
 
             HashBuilderOperatorFactory hashBuilderOperatorFactory = new HashBuilderOperatorFactory(
                     buildContext.getNextOperatorId(),
@@ -1612,7 +1614,7 @@ public class LocalExecutionPlanner
                     node.getType() == RIGHT || node.getType() == FULL,
                     filterFunctionFactory,
                     sortChannel,
-                    searchFunctionFactory,
+                    searchFunctionFactories,
                     10_000,
                     buildContext.getDriverInstanceCount().orElse(1),
                     pagesIndexFactory);

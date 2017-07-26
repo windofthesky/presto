@@ -55,6 +55,7 @@ public class FeaturesConfig
     private boolean legacyMapSubscript;
     private boolean newMapBlock = true;
     private boolean optimizeMixedDistinctAggregations;
+    private boolean distributedSort = false;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;
@@ -435,6 +436,18 @@ public class FeaturesConfig
     public FeaturesConfig setPushAggregationThroughJoin(boolean value)
     {
         this.pushAggregationThroughJoin = value;
+        return this;
+    }
+
+    public boolean isDistributedSortEnabled()
+    {
+        return distributedSort;
+    }
+
+    @Config("experimental.distributed-sort")
+    public FeaturesConfig setDistributedSortEnabled(boolean enabled)
+    {
+        distributedSort = enabled;
         return this;
     }
 }

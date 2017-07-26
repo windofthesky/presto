@@ -56,6 +56,7 @@ public class FeaturesConfig
     private boolean newMapBlock = true;
     private boolean optimizeMixedDistinctAggregations;
     private boolean distributedSort = false;
+    private boolean redistributeSort = true;
 
     private boolean dictionaryAggregation;
     private boolean resourceGroups;
@@ -448,6 +449,18 @@ public class FeaturesConfig
     public FeaturesConfig setDistributedSortEnabled(boolean enabled)
     {
         distributedSort = enabled;
+        return this;
+    }
+
+    public boolean isRedistributeSort()
+    {
+        return redistributeSort;
+    }
+
+    @Config("experimental.redistribute-sort")
+    public FeaturesConfig setRedistributeSort(boolean redistributeSort)
+    {
+        this.redistributeSort = redistributeSort;
         return this;
     }
 }

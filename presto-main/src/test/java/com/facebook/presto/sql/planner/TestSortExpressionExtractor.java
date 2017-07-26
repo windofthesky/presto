@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner;
 
+import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.tree.ArithmeticBinaryExpression;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
@@ -27,6 +28,7 @@ import org.testng.annotations.Test;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.facebook.presto.sql.ExpressionUtils.rewriteIdentifiersToSymbolReferences;
 import static org.testng.AssertJUnit.assertEquals;
 
 public class TestSortExpressionExtractor
@@ -76,11 +78,20 @@ public class TestSortExpressionExtractor
                         new SymbolReference("b1"),
                         new ArithmeticBinaryExpression(ArithmeticBinaryExpression.Type.ADD, new SymbolReference("b2"), new SymbolReference("p1"))));
 
-        assertGetSortExpression(
-                new ComparisonExpression(
-                        ComparisonExpressionType.GREATER_THAN,
-                        new FunctionCall(QualifiedName.of("sin"), ImmutableList.of(new SymbolReference("b1"))),
-                        new SymbolReference("p1")));
+        assertGetSortExpression(expression("sin(b1) > p1"));
+
+        assertGetSortExpression(expression("b1 <= p1 OR b2 <= p1"));
+
+        assertGetSortExpression(expression("sin(b2) > p1 AND (b2 <= p1 OR b2 <= p1 + 10)"));
+
+        assertGetSortExpression(expression("sin(b2) > p1 AND (b2 <= p1 AND b2 <= p1 + 10)"));
+
+        assertGetSortExpression(expression("b1 > p1 AND b1 <= p1"), "b1");
+    }
+
+    private Expression expression(String sql)
+    {
+        return rewriteIdentifiersToSymbolReferences(new SqlParser().createExpression(sql));
     }
 
     private static void assertGetSortExpression(Expression expression)

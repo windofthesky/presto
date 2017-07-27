@@ -26,6 +26,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
+import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
+import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.REPLICATED;
+import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
+import static java.util.Objects.requireNonNull;
 import static org.testng.Assert.assertEquals;
 
 public class TestReorderJoins
@@ -53,16 +57,23 @@ public class TestReorderJoins
                         "FROM part p, supplier s, partsupp ps, nation n, region r " +
                         "WHERE p.size = 15 AND p.type like '%BRASS' AND s.suppkey = ps.suppkey AND p.partkey = ps.partkey " +
                         "AND s.nationkey = n.nationkey AND n.regionkey = r.regionkey AND r.name = 'EUROPE'",
-                "" +
-                        "join (INNER, PARTITIONED):\n" +
-                        "    join (INNER, PARTITIONED):\n" +
-                        "        tpch:partsupp:sf0.01\n" +
-                        "        tpch:part:sf0.01\n" +
-                        "    join (INNER, PARTITIONED):\n" +
-                        "        tpch:supplier:sf0.01\n" +
-                        "        join (INNER, PARTITIONED):\n" +
-                        "            tpch:nation:sf0.01\n" +
-                        "            tpch:region:sf0.01\n");
+                new Join(
+                        INNER,
+                        PARTITIONED,
+                        new Join(
+                                INNER,
+                                PARTITIONED,
+                                new TableScan("tpch:partsupp:sf0:01"),
+                                new TableScan("tpch:part:sf0:01")),
+                        new Join(
+                                INNER,
+                                PARTITIONED,
+                                new TableScan("tpch:supplier:sf0:01"),
+                                new Join(
+                                        INNER,
+                                        PARTITIONED,
+                                        new TableScan("tpch:nation:sf0:01"),
+                                        new TableScan("tpch:region:sf0:01")))));
     }
 
     @Test
@@ -73,15 +84,16 @@ public class TestReorderJoins
                 "SELECT * " +
                         "FROM lineitem l, part p " +
                         "WHERE l.partkey = p.partkey AND l.shipdate >= DATE '1995-09-01' AND l.shipdate < DATE '1995-09-01' + INTERVAL '1' MONTH",
-                //TODO it should be PARTITIONED
-                "join (INNER, REPLICATED):\n" +
-                        "    tpch:part:sf0.01\n" +
-                        "    tpch:lineitem:sf0.01\n");
+                new Join(
+                        INNER,
+                        REPLICATED, //TODO it should be PARTITIONED
+                        new TableScan("tpch:part:sf0.01"),
+                        new TableScan("tpch:lineitem:sf0.01")));
     }
 
-    private void assertJoinOrder(String sql, String expectedJoinOrder)
+    private void assertJoinOrder(String sql, Node expected)
     {
-        assertEquals(joinOrderString(sql), expectedJoinOrder);
+        assertEquals(joinOrderString(sql), expected.print());
     }
 
     private String joinOrderString(String sql)
@@ -95,7 +107,7 @@ public class TestReorderJoins
     private static class JoinOrderPrinter
             extends SimplePlanVisitor<Integer>
     {
-        private static final StringBuilder stringBuilder = new StringBuilder();
+        private final StringBuilder stringBuilder = new StringBuilder();
 
         public String result()
         {
@@ -126,10 +138,72 @@ public class TestReorderJoins
                     .append("\n");
             return null;
         }
+    }
 
-        private static String indentString(int indent)
+    private static String indentString(int indent)
+    {
+        return Strings.repeat("    ", indent);
+    }
+
+    private interface Node
+    {
+        void print(StringBuilder stringBuilder, int indent);
+
+        default String print()
         {
-            return Strings.repeat("    ", indent);
+            StringBuilder stringBuilder = new StringBuilder();
+            print(stringBuilder, 0);
+            return stringBuilder.toString();
+        }
+    }
+
+    private static class Join
+            implements Node
+    {
+        private final JoinNode.Type type;
+        private final JoinNode.DistributionType distributionType;
+        private final Node left;
+        private final Node right;
+
+        private Join(JoinNode.Type type, JoinNode.DistributionType distributionType, Node left, Node right)
+        {
+            this.left = requireNonNull(left, "left is null");
+            this.right = requireNonNull(right, "right is null");
+            this.type = requireNonNull(type, "type is null");
+            this.distributionType = requireNonNull(distributionType, "distributionType is null");
+        }
+
+        @Override
+        public void print(StringBuilder stringBuilder, int indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append("join (")
+                    .append(type)
+                    .append(", ")
+                    .append(distributionType)
+                    .append("):\n");
+
+            left.print(stringBuilder, indent + 1);
+            right.print(stringBuilder, indent + 1);
+        }
+    }
+
+    private static class TableScan
+            implements Node
+    {
+        private final String tableName;
+
+        private TableScan(String tableName)
+        {
+            this.tableName = tableName;
+        }
+
+        @Override
+        public void print(StringBuilder stringBuilder, int indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append(tableName)
+                    .append("\n");
         }
     }
 }

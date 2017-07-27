@@ -15,6 +15,7 @@ package com.facebook.presto.metadata;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.connector.ConnectorId;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnIdentity;
@@ -385,6 +386,12 @@ public class DummyMetadata
 
     @Override
     public TypeManager getTypeManager()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TypeDataSizeDefaulter getTypeDataSizeDefaulter()
     {
         throw new UnsupportedOperationException();
     }

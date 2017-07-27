@@ -16,6 +16,7 @@ package com.facebook.presto.metadata;
 import com.facebook.presto.Session;
 import com.facebook.presto.block.BlockEncodingManager;
 import com.facebook.presto.connector.ConnectorId;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.spi.CatalogSchemaName;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnIdentity;
@@ -108,6 +109,7 @@ public class MetadataManager
     private final FunctionRegistry functions;
     private final ProcedureRegistry procedures;
     private final TypeManager typeManager;
+    private final TypeDataSizeDefaulter typeDataSizeDefaulter;
     private final JsonCodec<ViewDefinition> viewCodec;
     private final BlockEncodingSerde blockEncodingSerde;
     private final SessionPropertyManager sessionPropertyManager;
@@ -119,6 +121,7 @@ public class MetadataManager
 
     public MetadataManager(FeaturesConfig featuresConfig,
             TypeManager typeManager,
+            TypeDataSizeDefaulter typeDataSizeDefaulter,
             BlockEncodingSerde blockEncodingSerde,
             SessionPropertyManager sessionPropertyManager,
             SchemaPropertyManager schemaPropertyManager,
@@ -127,6 +130,7 @@ public class MetadataManager
     {
         this(featuresConfig,
                 typeManager,
+                typeDataSizeDefaulter,
                 createTestingViewCodec(),
                 blockEncodingSerde,
                 sessionPropertyManager,
@@ -138,6 +142,7 @@ public class MetadataManager
     @Inject
     public MetadataManager(FeaturesConfig featuresConfig,
             TypeManager typeManager,
+            TypeDataSizeDefaulter typeDataSizeDefaulter,
             JsonCodec<ViewDefinition> viewCodec,
             BlockEncodingSerde blockEncodingSerde,
             SessionPropertyManager sessionPropertyManager,
@@ -148,6 +153,7 @@ public class MetadataManager
         functions = new FunctionRegistry(typeManager, blockEncodingSerde, featuresConfig);
         procedures = new ProcedureRegistry(typeManager);
         this.typeManager = requireNonNull(typeManager, "types is null");
+        this.typeDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null");
         this.viewCodec = requireNonNull(viewCodec, "viewCodec is null");
         this.blockEncodingSerde = requireNonNull(blockEncodingSerde, "blockEncodingSerde is null");
         this.sessionPropertyManager = requireNonNull(sessionPropertyManager, "sessionPropertyManager is null");
@@ -169,6 +175,7 @@ public class MetadataManager
         return new MetadataManager(
                 new FeaturesConfig(),
                 typeManager,
+                new TypeDataSizeDefaulter(),
                 new BlockEncodingManager(typeManager),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(),
@@ -858,6 +865,12 @@ public class MetadataManager
     {
         // TODO: make this transactional when we allow user defined types
         return typeManager;
+    }
+
+    @Override
+    public TypeDataSizeDefaulter getTypeDataSizeDefaulter()
+    {
+        return typeDataSizeDefaulter;
     }
 
     @Override

@@ -293,9 +293,11 @@ public class LocalQueryRunner
 
         this.splitManager = new SplitManager(new QueryManagerConfig());
         this.blockEncodingSerde = new BlockEncodingManager(typeRegistry);
+        TypeDataSizeDefaulter typeDataSizeDefaulter = new TypeDataSizeDefaulter();
         this.metadata = new MetadataManager(
                 featuresConfig,
                 typeRegistry,
+                typeDataSizeDefaulter,
                 blockEncodingSerde,
                 new SessionPropertyManager(new SystemSessionProperties(new QueryManagerConfig(), new TaskManagerConfig(), new MemoryManagerConfig(), featuresConfig)),
                 new SchemaPropertyManager(),
@@ -380,7 +382,6 @@ public class LocalQueryRunner
         this.statsCalculator = new SelectingStatsCalculator(
                 new CoefficientBasedStatsCalculator(metadata),
                 ServerMainModule.createNewStatsCalculator(metadata, new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata)));
-        TypeDataSizeDefaulter typeDataSizeDefaulter = new TypeDataSizeDefaulter();
         this.costCalculator = new CostCalculatorUsingExchanges(typeDataSizeDefaulter, this::getNodeCount);
         this.estimatedExchangesCostCalculator = new CostCalculatorWithEstimatedExchanges(costCalculator, typeDataSizeDefaulter, () -> nodeCountForStats);
         this.lookup = new StatelessLookup(statsCalculator, costCalculator);

@@ -110,6 +110,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -451,6 +452,7 @@ public class PlanPrinter
             extends PlanVisitor<Void, Integer>
     {
         private final Map<Symbol, Type> types;
+        private final ToDoubleFunction<Symbol> symbolDataSizeDefaulter;
         private final Lookup lookup;
         private final Session session;
 
@@ -458,6 +460,7 @@ public class PlanPrinter
         public Visitor(Map<Symbol, Type> types, Lookup lookup, Session session)
         {
             this.types = types;
+            this.symbolDataSizeDefaulter = metadata.getTypeDataSizeDefaulter().createSymbolDataSizeDefaulter(types);
             this.lookup = lookup;
             this.session = session;
         }
@@ -1241,7 +1244,7 @@ public class PlanPrinter
             PlanNodeCostEstimate cost = lookup.getCumulativeCost(node, session, types);
             return String.format("{rows: %s, bytes: %s, cpu: %s, memory: %s, network: %s}",
                     formatEstimate(stats.getOutputRowCount()),
-                    formatEstimateAsDataSize(stats.getOutputSizeInBytes(symbol -> 10)), // TODO provide symbolDataSizeDefaulter
+                    formatEstimateAsDataSize(stats.getOutputSizeInBytes(symbolDataSizeDefaulter)),
                     formatEstimate(cost.getCpuCost()),
                     formatEstimateAsDataSize(cost.getMemoryCost()),
                     formatEstimate(cost.getNetworkCost()));

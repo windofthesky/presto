@@ -18,6 +18,7 @@ import com.facebook.presto.block.BlockEncodingManager;
 import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.connector.informationSchema.InformationSchemaConnector;
 import com.facebook.presto.connector.system.SystemConnector;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.metadata.Catalog;
 import com.facebook.presto.metadata.CatalogManager;
 import com.facebook.presto.metadata.InMemoryNodeManager;
@@ -1463,6 +1464,7 @@ public class TestAnalyzer
         metadata = new MetadataManager(
                 new FeaturesConfig(),
                 typeManager,
+                new TypeDataSizeDefaulter(),
                 new BlockEncodingManager(typeManager),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(),

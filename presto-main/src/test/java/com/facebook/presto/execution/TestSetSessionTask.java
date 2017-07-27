@@ -14,6 +14,7 @@
 package com.facebook.presto.execution;
 
 import com.facebook.presto.block.BlockEncodingManager;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.metadata.Catalog;
 import com.facebook.presto.metadata.CatalogManager;
 import com.facebook.presto.metadata.MetadataManager;
@@ -69,6 +70,7 @@ public class TestSetSessionTask
         metadata = new MetadataManager(
                 new FeaturesConfig(),
                 new TypeRegistry(),
+                new TypeDataSizeDefaulter(),
                 new BlockEncodingManager(new TypeRegistry()),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(),

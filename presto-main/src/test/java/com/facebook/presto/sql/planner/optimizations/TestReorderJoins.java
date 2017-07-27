@@ -65,6 +65,20 @@ public class TestReorderJoins
                         "            tpch:region:sf0.01\n");
     }
 
+    @Test
+    public void testPartialTpchQ14JoinOrder()
+    {
+        // it looks like the join ordering here is optimal
+        assertJoinOrder(
+                "SELECT * " +
+                        "FROM lineitem l, part p " +
+                        "WHERE l.partkey = p.partkey AND l.shipdate >= DATE '1995-09-01' AND l.shipdate < DATE '1995-09-01' + INTERVAL '1' MONTH",
+                //TODO it should be PARTITIONED
+                "join (INNER, REPLICATED):\n" +
+                        "    tpch:part:sf0.01\n" +
+                        "    tpch:lineitem:sf0.01\n");
+    }
+
     private void assertJoinOrder(String sql, String expectedJoinOrder)
     {
         assertEquals(joinOrderString(sql), expectedJoinOrder);

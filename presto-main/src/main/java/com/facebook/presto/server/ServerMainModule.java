@@ -46,6 +46,7 @@ import com.facebook.presto.cost.SelectingStatsCalculator;
 import com.facebook.presto.cost.SelectingStatsCalculator.New;
 import com.facebook.presto.cost.StatsCalculator;
 import com.facebook.presto.cost.TableScanStatsRule;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.cost.UnionStatsRule;
 import com.facebook.presto.cost.ValuesStatsRule;
 import com.facebook.presto.event.query.QueryMonitor;
@@ -376,6 +377,7 @@ public class ServerMainModule
         binder.bind(Metadata.class).to(MetadataManager.class).in(Scopes.SINGLETON);
 
         // statistics calculator
+        binder.bind(TypeDataSizeDefaulter.class).in(Scopes.SINGLETON);
         binder.bind(CostComparator.class).in(Scopes.SINGLETON);
         binder.bind(CostCalculator.class).to(CostCalculatorUsingExchanges.class).in(Scopes.SINGLETON);
         binder.bind(CostCalculator.class)
@@ -486,11 +488,15 @@ public class ServerMainModule
     @Provides
     @Singleton
     @New
-    public static StatsCalculator createNewStatsCalculator(Metadata metadata, FilterStatsCalculator filterStatsCalculator, ScalarStatsCalculator scalarStatsCalculator)
+    public static StatsCalculator createNewStatsCalculator(
+            Metadata metadata,
+            TypeDataSizeDefaulter typeDataSizeDefaulter,
+            FilterStatsCalculator filterStatsCalculator,
+            ScalarStatsCalculator scalarStatsCalculator)
     {
         ImmutableSet.Builder<ComposableStatsCalculator.Rule> rules = ImmutableSet.builder();
         rules.add(new OutputStatsRule());
-        rules.add(new TableScanStatsRule(metadata));
+        rules.add(new TableScanStatsRule(metadata, typeDataSizeDefaulter));
         rules.add(new ValuesStatsRule(metadata));
         rules.add(new LimitStatsRule());
         rules.add(new EnforceSingleRowStatsRule());

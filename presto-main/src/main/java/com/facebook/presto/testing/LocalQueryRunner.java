@@ -38,6 +38,7 @@ import com.facebook.presto.cost.FilterStatsCalculator;
 import com.facebook.presto.cost.ScalarStatsCalculator;
 import com.facebook.presto.cost.SelectingStatsCalculator;
 import com.facebook.presto.cost.StatsCalculator;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.execution.CommitTask;
 import com.facebook.presto.execution.CreateTableTask;
 import com.facebook.presto.execution.CreateViewTask;
@@ -378,7 +379,7 @@ public class LocalQueryRunner
         this.spillerFactory = new GenericSpillerFactory(new FileSingleStreamSpillerFactory(blockEncodingSerde, spillerStats, featuresConfig));
         this.statsCalculator = new SelectingStatsCalculator(
                 new CoefficientBasedStatsCalculator(metadata),
-                ServerMainModule.createNewStatsCalculator(metadata, new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata)));
+                ServerMainModule.createNewStatsCalculator(metadata, new TypeDataSizeDefaulter(), new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata)));
         this.costCalculator = new CostCalculatorUsingExchanges(this::getNodeCount);
         this.estimatedExchangesCostCalculator = new CostCalculatorWithEstimatedExchanges(costCalculator, () -> nodeCountForStats);
         this.lookup = new StatelessLookup(statsCalculator, costCalculator);

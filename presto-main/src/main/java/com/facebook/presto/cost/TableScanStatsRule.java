@@ -38,6 +38,7 @@ import java.util.OptionalDouble;
 import static com.facebook.presto.cost.SymbolStatsEstimate.UNKNOWN_STATS;
 import static java.lang.Double.NEGATIVE_INFINITY;
 import static java.lang.Double.POSITIVE_INFINITY;
+import static java.lang.Double.isNaN;
 import static java.util.Objects.requireNonNull;
 
 public class TableScanStatsRule
@@ -46,10 +47,12 @@ public class TableScanStatsRule
     private static final Pattern PATTERN = Pattern.matchByClass(TableScanNode.class);
 
     private final Metadata metadata;
+    private final TypeDataSizeDefaulter typeDataSizeDefaulter;
 
-    public TableScanStatsRule(Metadata metadata)
+    public TableScanStatsRule(Metadata metadata, TypeDataSizeDefaulter typeDataSizeDefaulter)
     {
         this.metadata = requireNonNull(metadata, "metadata can not be null");
+        this.typeDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null");
     }
 
     @Override
@@ -92,8 +95,17 @@ public class TableScanStatsRule
                         columnStatistics.getNullsFraction().getValue()
                                 / (columnStatistics.getNullsFraction().getValue() + columnStatistics.getOnlyRangeColumnStatistics().getFraction().getValue()))
                 .setDistinctValuesCount(columnStatistics.getOnlyRangeColumnStatistics().getDistinctValuesCount().getValue())
-                .setAverageRowSize(columnStatistics.getOnlyRangeColumnStatistics().getDataSize().getValue() / tableStatistics.getRowCount().getValue())
+                .setAverageRowSize(getAverageRowSize(tableStatistics, columnStatistics, type))
                 .build();
+    }
+
+    private double getAverageRowSize(TableStatistics tableStatistics, ColumnStatistics columnStatistics, Type type)
+    {
+        double averageRowSize = columnStatistics.getOnlyRangeColumnStatistics().getDataSize().getValue() / tableStatistics.getRowCount().getValue();
+        if (isNaN(averageRowSize)) {
+            return typeDataSizeDefaulter.defaultDataSize(type);
+        }
+        return averageRowSize;
     }
 
     private OptionalDouble asDouble(Optional<Object> optionalValue, DomainConverter domainConverter)

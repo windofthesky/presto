@@ -22,6 +22,7 @@ import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.FilterStatsCalculator;
 import com.facebook.presto.cost.ScalarStatsCalculator;
 import com.facebook.presto.cost.SelectingStatsCalculator;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.server.ServerMainModule;
 import com.facebook.presto.spi.security.AccessDeniedException;
@@ -310,7 +311,7 @@ public abstract class AbstractTestQueryFramework
                 new CostComparator(featuresConfig),
                 new SelectingStatsCalculator(
                         new CoefficientBasedStatsCalculator(metadata),
-                        ServerMainModule.createNewStatsCalculator(metadata, new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata))),
+                        ServerMainModule.createNewStatsCalculator(metadata, new TypeDataSizeDefaulter(), new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata))),
                 costCalculator,
                 new CostCalculatorWithEstimatedExchanges(costCalculator, queryRunner::getNodeCount)).get();
         return new QueryExplainer(

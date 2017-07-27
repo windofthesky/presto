@@ -225,15 +225,15 @@ public class TestTpchLocalStats
     @Test
     public void testDateComparisons()
     {
-        statisticsAssertion.check("select * from orders where o_orderdate >= DATE '1993-10-01'",
+        statisticsAssertion.check("SELECT * FROM orders WHERE o_orderdate >= DATE '1993-10-01'",
                 checks -> checks
                         .estimate(OUTPUT_ROW_COUNT, defaultTolerance()));
 
-        statisticsAssertion.check("select * from orders where o_orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH",
+        statisticsAssertion.check("SELECT * FROM orders WHERE o_orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH",
                 checks -> checks
                         .estimate(OUTPUT_ROW_COUNT, defaultTolerance()));
 
-        statisticsAssertion.check("select * from orders where o_orderdate >= DATE '1993-10-01' AND o_orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH",
+        statisticsAssertion.check("SELECT * FROM orders WHERE o_orderdate >= DATE '1993-10-01' AND o_orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH",
                 checks -> checks
                         .estimate(OUTPUT_ROW_COUNT, defaultTolerance()));
     }

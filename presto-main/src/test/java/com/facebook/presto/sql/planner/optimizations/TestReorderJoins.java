@@ -43,6 +43,7 @@ public class TestReorderJoins
     @Test
     public void testPartialTpchQ2JoinOrder()
     {
+        // it looks like the join ordering here is optimal
         assertPlan(
                 "SELECT * " +
                         "FROM part p, supplier s, partsupp ps, nation n, region r " +

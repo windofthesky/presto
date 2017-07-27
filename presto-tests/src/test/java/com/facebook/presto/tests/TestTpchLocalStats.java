@@ -245,8 +245,10 @@ public class TestTpchLocalStats
     {
         statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45'", checkOutputRowCount());
         statisticsAssertion.check("SELECT * FROM part WHERE p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
-        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_type LIKE 'MEDIUM POLISHED%'", checkOutputRowCount());
         statisticsAssertion.check("SELECT * FROM part WHERE p_type NOT LIKE 'MEDIUM POLISHED%'", checkOutputRowCount());
+
+        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
         statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_type NOT LIKE 'MEDIUM POLISHED%'", checkOutputRowCount());
         statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_type NOT LIKE 'MEDIUM POLISHED%' AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
     }

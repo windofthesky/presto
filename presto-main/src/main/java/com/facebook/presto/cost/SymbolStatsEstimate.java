@@ -24,6 +24,7 @@ import static java.lang.String.format;
 
 public class SymbolStatsEstimate
 {
+    // TODO remove or replace with guesswork based on Type
     public static final double DEFAULT_DATA_SIZE_PER_COLUMN = 10;
 
     public static final SymbolStatsEstimate UNKNOWN_STATS = builder()

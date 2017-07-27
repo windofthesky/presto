@@ -102,6 +102,7 @@ public class SymbolStatsAssertion
 
     public SymbolStatsAssertion dataSizeUnknown()
     {
+        // TODO remove, since data size is always known now
         assertTrue(isNaN(statistics.getAverageRowSize()), "expected unknown dataSize but got " + statistics.getAverageRowSize());
         return this;
     }

@@ -97,8 +97,8 @@ public class TestTpchLocalStats
         statisticsAssertion.check("SELECT n1.n_nationkey FROM nation n1, nation n2 WHERE n1.n_nationkey + 1 = n2.n_nationkey - 1 AND n1.n_nationkey > 5 AND n2.n_nationkey < 20",
                 checks -> checks
                         .estimate(OUTPUT_ROW_COUNT, absoluteError(3))
-                        // Join is over expressions so that predicate push down doesn't unify ranges of n_nationkey coming from n1 and n2. This, however, makes symbols
-                        // stats inaccurate (rules can't update them), so we don't verify them.
+                // Join is over expressions so that predicate push down doesn't unify ranges of n_nationkey coming from n1 and n2. This, however, makes symbols
+                // stats inaccurate (rules can't update them), so we don't verify them.
         );
 
         // two joins on different keys

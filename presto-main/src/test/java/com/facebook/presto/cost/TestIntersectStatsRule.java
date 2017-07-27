@@ -78,7 +78,7 @@ public class TestIntersectStatsRule
                         .symbolStats("o1", assertion -> assertion
                                 .lowValue(5)
                                 .highValue(10)
-                                .dataSizeUnknown()
+                                .averageRowSize(0.7)
                                 .distinctValuesCount(4)
                                 .nullsFraction(0.2)));
     }
@@ -118,7 +118,6 @@ public class TestIntersectStatsRule
                         .outputRowsCount(1)
                         .symbolStats("o1", assertion -> assertion
                                 .emptyRange()
-                                .dataSizeUnknown()
                                 .distinctValuesCount(0)
                                 .nullsFraction(1)));
     }
@@ -157,7 +156,7 @@ public class TestIntersectStatsRule
                         .symbolStats("o1", assertion -> assertion
                                 .lowValue(11)
                                 .highValue(20)
-                                .dataSizeUnknown()
+                                .averageRowSize(0.7)
                                 .distinctValuesCount(1.25)
                                 .nullsFraction(0.44444444)));
     }
@@ -232,7 +231,7 @@ public class TestIntersectStatsRule
                         .symbolStats("o1", assertion -> assertion
                                 .lowValue(5)
                                 .highValue(10)
-                                .dataSizeUnknown()
+                                .averageRowSize(0.7)
                                 .distinctValuesCount(4)
                                 .nullsFraction(0.2)));
     }
@@ -274,7 +273,7 @@ public class TestIntersectStatsRule
                         .symbolStats("o1", assertion -> assertion
                                 .lowValue(5)
                                 .highValue(10)
-                                .dataSizeUnknown()
+                                .averageRowSize(0.7)
                                 // TODO DVC should be 2 as right side has two times lower values density
                                 .distinctValuesCount(4)
                                 .nullsFraction(0)));

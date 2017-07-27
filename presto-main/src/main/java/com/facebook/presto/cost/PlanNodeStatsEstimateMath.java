@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.cost.AggregationStatsRule.groupBy;
+import static com.facebook.presto.util.MoreMath.max;
 import static com.facebook.presto.util.MoreMath.min;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.emptyMap;
@@ -146,6 +147,7 @@ public class PlanNodeStatsEstimateMath
                             // it does matter how many nulls are preserved, the intersting point is the fact if there are nulls both sides or not
                             // this will be normalized later by groupBy
                             .setNullsFraction(min(leftSymbolStats.getNullsFraction(), rightSymbolStats.getNullsFraction()))
+                            .setAverageRowSize(max(leftSymbolStats.getAverageRowSize(), rightSymbolStats.getAverageRowSize()))
                             .build());
         }
 

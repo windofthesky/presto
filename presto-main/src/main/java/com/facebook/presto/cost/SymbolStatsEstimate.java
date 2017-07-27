@@ -24,7 +24,11 @@ import static java.lang.String.format;
 
 public class SymbolStatsEstimate
 {
-    public static final SymbolStatsEstimate UNKNOWN_STATS = SymbolStatsEstimate.builder().build();
+    public static final double DEFAULT_DATA_SIZE_PER_COLUMN = 10;
+
+    public static final SymbolStatsEstimate UNKNOWN_STATS = builder()
+            .setAverageRowSize(DEFAULT_DATA_SIZE_PER_COLUMN)
+            .build();
 
     // for now we support only types which map to real domain naturally and keep low/high value as double in stats.
     private final double lowValue;
@@ -46,7 +50,7 @@ public class SymbolStatsEstimate
         checkArgument((0 <= nullsFraction && nullsFraction <= 1.) || isNaN(nullsFraction), "Nulls fraction should be within [0, 1] or NaN, got: %s", nullsFraction);
         this.nullsFraction = nullsFraction;
 
-        checkArgument(averageRowSize >= 0 || isNaN(averageRowSize), "Average row size should be non-negative or NaN, got: %s", averageRowSize);
+        checkArgument(averageRowSize >= 0, "Average row size should be non-negative, got: %s", averageRowSize);
         this.averageRowSize = averageRowSize;
 
         checkArgument(distinctValuesCount >= 0 || isNaN(distinctValuesCount), "Distinct values count should be non-negative, got: %s", distinctValuesCount);

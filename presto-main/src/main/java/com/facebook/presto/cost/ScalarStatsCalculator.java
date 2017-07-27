@@ -111,6 +111,7 @@ public class ScalarStatsCalculator
             return estimate.build();
         }
 
+        @Override
         protected SymbolStatsEstimate visitCast(Cast node, Void context)
         {
             SymbolStatsEstimate sourceStats = process(node.getExpression());

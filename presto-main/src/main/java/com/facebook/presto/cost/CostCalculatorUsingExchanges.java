@@ -38,6 +38,7 @@ import javax.inject.Inject;
 
 import java.util.Map;
 import java.util.function.IntSupplier;
+import java.util.function.ToDoubleFunction;
 
 import static com.facebook.presto.cost.PlanNodeCostEstimate.UNKNOWN_COST;
 import static com.facebook.presto.cost.PlanNodeCostEstimate.ZERO_COST;
@@ -52,16 +53,18 @@ import static java.util.Objects.requireNonNull;
 public class CostCalculatorUsingExchanges
         implements CostCalculator
 {
+    private final TypeDataSizeDefaulter typeDataSizeDefaulter;
     private final IntSupplier numberOfNodes;
 
     @Inject
-    public CostCalculatorUsingExchanges(InternalNodeManager nodeManager)
+    public CostCalculatorUsingExchanges(TypeDataSizeDefaulter typeDataSizeDefaulter, InternalNodeManager nodeManager)
     {
-        this(() -> nodeManager.getAllNodes().getActiveNodes().size());
+        this(typeDataSizeDefaulter, () -> nodeManager.getAllNodes().getActiveNodes().size());
     }
 
-    public CostCalculatorUsingExchanges(IntSupplier numberOfNodes)
+    public CostCalculatorUsingExchanges(TypeDataSizeDefaulter typeDataSizeDefaulter, IntSupplier numberOfNodes)
     {
+        this.typeDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null");
         this.numberOfNodes = requireNonNull(numberOfNodes, "numberOfNodes is null");
     }
 
@@ -69,6 +72,7 @@ public class CostCalculatorUsingExchanges
     public PlanNodeCostEstimate calculateCost(PlanNode planNode, Lookup lookup, Session session, Map<Symbol, Type> types)
     {
         CostEstimator costEstimator = new CostEstimator(
+                typeDataSizeDefaulter,
                 session,
                 types,
                 lookup,
@@ -77,18 +81,20 @@ public class CostCalculatorUsingExchanges
         return planNode.accept(costEstimator, null);
     }
 
-    private class CostEstimator
+    private static class CostEstimator
             extends PlanVisitor<PlanNodeCostEstimate, Void>
     {
         private final Session session;
         private final Map<Symbol, Type> types;
+        private final ToDoubleFunction<Symbol> symbolDataSizeDefaulter;
         private final Lookup lookup;
         private final int numberOfNodes;
 
-        public CostEstimator(Session session, Map<Symbol, Type> types, Lookup lookup, int numberOfNodes)
+        public CostEstimator(TypeDataSizeDefaulter typeDataSizeDefaulter, Session session, Map<Symbol, Type> types, Lookup lookup, int numberOfNodes)
         {
             this.session = requireNonNull(session, "session is null");
             this.types = requireNonNull(types, "types is null");
+            this.symbolDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null").createSymbolDataSizeDefaulter(this.types);
             this.lookup = lookup;
             this.numberOfNodes = numberOfNodes;
         }
@@ -108,13 +114,13 @@ public class CostCalculatorUsingExchanges
         @Override
         public PlanNodeCostEstimate visitFilter(FilterNode node, Void context)
         {
-            return cpuCost(getStats(node.getSource()).getOutputSizeInBytes());
+            return cpuCost(getStats(node.getSource()).getOutputSizeInBytes(symbolDataSizeDefaulter));
         }
 
         @Override
         public PlanNodeCostEstimate visitProject(ProjectNode node, Void context)
         {
-            return cpuCost(getStats(node).getOutputSizeInBytes());
+            return cpuCost(getStats(node).getOutputSizeInBytes(symbolDataSizeDefaulter));
         }
 
         @Override
@@ -123,8 +129,8 @@ public class CostCalculatorUsingExchanges
             PlanNodeStatsEstimate aggregationStats = getStats(node);
             PlanNodeStatsEstimate sourceStats = getStats(node.getSource());
             return PlanNodeCostEstimate.builder()
-                    .setCpuCost(sourceStats.getOutputSizeInBytes())
-                    .setMemoryCost(aggregationStats.getOutputSizeInBytes())
+                    .setCpuCost(sourceStats.getOutputSizeInBytes(symbolDataSizeDefaulter))
+                    .setMemoryCost(aggregationStats.getOutputSizeInBytes(symbolDataSizeDefaulter))
                     .setNetworkCost(0)
                     .build();
         }
@@ -147,11 +153,11 @@ public class CostCalculatorUsingExchanges
             PlanNodeStatsEstimate buildStats = getStats(build);
             PlanNodeStatsEstimate outputStats = getStats(join);
 
-            double cpuCost = probeStats.getOutputSizeInBytes() +
-                    buildStats.getOutputSizeInBytes() * numberOfNodesMultiplier +
-                    outputStats.getOutputSizeInBytes();
+            double cpuCost = probeStats.getOutputSizeInBytes(symbolDataSizeDefaulter) +
+                    buildStats.getOutputSizeInBytes(symbolDataSizeDefaulter) * numberOfNodesMultiplier +
+                    outputStats.getOutputSizeInBytes(symbolDataSizeDefaulter);
 
-            double memoryCost = buildStats.getOutputSizeInBytes() * numberOfNodesMultiplier;
+            double memoryCost = buildStats.getOutputSizeInBytes(symbolDataSizeDefaulter) * numberOfNodesMultiplier;
 
             return PlanNodeCostEstimate.builder()
                     .setCpuCost(cpuCost)
@@ -163,13 +169,13 @@ public class CostCalculatorUsingExchanges
         @Override
         public PlanNodeCostEstimate visitExchange(ExchangeNode node, Void context)
         {
-            return calculateExchangeCost(numberOfNodes, getStats(node), node.getType(), node.getScope());
+            return calculateExchangeCost(symbolDataSizeDefaulter, numberOfNodes, getStats(node), node.getType(), node.getScope());
         }
 
         @Override
         public PlanNodeCostEstimate visitTableScan(TableScanNode node, Void context)
         {
-            return cpuCost(getStats(node).getOutputSizeInBytes()); // TODO: add network cost, based on input size in bytes?
+            return cpuCost(getStats(node).getOutputSizeInBytes(symbolDataSizeDefaulter)); // TODO: add network cost, based on input size in bytes?
         }
 
         @Override
@@ -197,7 +203,7 @@ public class CostCalculatorUsingExchanges
         @Override
         public PlanNodeCostEstimate visitLimit(LimitNode node, Void context)
         {
-            return cpuCost(getStats(node).getOutputSizeInBytes());
+            return cpuCost(getStats(node).getOutputSizeInBytes(symbolDataSizeDefaulter));
         }
 
         private PlanNodeStatsEstimate getStats(PlanNode node)
@@ -206,21 +212,26 @@ public class CostCalculatorUsingExchanges
         }
     }
 
-    public static PlanNodeCostEstimate calculateExchangeCost(int numberOfNodes, PlanNodeStatsEstimate exchangeStats, ExchangeNode.Type type, ExchangeNode.Scope scope)
+    public static PlanNodeCostEstimate calculateExchangeCost(
+            ToDoubleFunction<Symbol> symbolDataSizeDefaulter,
+            int numberOfNodes,
+            PlanNodeStatsEstimate exchangeStats,
+            ExchangeNode.Type type,
+            ExchangeNode.Scope scope)
     {
         double network = 0;
         double cpu = 0;
 
         switch (type) {
             case GATHER:
-                network = exchangeStats.getOutputSizeInBytes();
+                network = exchangeStats.getOutputSizeInBytes(symbolDataSizeDefaulter);
                 break;
             case REPARTITION:
-                network = exchangeStats.getOutputSizeInBytes();
-                cpu = exchangeStats.getOutputSizeInBytes();
+                network = exchangeStats.getOutputSizeInBytes(symbolDataSizeDefaulter);
+                cpu = exchangeStats.getOutputSizeInBytes(symbolDataSizeDefaulter);
                 break;
             case REPLICATE:
-                network = exchangeStats.getOutputSizeInBytes() * numberOfNodes;
+                network = exchangeStats.getOutputSizeInBytes(symbolDataSizeDefaulter) * numberOfNodes;
                 break;
             default:
                 throw new UnsupportedOperationException(format("Unsupported type [%s] of the exchange", type));

@@ -21,16 +21,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Double.NaN;
 import static java.lang.Double.isNaN;
+import static java.util.Objects.requireNonNull;
 
 public class PlanNodeStatsEstimate
 {
     public static final PlanNodeStatsEstimate UNKNOWN_STATS = builder().build();
-    public static final double DEFAULT_DATA_SIZE_PER_COLUMN = 10;
 
     private final double outputRowCount;
     private final PMap<Symbol, SymbolStatsEstimate> symbolStatistics;
@@ -55,24 +56,25 @@ public class PlanNodeStatsEstimate
      * Returns estimated data size.
      * Unknown value is represented by {@link Double#NaN}
      */
-    public double getOutputSizeInBytes()
+    public double getOutputSizeInBytes(ToDoubleFunction<Symbol> symbolDataSizeDefaulter)
     {
+        requireNonNull(symbolDataSizeDefaulter, "symbolDataSizeDefaulter is null");
+
         if (isNaN(outputRowCount)) {
             return Double.NaN;
         }
         double outputSizeInBytes = 0;
         for (Map.Entry<Symbol, SymbolStatsEstimate> entry : symbolStatistics.entrySet()) {
-            outputSizeInBytes += getOutputSizeForSymbol(entry.getValue());
+            outputSizeInBytes += getOutputSizeForSymbol(symbolDataSizeDefaulter, entry.getKey(), entry.getValue());
         }
         return outputSizeInBytes;
     }
 
-    private double getOutputSizeForSymbol(SymbolStatsEstimate symbolStatistics)
+    private double getOutputSizeForSymbol(ToDoubleFunction<Symbol> symbolDataSizeDefaulter, Symbol symbol, SymbolStatsEstimate symbolStatistics)
     {
         double averageRowSize = symbolStatistics.getAverageRowSize();
         if (isNaN(averageRowSize)) {
-            // TODO take into consderation data type of column
-            return outputRowCount * DEFAULT_DATA_SIZE_PER_COLUMN;
+            return outputRowCount * symbolDataSizeDefaulter.applyAsDouble(symbol);
         }
         return outputRowCount * averageRowSize;
     }

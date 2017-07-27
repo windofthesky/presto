@@ -22,6 +22,7 @@ import com.facebook.presto.cost.CostComparator;
 import com.facebook.presto.cost.FilterStatsCalculator;
 import com.facebook.presto.cost.ScalarStatsCalculator;
 import com.facebook.presto.cost.SelectingStatsCalculator;
+import com.facebook.presto.cost.TypeDataSizeDefaulter;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.server.ServerMainModule;
 import com.facebook.presto.spi.security.AccessDeniedException;
@@ -300,7 +301,8 @@ public abstract class AbstractTestQueryFramework
         Metadata metadata = queryRunner.getMetadata();
         FeaturesConfig featuresConfig = new FeaturesConfig().setOptimizeHashGeneration(true);
         boolean forceSingleNode = queryRunner.getNodeCount() == 1;
-        CostCalculator costCalculator = new CostCalculatorUsingExchanges(queryRunner::getNodeCount);
+        TypeDataSizeDefaulter typeDataSizeDefaulter = new TypeDataSizeDefaulter();
+        CostCalculator costCalculator = new CostCalculatorUsingExchanges(typeDataSizeDefaulter, queryRunner::getNodeCount);
         List<PlanOptimizer> optimizers = new PlanOptimizers(
                 metadata,
                 sqlParser,
@@ -312,7 +314,7 @@ public abstract class AbstractTestQueryFramework
                         new CoefficientBasedStatsCalculator(metadata),
                         ServerMainModule.createNewStatsCalculator(metadata, new FilterStatsCalculator(metadata), new ScalarStatsCalculator(metadata))),
                 costCalculator,
-                new CostCalculatorWithEstimatedExchanges(costCalculator, queryRunner::getNodeCount)).get();
+                new CostCalculatorWithEstimatedExchanges(costCalculator, typeDataSizeDefaulter, queryRunner::getNodeCount)).get();
         return new QueryExplainer(
                 optimizers,
                 metadata,

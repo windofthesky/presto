@@ -30,6 +30,7 @@ import javax.inject.Inject;
 
 import java.util.Map;
 import java.util.function.IntSupplier;
+import java.util.function.ToDoubleFunction;
 
 import static com.facebook.presto.cost.PlanNodeCostEstimate.ZERO_COST;
 import static com.facebook.presto.sql.planner.plan.ExchangeNode.Scope.REMOTE;
@@ -45,18 +46,20 @@ public class CostCalculatorWithEstimatedExchanges
         implements CostCalculator
 {
     private final CostCalculator costCalculator;
+    private final TypeDataSizeDefaulter typeDataSizeDefaulter;
     private final IntSupplier numberOfNodes;
 
     @Inject
-    public CostCalculatorWithEstimatedExchanges(CostCalculator costCalculator, InternalNodeManager nodeManager)
+    public CostCalculatorWithEstimatedExchanges(CostCalculator costCalculator, TypeDataSizeDefaulter typeDataSizeDefaulter, InternalNodeManager nodeManager)
     {
         // TODO exclude coordinator unless node-scheduler.include-coordinator
-        this(costCalculator, () -> nodeManager.getAllNodes().getActiveNodes().size());
+        this(costCalculator, typeDataSizeDefaulter, () -> nodeManager.getAllNodes().getActiveNodes().size());
     }
 
-    public CostCalculatorWithEstimatedExchanges(CostCalculator costCalculator, IntSupplier numberOfNodes)
+    public CostCalculatorWithEstimatedExchanges(CostCalculator costCalculator, TypeDataSizeDefaulter typeDataSizeDefaulter, IntSupplier numberOfNodes)
     {
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
+        this.typeDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null");
         this.numberOfNodes = requireNonNull(numberOfNodes, "numberOfNodes is null");
     }
 
@@ -64,6 +67,7 @@ public class CostCalculatorWithEstimatedExchanges
     public PlanNodeCostEstimate calculateCost(PlanNode planNode, Lookup lookup, Session session, Map<Symbol, Type> types)
     {
         ExchangeCostEstimator exchangeCostEstimator = new ExchangeCostEstimator(
+                typeDataSizeDefaulter,
                 session,
                 types,
                 lookup,
@@ -73,18 +77,20 @@ public class CostCalculatorWithEstimatedExchanges
         return costCalculator.calculateCost(planNode, lookup, session, types).add(estimatedExchangeCost);
     }
 
-    private class ExchangeCostEstimator
+    private static class ExchangeCostEstimator
             extends PlanVisitor<PlanNodeCostEstimate, Void>
     {
         private final Session session;
         private final Map<Symbol, Type> types;
+        private final ToDoubleFunction<Symbol> symbolDataSizeDefaulter;
         private final Lookup lookup;
         private final int numberOfNodes;
 
-        public ExchangeCostEstimator(Session session, Map<Symbol, Type> types, Lookup lookup, int numberOfNodes)
+        public ExchangeCostEstimator(TypeDataSizeDefaulter typeDataSizeDefaulter, Session session, Map<Symbol, Type> types, Lookup lookup, int numberOfNodes)
         {
             this.session = requireNonNull(session, "session is null");
             this.types = requireNonNull(types, "types is null");
+            this.symbolDataSizeDefaulter = requireNonNull(typeDataSizeDefaulter, "typeDataSizeDefaulter is null").createSymbolDataSizeDefaulter(this.types);
             this.lookup = lookup;
             this.numberOfNodes = numberOfNodes;
         }
@@ -99,6 +105,7 @@ public class CostCalculatorWithEstimatedExchanges
         public PlanNodeCostEstimate visitAggregation(AggregationNode node, Void context)
         {
             return CostCalculatorUsingExchanges.calculateExchangeCost(
+                    symbolDataSizeDefaulter,
                     numberOfNodes,
                     getStats(node.getSource()),
                     REPARTITION,
@@ -127,6 +134,7 @@ public class CostCalculatorWithEstimatedExchanges
         {
             if (replicated) {
                 return CostCalculatorUsingExchanges.calculateExchangeCost(
+                        symbolDataSizeDefaulter,
                         numberOfNodes,
                         getStats(build),
                         REPLICATE,
@@ -134,11 +142,13 @@ public class CostCalculatorWithEstimatedExchanges
             }
             else {
                 PlanNodeCostEstimate probeCost = CostCalculatorUsingExchanges.calculateExchangeCost(
+                        symbolDataSizeDefaulter,
                         numberOfNodes,
                         getStats(probe),
                         REPARTITION,
                         REMOTE);
                 PlanNodeCostEstimate buildCost = CostCalculatorUsingExchanges.calculateExchangeCost(
+                        symbolDataSizeDefaulter,
                         numberOfNodes,
                         getStats(build),
                         REPARTITION,

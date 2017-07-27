@@ -66,8 +66,9 @@ import static org.testng.Assert.assertTrue;
 public class TestCostCalculator
 {
     private static final int NUMBER_OF_NODES = 10;
-    private final CostCalculator costCalculatorUsingExchanges = new CostCalculatorUsingExchanges(() -> NUMBER_OF_NODES);
-    private final CostCalculator costCalculatorWithEstimatedExchanges = new CostCalculatorWithEstimatedExchanges(costCalculatorUsingExchanges, () -> NUMBER_OF_NODES);
+    private final TypeDataSizeDefaulter typeDataSizeDefaulter = new TypeDataSizeDefaulter();
+    private final CostCalculator costCalculatorUsingExchanges = new CostCalculatorUsingExchanges(typeDataSizeDefaulter, () -> NUMBER_OF_NODES);
+    private final CostCalculator costCalculatorWithEstimatedExchanges = new CostCalculatorWithEstimatedExchanges(costCalculatorUsingExchanges, typeDataSizeDefaulter, () -> NUMBER_OF_NODES);
     private Session session = testSessionBuilder().build();
 
     @Test

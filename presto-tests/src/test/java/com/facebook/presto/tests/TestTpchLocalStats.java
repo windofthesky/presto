@@ -21,6 +21,8 @@ import com.facebook.presto.tpch.TpchConnectorFactory;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
+import java.util.function.Consumer;
+
 import static com.facebook.presto.SystemSessionProperties.PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN;
 import static com.facebook.presto.SystemSessionProperties.USE_NEW_STATS_CALCULATOR;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
@@ -236,5 +238,21 @@ public class TestTpchLocalStats
         statisticsAssertion.check("select * from orders where o_orderdate >= DATE '1993-10-01' AND o_orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH",
                 checks -> checks
                         .estimate(OUTPUT_ROW_COUNT, defaultTolerance()));
+    }
+
+    @Test
+    public void testAnd()
+    {
+        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45'", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_type NOT LIKE 'MEDIUM POLISHED%'", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_type NOT LIKE 'MEDIUM POLISHED%'", checkOutputRowCount());
+        statisticsAssertion.check("SELECT * FROM part WHERE p_brand <> 'Brand#45' AND p_type NOT LIKE 'MEDIUM POLISHED%' AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)", checkOutputRowCount());
+    }
+
+    private static Consumer<StatisticsAssertion.Checks> checkOutputRowCount()
+    {
+        return checks -> checks.estimate(OUTPUT_ROW_COUNT, defaultTolerance());
     }
 }

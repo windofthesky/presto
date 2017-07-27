@@ -62,7 +62,7 @@ public class BasePlanTest
     {
         Session.SessionBuilder sessionBuilder = testSessionBuilder()
                 .setCatalog("local")
-                .setSchema("tiny")
+                .setSchema("sf10")
                 .setSystemProperty("task_concurrency", "1"); // these tests don't handle exchanges from local parallel
 
         sessionProperties.entrySet().forEach(entry -> sessionBuilder.setSystemProperty(entry.getKey(), entry.getValue()));

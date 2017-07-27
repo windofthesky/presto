@@ -21,6 +21,7 @@ import com.facebook.presto.sql.planner.SimplePlanVisitor;
 import com.facebook.presto.sql.planner.assertions.BasePlanTest;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.planPrinter.PlanPrinter;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -63,17 +64,17 @@ public class TestReorderJoins
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan("tpch:partsupp:sf0:01"),
-                                new TableScan("tpch:part:sf0:01")),
+                                new TableScan("tpch:partsupp:sf10.0"),
+                                new TableScan("tpch:part:sf10.0")),
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan("tpch:supplier:sf0:01"),
+                                new TableScan("tpch:supplier:sf10.0"),
                                 new Join(
                                         INNER,
-                                        PARTITIONED,
-                                        new TableScan("tpch:nation:sf0:01"),
-                                        new TableScan("tpch:region:sf0:01")))));
+                                        REPLICATED,
+                                        new TableScan("tpch:nation:sf10.0"),
+                                        new TableScan("tpch:region:sf10.0")))));
     }
 
     @Test
@@ -87,8 +88,8 @@ public class TestReorderJoins
                 new Join(
                         INNER,
                         REPLICATED, //TODO it should be PARTITIONED
-                        new TableScan("tpch:part:sf0.01"),
-                        new TableScan("tpch:lineitem:sf0.01")));
+                        new TableScan("tpch:part:sf10.0"),
+                        new TableScan("tpch:lineitem:sf10.0")));
     }
 
     private void assertJoinOrder(String sql, Node expected)
@@ -99,6 +100,10 @@ public class TestReorderJoins
     private String joinOrderString(String sql)
     {
         Plan plan = plan(sql);
+//        getQueryRunner().inTransaction(session -> {
+//            System.out.println(PlanPrinter.textLogicalPlan(plan.getRoot(), plan.getTypes(), getQueryRunner().getMetadata(), getQueryRunner().getLookup(), session));
+//            return null;
+//        });
         JoinOrderPrinter joinOrderPrinter = new JoinOrderPrinter();
         plan.getRoot().accept(joinOrderPrinter, 0);
         return joinOrderPrinter.result();

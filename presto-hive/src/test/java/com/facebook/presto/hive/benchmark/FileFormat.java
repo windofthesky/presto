@@ -82,7 +82,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCBINARY);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCBINARY, session);
         }
     },
 
@@ -103,7 +103,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCTEXT);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCTEXT, session);
         }
     },
 
@@ -124,7 +124,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.ORC);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.ORC, session);
         }
     },
 
@@ -145,7 +145,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.DWRF);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.DWRF, session);
         }
 
         @Override
@@ -172,7 +172,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.PARQUET);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.PARQUET, session);
         }
     },
 
@@ -193,7 +193,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCBINARY);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCBINARY, session);
         }
     },
 
@@ -214,7 +214,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCTEXT);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.RCTEXT, session);
         }
     },
 
@@ -235,7 +235,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.ORC);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.ORC, session);
         }
     },
 
@@ -256,7 +256,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.DWRF);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.DWRF, session);
         }
 
         @Override
@@ -283,7 +283,7 @@ public enum FileFormat
                 HiveCompressionCodec compressionCodec)
                 throws IOException
         {
-            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.PARQUET);
+            return new RecordFormatWriter(targetFile, columnNames, columnTypes, compressionCodec, HiveStorageFormat.PARQUET, session);
         }
     };
 
@@ -389,7 +389,8 @@ public enum FileFormat
                 List<String> columnNames,
                 List<Type> columnTypes,
                 HiveCompressionCodec compressionCodec,
-                HiveStorageFormat format)
+                HiveStorageFormat format,
+                ConnectorSession session)
         {
             JobConf config = new JobConf(conf);
             configureCompression(config, compressionCodec);
@@ -400,7 +401,8 @@ public enum FileFormat
                     fromHiveStorageFormat(format),
                     createSchema(format, columnNames, columnTypes),
                     TYPE_MANAGER,
-                    config);
+                    config,
+                    session);
         }
 
         @Override

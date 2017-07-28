@@ -322,7 +322,8 @@ public class HiveWriterFactory
                 outputStorageFormat,
                 schema,
                 typeManager,
-                conf);
+                conf,
+                session);
         return new HiveWriter(hiveRecordWriter, partitionName, isNew, fileNameWithExtension, write.toString(), target.toString());
     }
 

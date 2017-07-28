@@ -15,6 +15,7 @@ package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.HiveWriteUtils.FieldSetter;
 import com.facebook.presto.hive.metastore.StorageFormat;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.type.Type;
@@ -70,7 +71,8 @@ public class HiveRecordWriter
             StorageFormat storageFormat,
             Properties schema,
             TypeManager typeManager,
-            JobConf conf)
+            JobConf conf,
+            ConnectorSession session)
     {
         this.path = requireNonNull(path, "path is null");
         this.conf = requireNonNull(conf, "conf is null");
@@ -102,7 +104,7 @@ public class HiveRecordWriter
 
         setters = new FieldSetter[structFields.size()];
         for (int i = 0; i < setters.length; i++) {
-            setters[i] = createFieldSetter(tableInspector, row, structFields.get(i), fileColumnTypes.get(structFields.get(i).getFieldID()));
+            setters[i] = createFieldSetter(tableInspector, row, structFields.get(i), fileColumnTypes.get(structFields.get(i).getFieldID()), session);
         }
     }
 

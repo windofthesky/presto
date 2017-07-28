@@ -18,6 +18,7 @@ import com.facebook.presto.hive.metastore.Partition;
 import com.facebook.presto.hive.metastore.SemiTransactionalHiveMetastore;
 import com.facebook.presto.hive.metastore.Storage;
 import com.facebook.presto.hive.metastore.Table;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.SchemaNotFoundException;
 import com.facebook.presto.spi.SchemaTableName;
@@ -631,7 +632,7 @@ public final class HiveWriteUtils
         throw new IllegalArgumentException("unsupported type: " + type);
     }
 
-    public static FieldSetter createFieldSetter(SettableStructObjectInspector rowInspector, Object row, StructField field, Type type)
+    public static FieldSetter createFieldSetter(SettableStructObjectInspector rowInspector, Object row, StructField field, Type type, ConnectorSession session)
     {
         if (type.equals(BooleanType.BOOLEAN)) {
             return new BooleanFieldSetter(rowInspector, row, field);
@@ -678,7 +679,7 @@ public final class HiveWriteUtils
         }
 
         if (type.equals(TimestampType.TIMESTAMP)) {
-            return new TimestampFieldSetter(rowInspector, row, field);
+            return new TimestampFieldSetter(rowInspector, row, field, DateTimeZone.forID(session.getTimeZoneKey().toString()), session.isLegacyTimestamp());
         }
 
         if (type instanceof DecimalType) {
@@ -924,16 +925,30 @@ public final class HiveWriteUtils
             extends FieldSetter
     {
         private final TimestampWritable value = new TimestampWritable();
+        private final DateTimeZone hiveTimeZone;
+        private final boolean isLegacyTimestamp;
 
-        public TimestampFieldSetter(SettableStructObjectInspector rowInspector, Object row, StructField field)
+        public TimestampFieldSetter(SettableStructObjectInspector rowInspector, Object row, StructField field, DateTimeZone hiveTimeZone, boolean isLegacyTimestamp)
         {
             super(rowInspector, row, field);
+            this.hiveTimeZone = hiveTimeZone;
+            this.isLegacyTimestamp = isLegacyTimestamp;
         }
 
         @Override
         public void setField(Block block, int position)
         {
             long millisUtc = TimestampType.TIMESTAMP.getLong(block, position);
+
+            // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+            // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+            // In order to compensate for that behavior (so that Presto will get same values as Hive),
+            // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+            // This works properly as long as hive.time-zone is same as real TZ of hive.
+            if (!isLegacyTimestamp) {
+                millisUtc -= hiveTimeZone.getOffset(millisUtc);
+            }
+
             value.setTime(millisUtc);
             rowInspector.setStructFieldData(row, field, value);
         }

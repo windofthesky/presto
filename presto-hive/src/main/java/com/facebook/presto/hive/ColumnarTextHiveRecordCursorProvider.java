@@ -71,7 +71,8 @@ public class ColumnarTextHiveRecordCursorProvider
                 schema,
                 columns,
                 hiveStorageTimeZone,
-                typeManager));
+                typeManager,
+                session.isLegacyTimestamp()));
     }
 
     @SuppressWarnings("unchecked")

@@ -70,7 +70,9 @@ public class ColumnarBinaryHiveRecordCursorProvider
                 length,
                 schema,
                 columns,
-                typeManager));
+                typeManager,
+                hiveStorageTimeZone,
+                session.isLegacyTimestamp()));
     }
 
     @SuppressWarnings("unchecked")

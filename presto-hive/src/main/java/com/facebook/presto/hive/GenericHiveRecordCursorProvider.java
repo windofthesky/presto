@@ -65,7 +65,8 @@ public class GenericHiveRecordCursorProvider
                 schema,
                 columns,
                 hiveStorageTimeZone,
-                typeManager));
+                typeManager,
+                session));
     }
 
     @SuppressWarnings("unchecked")

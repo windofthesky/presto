@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.joda.time.DateTimeZone;
 import parquet.column.Dictionary;
 import parquet.hadoop.ParquetFileReader;
 import parquet.hadoop.ParquetInputSplit;
@@ -109,6 +110,8 @@ public class ParquetHiveRecordCursor
     private final Slice[] slices;
     private final Object[] objects;
     private final boolean[] nulls;
+    private final boolean isLegacyTimestamp;
+    private final DateTimeZone hiveStorageTimeZone;
 
     private final long totalBytes;
     private long completedBytes;
@@ -126,7 +129,9 @@ public class ParquetHiveRecordCursor
             boolean useParquetColumnNames,
             TypeManager typeManager,
             boolean predicatePushdownEnabled,
-            TupleDomain<HiveColumnHandle> effectivePredicate)
+            TupleDomain<HiveColumnHandle> effectivePredicate,
+            DateTimeZone hiveStorageTimeZone,
+            boolean isLegacyTimestamp)
     {
         requireNonNull(path, "path is null");
         checkArgument(length >= 0, "length is negative");
@@ -145,6 +150,9 @@ public class ParquetHiveRecordCursor
         this.slices = new Slice[size];
         this.objects = new Object[size];
         this.nulls = new boolean[size];
+
+        this.hiveStorageTimeZone = hiveStorageTimeZone;
+        this.isLegacyTimestamp = isLegacyTimestamp;
 
         for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
             HiveColumnHandle column = columns.get(columnIndex);
@@ -587,7 +595,18 @@ public class ParquetHiveRecordCursor
             nulls[fieldIndex] = false;
             Type type = types[fieldIndex];
             if (type == TIMESTAMP) {
-                longs[fieldIndex] = ParquetTimestampUtils.getTimestampMillis(value);
+                long millis = ParquetTimestampUtils.getTimestampMillis(value);
+
+                // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+                // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+                // In order to compensate for that behavior (so that Presto will get same values as Hive),
+                // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+                // This works properly as long as hive.time-zone is same as real TZ of hive.
+                if (!isLegacyTimestamp) {
+                    millis += hiveStorageTimeZone.getOffset(millis);
+                }
+
+                longs[fieldIndex] = millis;
             }
             else if (isVarcharType(type)) {
                 slices[fieldIndex] = truncateToLength(wrappedBuffer(value.getBytes()), type);

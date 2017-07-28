@@ -15,6 +15,7 @@ package com.facebook.presto.hive;
 
 import com.facebook.presto.hive.HivePageSourceProvider.ColumnMapping;
 import com.facebook.presto.spi.ConnectorPageSource;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
@@ -84,12 +85,15 @@ public class HivePageSource
     private final Function<Block, Block>[] coercers;
 
     private final ConnectorPageSource delegate;
+    private final ConnectorSession session;
+    private final DateTimeZone hiveStorageTimeZone;
 
     public HivePageSource(
             List<ColumnMapping> columnMappings,
             DateTimeZone hiveStorageTimeZone,
             TypeManager typeManager,
-            ConnectorPageSource delegate)
+            ConnectorPageSource delegate,
+            ConnectorSession session)
     {
         requireNonNull(columnMappings, "columnMappings is null");
         requireNonNull(hiveStorageTimeZone, "hiveStorageTimeZone is null");
@@ -103,6 +107,9 @@ public class HivePageSource
         prefilledValues = new Object[size];
         types = new Type[size];
         coercers = new Function[size];
+
+        this.session = session;
+        this.hiveStorageTimeZone = hiveStorageTimeZone;
 
         for (int columnIndex = 0; columnIndex < size; columnIndex++) {
             ColumnMapping columnMapping = columnMappings.get(columnIndex);
@@ -216,6 +223,15 @@ public class HivePageSource
                     if (coercers[fieldId] != null) {
                         blocks[fieldId] = new LazyBlock(batchSize, new CoercionLazyBlockLoader(blocks[fieldId], coercers[fieldId]));
                     }
+                }
+
+                // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+                // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+                // In order to compensate for that behavior (so that Presto will get same values as Hive),
+                // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+                // This works properly as long as hive.time-zone is same as real TZ of hive.
+                if (types[fieldId].equals(TIMESTAMP) && !session.isLegacyTimestamp()) {
+                    blocks[fieldId] = new LazyBlock(batchSize, new TimestampSemanticAdjustingBlockLoader(blocks[fieldId], hiveStorageTimeZone));
                 }
             }
             return new Page(batchSize, blocks);
@@ -452,6 +468,42 @@ public class HivePageSource
 
             Block coercedBlock = coercer.apply(block);
             lazyBlock.setBlock(coercedBlock);
+
+            // clear reference to loader to free resources, since load was successful
+            block = null;
+        }
+    }
+
+    private static final class TimestampSemanticAdjustingBlockLoader
+            implements LazyBlockLoader<LazyBlock>
+    {
+        private Block block;
+        private DateTimeZone hiveTimeZone;
+
+        public TimestampSemanticAdjustingBlockLoader(Block block, DateTimeZone hiveTimeZone)
+        {
+            this.block = requireNonNull(block, "block is null");
+            this.hiveTimeZone = requireNonNull(hiveTimeZone, "hiveTimeZone is null");
+        }
+
+        @Override
+        public void load(LazyBlock lazyBlock)
+        {
+            if (block == null) {
+                return;
+            }
+
+            BlockBuilder blockBuilder = TIMESTAMP.createBlockBuilder(new BlockBuilderStatus(), block.getPositionCount());
+            for (int i = 0; i < block.getPositionCount(); i++) {
+                if (block.isNull(i)) {
+                    blockBuilder.appendNull();
+                    continue;
+                }
+                long millis = TIMESTAMP.getLong(block, i);
+                TIMESTAMP.writeLong(blockBuilder, millis + hiveTimeZone.getOffset(millis));
+            }
+
+            lazyBlock.setBlock(blockBuilder.build());
 
             // clear reference to loader to free resources, since load was successful
             block = null;

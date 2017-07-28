@@ -90,7 +90,9 @@ public class ParquetRecordCursorProvider
                 useParquetColumnNames,
                 typeManager,
                 isParquetPredicatePushdownEnabled(session),
-                effectivePredicate
+                effectivePredicate,
+                hiveStorageTimeZone,
+                session.isLegacyTimestamp()
         ));
     }
 }

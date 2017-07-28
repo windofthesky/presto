@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.hive;
 
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.block.Block;
@@ -101,6 +102,7 @@ class GenericHiveRecordCursor<K, V extends Writable>
 
     private final long totalBytes;
     private final DateTimeZone hiveStorageTimeZone;
+    private final boolean isLegacyTimestamp;
 
     private long completedBytes;
     private Object rowData;
@@ -112,7 +114,8 @@ class GenericHiveRecordCursor<K, V extends Writable>
             Properties splitSchema,
             List<HiveColumnHandle> columns,
             DateTimeZone hiveStorageTimeZone,
-            TypeManager typeManager)
+            TypeManager typeManager,
+            ConnectorSession session)
     {
         requireNonNull(recordReader, "recordReader is null");
         checkArgument(totalBytes >= 0, "totalBytes is negative");
@@ -125,6 +128,7 @@ class GenericHiveRecordCursor<K, V extends Writable>
         this.key = recordReader.createKey();
         this.value = recordReader.createValue();
         this.hiveStorageTimeZone = hiveStorageTimeZone;
+        this.isLegacyTimestamp = session.isLegacyTimestamp();
 
         this.deserializer = getDeserializer(splitSchema);
         this.rowInspector = getTableObjectInspector(deserializer);
@@ -272,12 +276,12 @@ class GenericHiveRecordCursor<K, V extends Writable>
         else {
             Object fieldValue = ((PrimitiveObjectInspector) fieldInspectors[column]).getPrimitiveJavaObject(fieldData);
             checkState(fieldValue != null, "fieldValue should not be null");
-            longs[column] = getLongExpressedValue(fieldValue, hiveStorageTimeZone);
+            longs[column] = getLongExpressedValue(fieldValue, hiveStorageTimeZone, isLegacyTimestamp);
             nulls[column] = false;
         }
     }
 
-    private static long getLongExpressedValue(Object value, DateTimeZone hiveTimeZone)
+    private static long getLongExpressedValue(Object value, DateTimeZone hiveTimeZone, boolean isLegacyTimestamp)
     {
         if (value instanceof Date) {
             long storageTime = ((Date) value).getTime();
@@ -299,6 +303,15 @@ class GenericHiveRecordCursor<K, V extends Writable>
 
             // convert to UTC using the real time zone for the underlying data
             long utcMillis = hiveTimeZone.convertLocalToUTC(hiveMillis, false);
+
+            // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+            // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+            // In order to compensate for that behavior (so that Presto will get same values as Hive),
+            // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+            // This works properly as long as hive.time-zone is same as real TZ of hive.
+            if (!isLegacyTimestamp) {
+                utcMillis += hiveTimeZone.getOffset(hiveMillis);
+            }
 
             return utcMillis;
         }

@@ -146,7 +146,8 @@ public class HivePageSourceProvider
                                 columnMappings,
                                 hiveStorageTimeZone,
                                 typeManager,
-                                pageSource.get()));
+                                pageSource.get(),
+                                session));
             }
         }
 

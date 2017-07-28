@@ -36,6 +36,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapred.RecordReader;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -111,6 +112,9 @@ class ColumnarBinaryHiveRecordCursor<K>
     private long completedBytes;
     private boolean closed;
 
+    private DateTimeZone hiveStorageTimeZone;
+    private boolean isLegacyTimestamp;
+
     private final HiveDecimalWritable decimalWritable = new HiveDecimalWritable();
 
     private static final byte HIVE_EMPTY_STRING_BYTE = (byte) 0xbf;
@@ -126,7 +130,9 @@ class ColumnarBinaryHiveRecordCursor<K>
             long totalBytes,
             Properties splitSchema,
             List<HiveColumnHandle> columns,
-            TypeManager typeManager)
+            TypeManager typeManager,
+            DateTimeZone hiveStorageTimeZone,
+            boolean isLegacyTimestamp)
     {
         requireNonNull(recordReader, "recordReader is null");
         checkArgument(totalBytes >= 0, "totalBytes is negative");
@@ -154,6 +160,9 @@ class ColumnarBinaryHiveRecordCursor<K>
         this.slices = new Slice[size];
         this.objects = new Object[size];
         this.nulls = new boolean[size];
+
+        this.hiveStorageTimeZone = hiveStorageTimeZone;
+        this.isLegacyTimestamp = isLegacyTimestamp;
 
         // initialize data columns
         StructObjectInspector rowInspector = getTableObjectInspector(splitSchema);
@@ -348,7 +357,18 @@ class ColumnarBinaryHiveRecordCursor<K>
             checkState(length >= 1, "Timestamp should be at least 1 byte");
             long seconds = TimestampWritable.getSeconds(bytes, start);
             long nanos = (bytes[start] >> 7) != 0 ? TimestampWritable.getNanos(bytes, start + SIZE_OF_INT) : 0;
-            longs[column] = (seconds * 1000) + (nanos / 1_000_000);
+            long millis = (seconds * 1000) + (nanos / 1_000_000);
+
+            // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+            // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+            // In order to compensate for that behavior (so that Presto will get same values as Hive),
+            // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+            // This works properly as long as hive.time-zone is same as real TZ of hive.
+            if (!isLegacyTimestamp) {
+                millis += hiveStorageTimeZone.getOffset(millis);
+            }
+
+            longs[column] = millis;
         }
         else if (hiveTypes[column].equals(HIVE_BYTE)) {
             checkState(length == 1, "Byte should be 1 byte");

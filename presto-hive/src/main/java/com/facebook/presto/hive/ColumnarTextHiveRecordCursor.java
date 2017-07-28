@@ -103,6 +103,7 @@ class ColumnarTextHiveRecordCursor<K>
 
     private final long totalBytes;
     private final DateTimeZone hiveStorageTimeZone;
+    private final boolean isLegacyTimestamp;
 
     private long completedBytes;
     private boolean closed;
@@ -113,7 +114,8 @@ class ColumnarTextHiveRecordCursor<K>
             Properties splitSchema,
             List<HiveColumnHandle> columns,
             DateTimeZone hiveStorageTimeZone,
-            TypeManager typeManager)
+            TypeManager typeManager,
+            boolean isLegacyTimestamp)
     {
         requireNonNull(recordReader, "recordReader is null");
         checkArgument(totalBytes >= 0, "totalBytes is negative");
@@ -126,6 +128,7 @@ class ColumnarTextHiveRecordCursor<K>
         this.key = recordReader.createKey();
         this.value = recordReader.createValue();
         this.hiveStorageTimeZone = hiveStorageTimeZone;
+        this.isLegacyTimestamp = isLegacyTimestamp;
 
         int size = columns.size();
 
@@ -336,7 +339,18 @@ class ColumnarTextHiveRecordCursor<K>
         }
         else if (hiveTypes[column].equals(HiveType.HIVE_TIMESTAMP)) {
             String value = new String(bytes, start, length);
-            longs[column] = parseHiveTimestamp(value, hiveStorageTimeZone);
+            long millis = parseHiveTimestamp(value, hiveStorageTimeZone);
+
+            // The ANSI SQL compatible Presto implementation of TIMESTAMP type is time zone agnostic.
+            // Hive works differently by always displaying TIMESTAMP value in local timezone of the client.
+            // In order to compensate for that behavior (so that Presto will get same values as Hive),
+            // we have to adjust values on both read (add TZ offset) and write (subtract TZ offset).
+            // This works properly as long as hive.time-zone is same as real TZ of hive.
+            if (!isLegacyTimestamp) {
+                millis += hiveStorageTimeZone.getOffset(millis);
+            }
+
+            longs[column] = millis;
             wasNull = false;
         }
         else if (hiveTypes[column].equals(HiveType.HIVE_FLOAT)) {

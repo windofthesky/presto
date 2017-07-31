@@ -30,6 +30,7 @@ import org.testng.annotations.Test;
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.REPLICATED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.testng.Assert.assertEquals;
 
@@ -133,6 +134,11 @@ public class TestReorderJoins
         JoinOrderPrinter joinOrderPrinter = new JoinOrderPrinter();
         plan.getRoot().accept(joinOrderPrinter, 0);
         return joinOrderPrinter.result();
+    }
+
+    private static String sf10(String tableName)
+    {
+        return format("tpch:%s:sf10.0", tableName);
     }
 
     private static class JoinOrderPrinter

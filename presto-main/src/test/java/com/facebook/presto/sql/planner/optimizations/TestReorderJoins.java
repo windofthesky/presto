@@ -196,6 +196,14 @@ public class TestReorderJoins
         private final Node left;
         private final Node right;
 
+        private Join(Node left, Node right)
+        {
+            this.left = requireNonNull(left, "left is null");
+            this.right = requireNonNull(right, "right is null");
+            this.type = INNER;
+            this.distributionType = REPLICATED;
+        }
+
         private Join(JoinNode.Type type, JoinNode.DistributionType distributionType, Node left, Node right)
         {
             this.left = requireNonNull(left, "left is null");

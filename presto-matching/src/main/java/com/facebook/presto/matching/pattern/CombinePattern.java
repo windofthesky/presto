@@ -13,44 +13,32 @@
  */
 package com.facebook.presto.matching.pattern;
 
-import com.facebook.presto.matching.Captures;
-import com.facebook.presto.matching.Match;
-import com.facebook.presto.matching.Matcher;
-import com.facebook.presto.matching.Pattern;
-import com.facebook.presto.matching.PatternVisitor;
-import com.facebook.presto.matching.Property;
-import com.facebook.presto.matching.PropertyPattern;
+import com.facebook.presto.matching.*;
 
-public class WithPattern<T>
+public class CombinePattern<T>
         extends Pattern<T>
 {
-    private final PropertyPattern<? super T, ?> propertyPattern;
+    private final Pattern<T> pattern;
 
-    public WithPattern(PropertyPattern<? super T, ?> propertyPattern, Pattern<T> previous)
+    public CombinePattern(Pattern<?> previous, Pattern<T> pattern)
     {
         super(previous);
-        this.propertyPattern = propertyPattern;
+        this.pattern = pattern;
     }
 
-    public Pattern<?> getPattern()
-    {
-        return propertyPattern.getPattern();
-    }
-
-    public Property<? super T, ?> getProperty()
-    {
-        return propertyPattern.getProperty();
+    public Pattern<T> getPattern() {
+        return pattern;
     }
 
     @Override
     public Match<T> accept(Matcher matcher, Object object, Captures captures)
     {
-        return matcher.matchWith(this, object, captures);
+        return matcher.matchCombine(this, object, captures);
     }
 
     @Override
     public void accept(PatternVisitor patternVisitor)
     {
-        patternVisitor.visitWith(this);
+        patternVisitor.visitCombine(this);
     }
 }

@@ -13,17 +13,12 @@
  */
 package com.facebook.presto.matching;
 
-import com.facebook.presto.matching.pattern.CapturePattern;
-import com.facebook.presto.matching.pattern.EqualsPattern;
-import com.facebook.presto.matching.pattern.FilterPattern;
-import com.facebook.presto.matching.pattern.TypeOfPattern;
-import com.facebook.presto.matching.pattern.WithPattern;
+import com.facebook.presto.matching.pattern.*;
 
-public interface PatternVisitor
-{
+public interface PatternVisitor {
     void visitTypeOf(TypeOfPattern<?> pattern);
 
-    void visitWith(WithPattern<?> pattern);
+    void visitHasProperty(HasPropertyPattern<?, ?> pattern);
 
     void visitCapture(CapturePattern<?> pattern);
 
@@ -31,11 +26,14 @@ public interface PatternVisitor
 
     void visitFilter(FilterPattern<?> pattern);
 
-    default void visitPrevious(Pattern pattern)
-    {
+    default void visitPrevious(Pattern pattern) {
         Pattern previous = pattern.previous();
         if (previous != null) {
             previous.accept(this);
         }
     }
+
+    void visitScoped(ScopedPattern<?> pattern);
+
+    void visitCombine(CombinePattern<?> pattern);
 }

@@ -13,35 +13,26 @@
  */
 package com.facebook.presto.matching;
 
-import com.facebook.presto.matching.example.rel.FilterNode;
-import com.facebook.presto.matching.example.rel.JoinNode;
-import com.facebook.presto.matching.example.rel.ProjectNode;
-import com.facebook.presto.matching.example.rel.RelNode;
-import com.facebook.presto.matching.example.rel.ScanNode;
+import com.facebook.presto.matching.example.rel.*;
 import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static com.facebook.presto.matching.Capture.newCapture;
 import static com.facebook.presto.matching.Pattern.any;
 import static com.facebook.presto.matching.Pattern.typeOf;
-import static com.facebook.presto.matching.example.rel.Patterns.filter;
-import static com.facebook.presto.matching.example.rel.Patterns.plan;
-import static com.facebook.presto.matching.example.rel.Patterns.project;
-import static com.facebook.presto.matching.example.rel.Patterns.scan;
-import static com.facebook.presto.matching.example.rel.Patterns.source;
-import static com.facebook.presto.matching.example.rel.Patterns.tableName;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
+import static com.facebook.presto.matching.Property.extractor;
+import static com.facebook.presto.matching.example.rel.Patterns.*;
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
+import static org.testng.Assert.*;
 
-public class TestMatcher
-{
+public class TestMatcher {
     @Test
-    public void trivialMatchers()
-    {
+    public void trivialMatchers() {
         //any
         assertMatch(any(), 42);
         assertMatch(any(), "John Doe");
@@ -57,15 +48,13 @@ public class TestMatcher
     }
 
     @Test
-    public void matchObject()
-    {
+    public void matchObject() {
         assertMatch(project(), new ProjectNode(null));
         assertNoMatch(project(), new ScanNode("t"));
     }
 
     @Test
-    public void propertyMatchers()
-    {
+    public void propertyMatchers() {
         Pattern<String> aString = typeOf(String.class);
         Property<String, Integer> length = Property.property("length", String::length);
         String string = "a";
@@ -75,17 +64,18 @@ public class TestMatcher
         assertMatch(aString.with(length.matching(any())), string);
         assertMatch(aString.with(length.matching(x -> x > 0)), string);
         assertMatch(aString.with(length.matching((Number x) -> x.intValue() > 0)), string);
+//        assertMatch(aString.with(length.matching((x, captures) -> Optional.of(x.toString()))), string);
 
         assertNoMatch(aString.with(length.equalTo(0)), string);
         assertNoMatch(project().with(source().matching(scan())), new ProjectNode(new ProjectNode(new ScanNode("T"))));
         assertNoMatch(aString.with(length.matching(typeOf(Void.class))), string);
         assertNoMatch(aString.with(length.matching(x -> x < 1)), string);
         assertNoMatch(aString.with(length.matching((Number x) -> x.intValue() < 1)), string);
+//        assertNoMatch(aString.with(length.matching((x, captures) -> Optional.empty())), string);
     }
 
     @Test
-    public void matchNestedProperties()
-    {
+    public void matchNestedProperties() {
         Pattern<ProjectNode> pattern = project().with(source().matching(scan()));
 
         assertMatch(pattern, new ProjectNode(new ScanNode("t")));
@@ -97,20 +87,40 @@ public class TestMatcher
     }
 
     @Test
-    public void matchAdditionalProperties()
-    {
+    public void matchAdditionalProperties() {
+        Capture<List<String>> lowercase = newCapture();
+
         String matchedValue = "A little string.";
 
-        Pattern<String> pattern = typeOf(String.class)
+        Pattern<List<String>> pattern = typeOf(String.class)
                 .matching(s -> s.startsWith("A"))
-                .matching((CharSequence s) -> s.length() > 7);
+                .matching((CharSequence s) -> s.length() > 0)
+                .matching(ending("string."))
+                .matching((value, captures) -> Optional.of(value).filter(v -> v.trim().equals(v)))
+                .matching(hasLowercaseChars)
+                .capturedAs(lowercase);
 
-        assertMatch(pattern, matchedValue);
+        List<String> lowercaseChars = characters("string.").collect(toList());
+        Match<List<String>> match = assertMatch(pattern, matchedValue, lowercaseChars);
+        assertEquals(match.capture(lowercase), lowercaseChars);
+    }
+
+    private Property<String, String> ending(String suffix) {
+        return extractor("ending(" + suffix + ")", (string, captures) ->
+                Optional.of(suffix).filter(__ -> string.endsWith(suffix)));
+    }
+
+    private Property<String, List<String>> hasLowercaseChars = extractor("", (string, captures) -> {
+        List<String> lowercaseChars = characters(string).filter(this::isLowerCase).collect(toList());
+        return Optional.of(lowercaseChars).filter(l -> !l.isEmpty());
+    });
+
+    private boolean isLowerCase(String string) {
+        return string.toLowerCase().equals(string);
     }
 
     @Test
-    public void optionalProperties()
-    {
+    public void optionalProperties() {
         Property<RelNode, RelNode> onlySource = Property.optionalProperty("onlySource", node ->
                 Optional.of(node.getSources())
                         .filter(sources -> sources.size() == 1)
@@ -125,16 +135,17 @@ public class TestMatcher
     }
 
     @Test
-    public void capturingMatchesInATypesafeManner()
-    {
+    public void capturingMatchesInATypesafeManner() {
         Capture<FilterNode> filter = newCapture();
         Capture<ScanNode> scan = newCapture();
         Capture<String> name = newCapture();
 
         Pattern<ProjectNode> pattern = project()
-                .with(source().matching(filter().capturedAs(filter)
-                        .with(source().matching(scan().capturedAs(scan)
-                                .with(tableName().capturedAs(name))))));
+                .with(source()
+                        .matching(filter()
+                                .capturedAs(filter)
+                                .with(source().matching(scan().capturedAs(scan)
+                                        .with(tableName().capturedAs(name))))));
 
         ProjectNode tree = new ProjectNode(new FilterNode(new ScanNode("orders"), null));
 
@@ -147,8 +158,26 @@ public class TestMatcher
     }
 
     @Test
-    public void noMatchMeansNoCaptures()
-    {
+    void evidenceBackedMatchingUsingExtractors() {
+        Pattern<List<String>> stringWithVowels = typeOf(String.class).matching((x, captures) -> {
+            List<String> vowels = characters(x).filter(c -> "aeiouy".contains(c.toLowerCase())).collect(toList());
+            return Optional.of(vowels).filter(l -> !l.isEmpty());
+        });
+
+        Capture<List<String>> vowels = newCapture();
+
+        Match<List<String>> match = assertMatch(stringWithVowels.capturedAs(vowels), "John Doe", asList("o", "o", "e"));
+        assertEquals(match.value(), match.capture(vowels));
+
+        assertNoMatch(stringWithVowels, "pqrst");
+    }
+
+    private Stream<String> characters(String string) {
+        return string.chars().mapToObj(c -> String.valueOf((char) c));
+    }
+
+    @Test
+    public void noMatchMeansNoCaptures() {
         Capture<Void> impossible = newCapture();
         Pattern<Void> pattern = typeOf(Void.class).capturedAs(impossible);
 
@@ -160,8 +189,7 @@ public class TestMatcher
     }
 
     @Test
-    public void unknownCaptureIsAnError()
-    {
+    public void unknownCaptureIsAnError() {
         Pattern<?> pattern = any();
         Capture<?> unknownCapture = newCapture();
 
@@ -172,26 +200,51 @@ public class TestMatcher
     }
 
     @Test
-    public void nullNotMatchedByDefault()
-    {
+    void extractorsParameterizedWithCaptures() {
+        Capture<JoinNode> root = newCapture();
+        Capture<JoinNode> parent = newCapture();
+        Capture<ScanNode> left = newCapture();
+        Capture<ScanNode> right = newCapture();
+        Capture<List<RelNode>> caputres = newCapture();
+
+        Property<Object, List<RelNode>> accessingTheDesiredCaptures = (ignored, params) ->
+                Optional.of(asList(
+                        params.get(left), params.get(right), params.get(root), params.get(parent)
+                ));
+
+        Pattern<JoinNode> pattern = join().capturedAs(root)
+                .with(probe().matching(join().capturedAs(parent)
+                        .with(probe().matching(scan().capturedAs(left)))
+                        .with(build().matching(scan().capturedAs(right)))))
+                .with(build().matching(scan()
+                        .matching(accessingTheDesiredCaptures).capturedAs(caputres)));
+
+        ScanNode expectedLeft = new ScanNode("a");
+        ScanNode expectedRight = new ScanNode("b");
+        JoinNode expectedParent = new JoinNode(expectedLeft, expectedRight);
+        JoinNode expectedRoot = new JoinNode(expectedParent, new ScanNode("c"));
+
+        Match<JoinNode> match = assertMatch(pattern, expectedRoot);
+        assertEquals(asList(expectedLeft, expectedRight, expectedRoot, expectedParent), match.capture(caputres));
+    }
+
+    @Test
+    public void nullNotMatchedByDefault() {
         assertNoMatch(any(), null);
         assertNoMatch(typeOf(Integer.class), null);
     }
 
-    private <T> Match<T> assertMatch(Pattern<T> pattern, T expectedMatch)
-    {
+    private <T> Match<T> assertMatch(Pattern<T> pattern, T expectedMatch) {
         return assertMatch(pattern, expectedMatch, expectedMatch);
     }
 
-    private <T, R> Match<R> assertMatch(Pattern<R> pattern, T matchedAgainst, R expectedMatch)
-    {
+    private <T, R> Match<R> assertMatch(Pattern<R> pattern, T matchedAgainst, R expectedMatch) {
         Match<R> match = DefaultMatcher.DEFAULT_MATCHER.match(pattern, matchedAgainst);
         assertEquals(expectedMatch, match.value());
         return match;
     }
 
-    private <T> void assertNoMatch(Pattern<T> pattern, Object expectedNoMatch)
-    {
+    private <T> void assertNoMatch(Pattern<T> pattern, Object expectedNoMatch) {
         Match<T> match = DefaultMatcher.DEFAULT_MATCHER.match(pattern, expectedNoMatch);
         assertEquals(Match.empty(), match);
     }

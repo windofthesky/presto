@@ -13,14 +13,9 @@
  */
 package com.facebook.presto.matching;
 
-import com.facebook.presto.matching.pattern.CapturePattern;
-import com.facebook.presto.matching.pattern.EqualsPattern;
-import com.facebook.presto.matching.pattern.FilterPattern;
-import com.facebook.presto.matching.pattern.TypeOfPattern;
-import com.facebook.presto.matching.pattern.WithPattern;
+import com.facebook.presto.matching.pattern.*;
 
 import java.util.Optional;
-import java.util.function.Function;
 
 public class DefaultMatcher
         implements Matcher
@@ -52,14 +47,25 @@ public class DefaultMatcher
     }
 
     @Override
-    public <T> Match<T> matchWith(WithPattern<T> withPattern, Object object, Captures captures)
-    {
-        Function<? super T, Optional<?>> property = withPattern.getProperty().getFunction();
-        Optional<?> propertyValue = property.apply((T) object);
-        Match<?> propertyMatch = propertyValue
-                .map(value -> match(withPattern.getPattern(), value, captures))
+    public <T, R> Match<R> matchHasProperty(HasPropertyPattern<T, R> hasPropertyPattern, Object object, Captures captures) {
+        Property<? super T, R> property = hasPropertyPattern.getProperty();
+        Optional<R> propertyValue = property.apply((T) object, captures);
+        Match<R> propertyMatch = propertyValue
+                .map(value -> Match.of(value, captures))
                 .orElse(Match.empty());
-        return propertyMatch.map(ignored -> (T) object);
+        return propertyMatch;
+    }
+
+    @Override
+    public <T> Match<T> matchScoped(ScopedPattern<T> scopedPattern, Object object, Captures captures) {
+        Pattern<?> pattern = scopedPattern.getPattern();
+        Match<?> match = match(pattern, object, captures);
+        return match.map(value -> (T) object);
+    }
+
+    @Override
+    public <T> Match<T> matchCombine(CombinePattern<T> combinePattern, Object object, Captures captures) {
+        return match(combinePattern.getPattern(), object, captures);
     }
 
     @Override

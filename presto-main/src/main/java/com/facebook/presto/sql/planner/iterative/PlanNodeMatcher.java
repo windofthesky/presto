@@ -16,10 +16,11 @@ package com.facebook.presto.sql.planner.iterative;
 import com.facebook.presto.matching.Captures;
 import com.facebook.presto.matching.DefaultMatcher;
 import com.facebook.presto.matching.Match;
-import com.facebook.presto.matching.pattern.WithPattern;
+import com.facebook.presto.matching.Property;
+import com.facebook.presto.matching.pattern.HasPropertyPattern;
+import com.facebook.presto.sql.planner.plan.PlanNode;
 
 import java.util.Optional;
-import java.util.function.Function;
 
 public class PlanNodeMatcher
         extends DefaultMatcher
@@ -32,17 +33,17 @@ public class PlanNodeMatcher
     }
 
     @Override
-    public <T> Match<T> matchWith(WithPattern<T> withPattern, Object object, Captures captures)
-    {
-        Function<? super T, Optional<?>> property = withPattern.getProperty().getFunction();
-        Optional<?> propertyValue = property.apply((T) object);
+    public <T, R> Match<R> matchHasProperty(HasPropertyPattern<T, R> hasPropertyPattern, Object object, Captures captures) {
+        Property<? super T, R> property = hasPropertyPattern.getProperty();
+        Optional<R> propertyValue = property.apply((T) object, captures);
 
-        Optional<?> resolvedValue = propertyValue
+        Optional<PlanNode> resolvedValue = propertyValue
                 .map(value -> value instanceof GroupReference ? lookup.resolve(((GroupReference) value)) : value);
 
-        Match<?> propertyMatch = resolvedValue
-                .map(value -> match(withPattern.getPattern(), value, captures))
+        Match<R> propertyMatch = resolvedValue
+                .map(value -> Match.of(value, captures))
                 .orElse(Match.empty());
-        return propertyMatch.map(ignored -> (T) object);
+        return propertyMatch;
     }
+
 }

@@ -13,72 +13,79 @@
  */
 package com.facebook.presto.matching;
 
-import com.facebook.presto.matching.pattern.CapturePattern;
-import com.facebook.presto.matching.pattern.FilterPattern;
-import com.facebook.presto.matching.pattern.TypeOfPattern;
-import com.facebook.presto.matching.pattern.WithPattern;
+import com.facebook.presto.matching.pattern.*;
 import com.google.common.collect.Iterables;
 
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
+import static com.facebook.presto.matching.Property.extractor;
+import static com.facebook.presto.matching.Property.upcast;
 import static com.google.common.base.Predicates.not;
 
-public abstract class Pattern<T>
-{
+public abstract class Pattern<T> {
     private final Pattern<?> previous;
 
-    public static Pattern<Object> any()
-    {
+    public static Pattern<Object> any() {
         return typeOf(Object.class);
     }
 
-    public static <T> Pattern<T> typeOf(Class<T> expectedClass)
-    {
+    public static <T> Pattern<T> typeOf(Class<T> expectedClass) {
         return new TypeOfPattern<>(expectedClass);
     }
 
-    protected Pattern()
-    {
+    protected Pattern() {
         this(null);
     }
 
-    protected Pattern(Pattern<?> previous)
-    {
+    protected Pattern(Pattern<?> previous) {
         this.previous = previous;
     }
 
-    public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> empty(Property<F, T> property)
-    {
+    public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> empty(Property<F, T> property) {
         return PropertyPattern.upcast(property.matching("empty", Iterables::isEmpty));
     }
 
-    public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> nonEmpty(Property<F, T> property)
-    {
+    public static <F, T extends Iterable<S>, S> PropertyPattern<F, T> nonEmpty(Property<F, T> property) {
         return PropertyPattern.upcast(property.matching("nonEmpty", not(Iterables::isEmpty)));
     }
 
-    public Pattern<T> capturedAs(Capture<T> capture)
-    {
+    public Pattern<T> capturedAs(Capture<T> capture) {
         return new CapturePattern<>(capture, this);
     }
 
-    public Pattern<T> matching(Predicate<? super T> predicate)
-    {
+    public Pattern<T> matching(Predicate<? super T> predicate) {
         return matching("", predicate);
     }
 
-    public Pattern<T> matching(String description, Predicate<? super T> predicate)
-    {
+    public Pattern<T> matching(String description, Predicate<? super T> predicate) {
         return new FilterPattern<>(description, UsageCallSite.get(), predicate, this);
     }
 
-    public Pattern<T> with(PropertyPattern<? super T, ?> pattern)
-    {
-        return new WithPattern<>(pattern, this);
+    public <R> Pattern<R> matching(BiFunction<? super T, Captures, Optional<R>> property) {
+        return matching("", property);
     }
 
-    public Pattern<?> previous()
-    {
+    public <R> Pattern<R> matching(String description, BiFunction<? super T, Captures, Optional<R>> property) {
+        return matching(upcast(extractor(description, property)));
+    }
+
+    public <R> Pattern<R> matching(Property<T, R> property) {
+        return new HasPropertyPattern<>(property, this);
+    }
+
+    public Pattern<T> with(Property<? super T, ?> property) {
+        return new ScopedPattern<>(new HasPropertyPattern<>(property, null), this);
+    }
+
+    public Pattern<T> with(PropertyPattern<? super T, ?> propertyPattern) {
+        HasPropertyPattern<? super T, ?> hasProperty = new HasPropertyPattern<>(propertyPattern.getProperty(), null);
+        CombinePattern<?> combinePattern = new CombinePattern<>(hasProperty, propertyPattern.getPattern());
+        return new ScopedPattern<>(combinePattern, this);
+    }
+
+    public Pattern<?> previous() {
         return previous;
     }
 
@@ -87,8 +94,7 @@ public abstract class Pattern<T>
     public abstract void accept(PatternVisitor patternVisitor);
 
     @Override
-    public String toString()
-    {
+    public String toString() {
         DefaultPrinter printer = new DefaultPrinter();
         accept(printer);
         return printer.result();

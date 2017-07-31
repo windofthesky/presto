@@ -65,17 +65,17 @@ public class TestReorderJoins
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan("tpch:partsupp:sf10.0"),
-                                new TableScan("tpch:part:sf10.0")),
+                                new TableScan(sf10("partsupp")),
+                                new TableScan(sf10("part"))),
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan("tpch:supplier:sf10.0"),
+                                new TableScan(sf10("supplier")),
                                 new Join(
                                         INNER,
                                         REPLICATED,
-                                        new TableScan("tpch:nation:sf10.0"),
-                                        new TableScan("tpch:region:sf10.0")))));
+                                        new TableScan(sf10("nation")),
+                                        new TableScan(sf10("region"))))));
     }
 
     @Test
@@ -89,8 +89,8 @@ public class TestReorderJoins
                 new Join(
                         INNER,
                         REPLICATED, //TODO it should be PARTITIONED
-                        new TableScan("tpch:part:sf10.0"),
-                        new TableScan("tpch:lineitem:sf10.0")));
+                        new TableScan(sf10("part")),
+                        new TableScan(sf10("lineitem"))));
     }
 
     @Test
@@ -111,12 +111,13 @@ public class TestReorderJoins
                         "ORDER BY revenue DESC, o.orderdate LIMIT 10",
                 new Join(INNER,
                          REPLICATED,
-                         new TableScan("tpch:lineitem:sf10.0"),
+                         new TableScan(sf10("lineitem")),
                          new Join(
                                  INNER,
                                  REPLICATED,
-                                 new TableScan("tpch:orders:sf10.0"),
-                                 new TableScan("tpch:customer:sf10.0"))));
+                                 new TableScan(sf10("orders")),
+                                 new TableScan(sf10("customer")))));
+    }
     }
 
     private void assertJoinOrder(String sql, Node expected)

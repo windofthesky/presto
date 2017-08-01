@@ -254,6 +254,42 @@ public class TestReorderJoins
     }
 
     @Test
+    public void testInnerTpchQ9JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT " +
+                        "n.name AS nation, " +
+                        "extract(YEAR FROM o.orderdate) AS o_year, " +
+                        "l.extendedprice * (1 - l.discount) - ps.supplycost * l.quantity AS amount " +
+                        "FROM " +
+                        "part AS p, " +
+                        "supplier AS s, " +
+                        "lineitem AS l, " +
+                        "partsupp AS ps, " +
+                        "orders AS o, " +
+                        "nation AS n " +
+                        "WHERE " +
+                        "s.suppkey = l.suppkey " +
+                        "AND ps.suppkey = l.suppkey " +
+                        "AND ps.partkey = l.partkey " +
+                        "AND p.partkey = l.partkey " +
+                        "AND o.orderkey = l.orderkey " +
+                        "AND s.nationkey = n.nationkey " +
+                        "AND p.name LIKE '%green%'",
+                new Join(
+                        new Join(
+                                tpchSf10Table("orders"),
+                                new Join(
+                                        tpchSf10Table("supplier"),
+                                        new Join(
+                                                tpchSf10Table("part"),
+                                                new Join(
+                                                        tpchSf10Table("lineitem"),
+                                                        tpchSf10Table("partsupp"))))),
+                        tpchSf10Table("nation")));
+    }
+
+    @Test
     public void testPartialTpchQ14JoinOrder()
     {
         // it looks like the join ordering here is optimal

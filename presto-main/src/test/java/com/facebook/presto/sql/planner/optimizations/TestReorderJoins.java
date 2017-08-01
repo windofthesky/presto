@@ -21,7 +21,6 @@ import com.facebook.presto.sql.planner.SimplePlanVisitor;
 import com.facebook.presto.sql.planner.assertions.BasePlanTest;
 import com.facebook.presto.sql.planner.plan.JoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
-import com.facebook.presto.sql.planner.planPrinter.PlanPrinter;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -65,17 +64,17 @@ public class TestReorderJoins
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan(sf10("partsupp")),
-                                new TableScan(sf10("part"))),
+                                tpchSf10Table("partsupp"),
+                                tpchSf10Table("part")),
                         new Join(
                                 INNER,
                                 PARTITIONED,
-                                new TableScan(sf10("supplier")),
+                                tpchSf10Table("supplier"),
                                 new Join(
                                         INNER,
                                         REPLICATED,
-                                        new TableScan(sf10("nation")),
-                                        new TableScan(sf10("region"))))));
+                                        tpchSf10Table("nation"),
+                                        tpchSf10Table("region")))));
     }
 
     @Test
@@ -89,8 +88,8 @@ public class TestReorderJoins
                 new Join(
                         INNER,
                         REPLICATED, //TODO it should be PARTITIONED
-                        new TableScan(sf10("part")),
-                        new TableScan(sf10("lineitem"))));
+                        tpchSf10Table("part"),
+                        tpchSf10Table("lineitem")));
     }
 
     @Test
@@ -111,12 +110,17 @@ public class TestReorderJoins
                         "ORDER BY revenue DESC, o.orderdate LIMIT 10",
                 new Join(INNER,
                          REPLICATED,
-                         new TableScan(sf10("lineitem")),
+                        tpchSf10Table("lineitem"),
                          new Join(
                                  INNER,
                                  REPLICATED,
-                                 new TableScan(sf10("orders")),
-                                 new TableScan(sf10("customer")))));
+                                 tpchSf10Table("orders"),
+                                 tpchSf10Table("customer"))));
+    }
+
+    private TableScan tpchSf10Table(String orders)
+    {
+        return new TableScan(format("tpch:%s:sf10.0", orders));
     }
 
     private void assertJoinOrder(String sql, Node expected)
@@ -134,11 +138,6 @@ public class TestReorderJoins
         JoinOrderPrinter joinOrderPrinter = new JoinOrderPrinter();
         plan.getRoot().accept(joinOrderPrinter, 0);
         return joinOrderPrinter.result();
-    }
-
-    private static String sf10(String tableName)
-    {
-        return format("tpch:%s:sf10.0", tableName);
     }
 
     private static class JoinOrderPrinter

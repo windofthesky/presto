@@ -59,20 +59,15 @@ public class TestReorderJoins
                         "WHERE p.size = 15 AND p.type like '%BRASS' AND s.suppkey = ps.suppkey AND p.partkey = ps.partkey " +
                         "AND s.nationkey = n.nationkey AND n.regionkey = r.regionkey AND r.name = 'EUROPE'",
                 new Join(
-                        INNER,
                         PARTITIONED,
                         new Join(
-                                INNER,
                                 PARTITIONED,
                                 tpchSf10Table("partsupp"),
                                 tpchSf10Table("part")),
                         new Join(
-                                INNER,
                                 PARTITIONED,
                                 tpchSf10Table("supplier"),
                                 new Join(
-                                        INNER,
-                                        REPLICATED,
                                         tpchSf10Table("nation"),
                                         tpchSf10Table("region")))));
     }
@@ -86,7 +81,6 @@ public class TestReorderJoins
                         "FROM lineitem l, part p " +
                         "WHERE l.partkey = p.partkey AND l.shipdate >= DATE '1995-09-01' AND l.shipdate < DATE '1995-09-01' + INTERVAL '1' MONTH",
                 new Join(
-                        INNER,
                         REPLICATED, //TODO it should be PARTITIONED
                         tpchSf10Table("part"),
                         tpchSf10Table("lineitem")));
@@ -108,12 +102,9 @@ public class TestReorderJoins
                         "AND l.shipdate > DATE '1995-03-15' " +
                         "GROUP BY l.orderkey, o.orderdate, o.shippriority " +
                         "ORDER BY revenue DESC, o.orderdate LIMIT 10",
-                new Join(INNER,
-                         REPLICATED,
+                new Join(
                         tpchSf10Table("lineitem"),
                          new Join(
-                                 INNER,
-                                 REPLICATED,
                                  tpchSf10Table("orders"),
                                  tpchSf10Table("customer"))));
     }
@@ -203,10 +194,11 @@ public class TestReorderJoins
 
         private Join(Node left, Node right)
         {
-            this.left = requireNonNull(left, "left is null");
-            this.right = requireNonNull(right, "right is null");
-            this.type = INNER;
-            this.distributionType = REPLICATED;
+            this(REPLICATED, left, right);
+        }
+
+        private Join(JoinNode.DistributionType distributionType, Node left, Node right) {
+            this(INNER, distributionType, left, right);
         }
 
         private Join(JoinNode.Type type, JoinNode.DistributionType distributionType, Node left, Node right)

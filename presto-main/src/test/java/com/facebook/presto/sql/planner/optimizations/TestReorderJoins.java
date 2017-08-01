@@ -20,7 +20,9 @@ import com.facebook.presto.sql.planner.Plan;
 import com.facebook.presto.sql.planner.SimplePlanVisitor;
 import com.facebook.presto.sql.planner.assertions.BasePlanTest;
 import com.facebook.presto.sql.planner.plan.JoinNode;
+import com.facebook.presto.sql.planner.plan.SemiJoinNode;
 import com.facebook.presto.sql.planner.plan.TableScanNode;
+import com.facebook.presto.sql.planner.plan.ValuesNode;
 import com.facebook.presto.testing.LocalQueryRunner;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +33,7 @@ import java.util.Optional;
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.REPLICATED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
+import static com.facebook.presto.sql.planner.plan.JoinNode.Type.LEFT;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.testng.Assert.assertEquals;
@@ -506,10 +509,7 @@ public class TestReorderJoins
                     .append(node.getDistributionType().map(JoinNode.DistributionType::toString).orElse("unknown"))
                     .append("):\n");
 
-            super.visitPlan(node.getLeft(), indent + 1);
-            super.visitPlan(node.getRight(), indent + 1);
-
-            return null;
+            return visitPlan(node, indent + 1);
         }
 
         @Override
@@ -518,6 +518,26 @@ public class TestReorderJoins
             stringBuilder.append(indentString(indent))
                     .append(node.getTable().getConnectorHandle().toString())
                     .append("\n");
+            return visitPlan(node, indent + 1);
+        }
+
+        @Override
+        public Void visitSemiJoin(final SemiJoinNode node, Integer indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append("semijoin (")
+                    .append(node.getDistributionType().map(SemiJoinNode.DistributionType::toString).orElse("unknown"))
+                    .append("):\n");
+
+            return visitPlan(node, indent + 1);
+        }
+
+        @Override
+        public Void visitValues(ValuesNode node, Integer indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append("values\n");
+
             return null;
         }
     }
@@ -581,6 +601,39 @@ public class TestReorderJoins
         }
     }
 
+    private static class SemiJoin
+            implements Node
+    {
+        private final Optional<JoinNode.DistributionType> distributionType;
+        private final Node left;
+        private final Node right;
+
+        private SemiJoin(final Node left, final Node right)
+        {
+            this(Optional.empty(), left, right);
+        }
+
+        private SemiJoin(final Optional<JoinNode.DistributionType> distributionType, final Node left, final Node right)
+        {
+            this.distributionType = requireNonNull(distributionType);
+            this.left = requireNonNull(left);
+            this.right = requireNonNull(right);
+        }
+
+        @Override
+        public void print(StringBuilder stringBuilder, int indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append("semijoin (")
+                    .append(distributionType.map(JoinNode.DistributionType::toString)
+                                    .orElse("unknown"))
+                    .append("):\n");
+
+            left.print(stringBuilder, indent + 1);
+            right.print(stringBuilder, indent + 1);
+        }
+    }
+
     private static class TableScan
             implements Node
     {
@@ -597,6 +650,17 @@ public class TestReorderJoins
             stringBuilder.append(indentString(indent))
                     .append(tableName)
                     .append("\n");
+        }
+    }
+
+    private static class Values
+            implements Node
+    {
+        @Override
+        public void print(StringBuilder stringBuilder, int indent)
+        {
+            stringBuilder.append(indentString(indent))
+                    .append("values\n");
         }
     }
 }

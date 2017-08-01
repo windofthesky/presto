@@ -410,6 +410,8 @@ public class TestReorderJoins
                         tpchSf10Table("lineitem")));
     }
 
+    // only one left join in q13
+
     @Test
     public void testPartialTpchQ14JoinOrder()
     {
@@ -421,6 +423,44 @@ public class TestReorderJoins
                 new Join(
                         REPLICATED, //TODO it should be PARTITIONED
                         tpchSf10Table("part"),
+                        tpchSf10Table("lineitem")));
+    }
+
+    @Test
+    public void testTpchQ15JoinOrder()
+    {
+        assertJoinOrder(
+                "WITH revenue0 AS ( " +
+                        "SELECT  " +
+                        "l.suppkey as supplier_no, " +
+                        "sum(l.extendedprice*(1-l.discount)) as total_revenue " +
+                        "FROM  " +
+                        "lineitem l " +
+                        "WHERE  " +
+                        "l.shipdate >= DATE '1996-01-01' " +
+                        "AND l.shipdate < DATE '1996-01-01' + INTERVAL '3' MONTH " +
+                        "GROUP BY  " +
+                        "l.suppkey " +
+                        ") " +
+                        "/* TPC_H Query 15 - Top Supplier */ " +
+                        "SELECT  " +
+                        "s.suppkey,  " +
+                        "s.name,  " +
+                        "s.address,  " +
+                        "s.phone,  " +
+                        "total_revenue " +
+                        "FROM  " +
+                        "supplier s, " +
+                        "revenue0 " +
+                        "WHERE  " +
+                        "s.suppkey = supplier_no  " +
+                        "AND total_revenue = (SELECT max(total_revenue) FROM revenue0)",
+                new Join(
+                        INNER,
+                        Optional.empty(),
+                        new Join(
+                                tpchSf10Table("supplier"),
+                                tpchSf10Table("lineitem")),
                         tpchSf10Table("lineitem")));
     }
 

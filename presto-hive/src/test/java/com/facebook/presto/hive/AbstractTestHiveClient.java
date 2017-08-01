@@ -66,6 +66,8 @@ import com.facebook.presto.spi.predicate.NullableValue;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.predicate.ValueSet;
+import com.facebook.presto.spi.statistics.Estimate;
+import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.ArrayType;
 import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.NamedTypeSignature;
@@ -1054,6 +1056,36 @@ public abstract class AbstractTestHiveClient
         try (Transaction transaction = newTransaction()) {
             ConnectorMetadata metadata = transaction.getMetadata();
             assertNull(metadata.getTableHandle(newSession(), invalidTable));
+        }
+    }
+
+    @Test
+    public void testGetTableStatsBucketedStringInt()
+            throws Exception
+    {
+        try (Transaction transaction = newTransaction()) {
+            ConnectorMetadata metadata = transaction.getMetadata();
+            ConnectorSession session = newSession();
+            ConnectorTableHandle tableHandle = getTableHandle(metadata, tableBucketedStringInt);
+
+            assertEquals(
+                    metadata.getTableStatistics(session, tableHandle, Constraint.alwaysTrue()),
+                    new TableStatistics(new Estimate(10), ImmutableMap.of()));
+        }
+    }
+
+    @Test
+    public void testGetTableStatsUnpartitioned()
+            throws Exception
+    {
+        try (Transaction transaction = newTransaction()) {
+            ConnectorMetadata metadata = transaction.getMetadata();
+            ConnectorSession session = newSession();
+            ConnectorTableHandle tableHandle = getTableHandle(metadata, tableUnpartitioned);
+
+            assertEquals(
+                    metadata.getTableStatistics(session, tableHandle, Constraint.alwaysTrue()),
+                    new TableStatistics(new Estimate(10), ImmutableMap.of()));
         }
     }
 

@@ -46,6 +46,20 @@ public final class TableStatistics
         return columnStatistics;
     }
 
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TableStatistics tableStatistics = (TableStatistics) o;
+        return getRowCount().equals(tableStatistics.getRowCount()) &&
+                getColumnStatistics().equals(tableStatistics.getColumnStatistics());
+    }
+
     public static Builder builder()
     {
         return new Builder();

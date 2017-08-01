@@ -73,20 +73,6 @@ public class TestReorderJoins
     }
 
     @Test
-    public void testPartialTpchQ14JoinOrder()
-    {
-        // it looks like the join ordering here is optimal
-        assertJoinOrder(
-                "SELECT * " +
-                        "FROM lineitem l, part p " +
-                        "WHERE l.partkey = p.partkey AND l.shipdate >= DATE '1995-09-01' AND l.shipdate < DATE '1995-09-01' + INTERVAL '1' MONTH",
-                new Join(
-                        REPLICATED, //TODO it should be PARTITIONED
-                        tpchSf10Table("part"),
-                        tpchSf10Table("lineitem")));
-    }
-
-    @Test
     public void testTpchQ3JoinOrder()
     {
         assertJoinOrder(
@@ -107,6 +93,20 @@ public class TestReorderJoins
                          new Join(
                                  tpchSf10Table("orders"),
                                  tpchSf10Table("customer"))));
+    }
+
+    @Test
+    public void testPartialTpchQ14JoinOrder()
+    {
+        // it looks like the join ordering here is optimal
+        assertJoinOrder(
+                "SELECT * " +
+                        "FROM lineitem l, part p " +
+                        "WHERE l.partkey = p.partkey AND l.shipdate >= DATE '1995-09-01' AND l.shipdate < DATE '1995-09-01' + INTERVAL '1' MONTH",
+                new Join(
+                        REPLICATED, //TODO it should be PARTITIONED
+                        tpchSf10Table("part"),
+                        tpchSf10Table("lineitem")));
     }
 
     private TableScan tpchSf10Table(String orders)

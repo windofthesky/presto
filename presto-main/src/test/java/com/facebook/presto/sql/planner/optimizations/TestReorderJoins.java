@@ -290,6 +290,48 @@ public class TestReorderJoins
     }
 
     @Test
+    public void testTpchQ10JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT " +
+                        "c.custkey, " +
+                        "c.name, " +
+                        "sum(l.extendedprice * (1 - l.discount)) AS revenue, " +
+                        "c.acctbal, " +
+                        "n.name, " +
+                        "c.address, " +
+                        "c.phone, " +
+                        "c.comment " +
+                        "FROM " +
+                        "lineitem AS l, " +
+                        "orders AS o, " +
+                        "customer AS c, " +
+                        "nation AS n " +
+                        "WHERE " +
+                        "c.custkey = o.custkey " +
+                        "AND l.orderkey = o.orderkey " +
+                        "AND o.orderdate >= DATE '1993-10-01' " +
+                        "AND o.orderdate < DATE '1993-10-01' + INTERVAL '3' MONTH " +
+                        "AND l.returnflag = 'R' " +
+                        "AND c.nationkey = n.nationkey " +
+                        "GROUP BY " +
+                        "c.custkey, " +
+                        "c.name, " +
+                        "c.acctbal, " +
+                        "c.phone, " +
+                        "n.name, " +
+                        "c.address, " +
+                        "c.comment ",
+                        new Join(
+                                new Join(
+                                        tpchSf10Table("customer"),
+                                        new Join(
+                                                tpchSf10Table("lineitem"),
+                                                tpchSf10Table("orders"))),
+                                tpchSf10Table("nation")));
+    }
+
+    @Test
     public void testPartialTpchQ14JoinOrder()
     {
         // it looks like the join ordering here is optimal

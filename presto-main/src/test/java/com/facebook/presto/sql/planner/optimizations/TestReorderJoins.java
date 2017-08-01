@@ -26,6 +26,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
 
+import java.util.Optional;
+
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.DistributionType.REPLICATED;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
@@ -93,6 +95,31 @@ public class TestReorderJoins
                          new Join(
                                  tpchSf10Table("orders"),
                                  tpchSf10Table("customer"))));
+    }
+
+    @Test
+    public void testTpchQ4JoinOrder()
+    {
+        assertJoinOrder(
+                "" +
+                        "SELECT o.orderpriority, " +
+                        "  count(*) AS order_count " +
+                        "FROM orders o " +
+                        "WHERE" +
+                        "  o.orderdate >= DATE '1993-07-01'" +
+                        "  AND o.orderdate < DATE '1993-07-01' + INTERVAL '3' MONTH" +
+                        "  AND EXISTS (" +
+                        "    SELECT * " +
+                        "    FROM lineitem l" +
+                        "    WHERE l.orderkey = o.orderkey AND l.commitdate < l.receiptdate" +
+                        "  )" +
+                        "GROUP BY o.orderpriority " +
+                        "ORDER BY o.orderpriority",
+                new Join(
+                        INNER,
+                        Optional.empty(),
+                        tpchSf10Table("orders"),
+                        tpchSf10Table("lineitem")));
     }
 
     @Test
@@ -188,7 +215,7 @@ public class TestReorderJoins
             implements Node
     {
         private final JoinNode.Type type;
-        private final JoinNode.DistributionType distributionType;
+        private final Optional<JoinNode.DistributionType> distributionType;
         private final Node left;
         private final Node right;
 
@@ -198,10 +225,10 @@ public class TestReorderJoins
         }
 
         private Join(JoinNode.DistributionType distributionType, Node left, Node right) {
-            this(INNER, distributionType, left, right);
+            this(INNER, Optional.of(distributionType), left, right);
         }
 
-        private Join(JoinNode.Type type, JoinNode.DistributionType distributionType, Node left, Node right)
+        private Join(JoinNode.Type type, Optional<JoinNode.DistributionType> distributionType, Node left, Node right)
         {
             this.left = requireNonNull(left, "left is null");
             this.right = requireNonNull(right, "right is null");
@@ -216,7 +243,8 @@ public class TestReorderJoins
                     .append("join (")
                     .append(type)
                     .append(", ")
-                    .append(distributionType)
+                    .append(distributionType.map(JoinNode.DistributionType::toString)
+                            .orElse("unknown"))
                     .append("):\n");
 
             left.print(stringBuilder, indent + 1);

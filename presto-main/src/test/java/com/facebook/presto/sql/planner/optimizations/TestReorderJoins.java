@@ -51,6 +51,8 @@ public class TestReorderJoins
         return LocalQueryRunner.queryRunnerWithFakeNodeCountForStats(session, 8);
     }
 
+    // no joins in q1
+    
     @Test
     public void testPartialTpchQ2JoinOrder()
     {
@@ -163,6 +165,8 @@ public class TestReorderJoins
                                                         tpchSf10Table("region"))))),
                         tpchSf10Table("supplier")));
     }
+
+    // no joins in q6
 
     @Test
     public void testPartialTpchQ14JoinOrder()

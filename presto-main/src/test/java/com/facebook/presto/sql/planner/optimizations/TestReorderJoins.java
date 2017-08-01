@@ -467,6 +467,326 @@ public class TestReorderJoins
                         tpchSf10Table("lineitem")));
     }
 
+    @Test
+    public void testTpchQ16JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT " +
+                        "p.brand, " +
+                        "p.type, " +
+                        "p.size, " +
+                        "count(DISTINCT ps.suppkey) AS supplier_cnt " +
+                        "FROM " +
+                        "partsupp AS ps, " +
+                        "part AS p " +
+                        "WHERE " +
+                        "p.partkey = ps.partkey " +
+                        "AND p.brand <> 'Brand#45' " +
+                        "AND p.type NOT LIKE 'MEDIUM POLISHED%' " +
+                        "AND p.size IN (49, 14, 23, 45, 19, 3, 36, 9) " +
+                        "AND ps.suppkey NOT IN ( " +
+                        "SELECT s.suppkey " +
+                        "FROM " +
+                        "supplier AS s " +
+                        "WHERE " +
+                        "s.comment LIKE '%Customer%Complaints%' " +
+                        ") " +
+                        "GROUP BY " +
+                        "p.brand, " +
+                        "p.type, " +
+                        "p.size",
+                tpchSf10Table("aa"));
+    }
+
+    @Test
+    public void testTpchQ17JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT " +
+                        "p.brand, " +
+                        "p.type, " +
+                        "p.size, " +
+                        "count(DISTINCT ps.suppkey) AS supplier_cnt " +
+                        "FROM " +
+                        "partsupp AS ps, " +
+                        "part AS p " +
+                        "WHERE " +
+                        "p.partkey = ps.partkey " +
+                        "AND p.brand <> 'Brand#45' " +
+                        "AND p.type NOT LIKE 'MEDIUM POLISHED%' " +
+                        "AND p.size IN (49, 14, 23, 45, 19, 3, 36, 9) " +
+                        "AND ps.suppkey NOT IN ( " +
+                        "SELECT s.suppkey " +
+                        "FROM " +
+                        "supplier AS s " +
+                        "WHERE " +
+                        "s.comment LIKE '%Customer%Complaints%' " +
+                        ") " +
+                        "GROUP BY " +
+                        "p.brand, " +
+                        "p.type, " +
+                        "p.size",
+                new SemiJoin(
+                        new Join(
+                                tpchSf10Table("partsupp"),
+                                tpchSf10Table("part")),
+                        tpchSf10Table("supplier")));
+    }
+
+    @Test
+    public void testTpchQ18JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT " +
+                        "c.name, " +
+                        "c.custkey, " +
+                        "o.orderkey, " +
+                        "o.orderdate, " +
+                        "o.totalprice, " +
+                        "sum(l.quantity) " +
+                        "FROM " +
+                        "customer AS c, " +
+                        "orders AS o, " +
+                        "lineitem AS l " +
+                        "WHERE " +
+                        "o.orderkey IN ( " +
+                        "SELECT l.orderkey " +
+                        "FROM " +
+                        "lineitem AS l " +
+                        "GROUP BY " +
+                        "l.orderkey " +
+                        "HAVING " +
+                        "sum(l.quantity) > 300 " +
+                        ") " +
+                        "AND c.custkey = o.custkey " +
+                        "AND o.orderkey = l.orderkey " +
+                        "GROUP BY " +
+                        "c.name, " +
+                        "c.custkey, " +
+                        "o.orderkey, " +
+                        "o.orderdate, " +
+                        "o.totalprice",
+                new SemiJoin(
+                        new Join(
+                                tpchSf10Table("lineitem"),
+                                new Join(
+                                        tpchSf10Table("orders"),
+                                        tpchSf10Table("customer"))),
+                        tpchSf10Table("lineitem")));
+    }
+
+    @Test
+    public void testTpchQ19JoinOrder()
+    {
+        assertJoinOrder("SELECT  " +
+                                "sum(l.extendedprice* (1 - l.discount)) as revenue " +
+                                "FROM  " +
+                                "lineitem l, " +
+                                "part p " +
+                                "WHERE " +
+                                "p.partkey = l.partkey " +
+                                "AND " +
+                                "(( " +
+                                "p.brand = 'Brand#12' " +
+                                "AND p.container IN ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')  " +
+                                "AND l.quantity >= 1  " +
+                                "AND l.quantity <= 1 + 10  " +
+                                "AND p.size BETWEEN 1 AND 5 " +
+                                "AND l.shipmode IN ('AIR', 'AIR REG')  " +
+                                "AND l.shipinstruct = 'DELIVER IN PERSON' " +
+                                ") " +
+                                "OR ( " +
+                                "p.brand ='Brand#23' " +
+                                "AND p.container IN ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')  " +
+                                "AND l.quantity >=10  " +
+                                "AND l.quantity <=10 + 10  " +
+                                "AND p.size BETWEEN 1 AND 10  " +
+                                "AND l.shipmode IN ('AIR', 'AIR REG')  " +
+                                "AND l.shipinstruct = 'DELIVER IN PERSON' " +
+                                ")  " +
+                                "OR ( " +
+                                "p.brand = 'Brand#34' " +
+                                "AND p.container IN ( 'LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')  " +
+                                "AND l.quantity >=20  " +
+                                "AND l.quantity <= 20 + 10  " +
+                                "AND p.size BETWEEN 1 AND 15 " +
+                                "AND l.shipmode IN ('AIR', 'AIR REG')  " +
+                                "AND l.shipinstruct = 'DELIVER IN PERSON' " +
+                                "))",
+                        new Join(
+                                tpchSf10Table("lineitem"),
+                                tpchSf10Table("part")));
+    }
+
+    @Test
+    public void testTpchQ20JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT  " +
+                        "s.name,  " +
+                        "s.address  " +
+                        "FROM  " +
+                        "supplier s, " +
+                        "nation n " +
+                        "WHERE  " +
+                        "s.suppkey IN ( " +
+                        "SELECT  " +
+                        "ps.suppkey  " +
+                        "FROM  " +
+                        "partsupp ps " +
+                        "WHERE  " +
+                        "ps.partkey IN ( " +
+                        "SELECT  " +
+                        "p.partkey  " +
+                        "FROM  " +
+                        "part p " +
+                        "WHERE  " +
+                        "p.name like 'forest%' " +
+                        ")  " +
+                        "AND ps.availqty > ( " +
+                        "SELECT  " +
+                        "0.5*sum(l.quantity)  " +
+                        "FROM  " +
+                        "lineitem l " +
+                        "WHERE  " +
+                        "l.partkey = ps.partkey  " +
+                        "AND l.suppkey = ps.suppkey  " +
+                        "AND l.shipdate >= date('1994-01-01') " +
+                        "AND l.shipdate < date('1994-01-01') + interval '1' YEAR " +
+                        ") " +
+                        ") " +
+                        "AND s.nationkey = n.nationkey  " +
+                        "AND n.name = 'CANADA'",
+                new SemiJoin(
+                        new Join(
+                                tpchSf10Table("supplier"),
+                                tpchSf10Table("nation")),
+                        new Join(
+                                INNER,
+                                Optional.empty(),
+                                new Join(
+                                        LEFT,
+                                        Optional.empty(),
+                                        new SemiJoin(
+                                                tpchSf10Table("partsupp"),
+                                                tpchSf10Table("part")),
+                                        tpchSf10Table("lineitem")),
+                                new Values())));
+    }
+
+    @Test
+    public void testTpchQ21JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT  " +
+                        "s.name,  " +
+                        "count(*) as numwait " +
+                        "FROM  " +
+                        "supplier s, " +
+                        "lineitem l1, " +
+                        "orders o, " +
+                        "nation n " +
+                        "WHERE  " +
+                        "s.suppkey = l1.suppkey  " +
+                        "AND o.orderkey = l1.orderkey " +
+                        "AND o.orderstatus = 'F' " +
+                        "AND l1.receiptdate> l1.commitdate " +
+                        "AND EXISTS ( " +
+                        "SELECT  " +
+                        "*  " +
+                        "FROM  " +
+                        "lineitem l2 " +
+                        "WHERE  " +
+                        "l2.orderkey = l1.orderkey " +
+                        "AND l2.suppkey <> l1.suppkey " +
+                        ")  " +
+                        "AND NOT EXISTS ( " +
+                        "SELECT  " +
+                        "*  " +
+                        "FROM  " +
+                        "lineitem l3 " +
+                        "WHERE  " +
+                        "l3.orderkey = l1.orderkey  " +
+                        "AND l3.suppkey <> l1.suppkey  " +
+                        "AND l3.receiptdate > l3.commitdate " +
+                        ")  " +
+                        "AND s.nationkey = n.nationkey  " +
+                        "AND n.name = 'SAUDI ARABIA' " +
+                        "GROUP BY  " +
+                        "s.name",
+                new Join(
+                        LEFT,
+                        Optional.empty(),
+                        new Join(
+                                LEFT,
+                                Optional.empty(),
+                                new Join(
+                                        INNER,
+                                        Optional.empty(),
+                                        new Join(
+                                                INNER,
+                                                Optional.empty(),
+                                                new Join(
+                                                        tpchSf10Table("lineitem"),
+                                                        tpchSf10Table("supplier")),
+                                                tpchSf10Table("orders")),
+                                        tpchSf10Table("nation")),
+                                tpchSf10Table("lineitem")),
+                        tpchSf10Table("lineitem")));
+    }
+
+    @Test
+    public void testTpchQ22JoinOrder()
+    {
+        assertJoinOrder(
+                "SELECT  " +
+                        "cntrycode,  " +
+                        "count(*) AS numcust,  " +
+                        "sum(acctbal) AS totacctbal " +
+                        "FROM  " +
+                        "( " +
+                        "SELECT  " +
+                        "substr(c.phone,1,2) AS cntrycode, " +
+                        "c.acctbal " +
+                        "FROM  " +
+                        "customer c " +
+                        "WHERE  " +
+                        "substr(c.phone,1,2) IN ('13', '31', '23', '29', '30', '18', '17') " +
+                        "AND c.acctbal > ( " +
+                        "SELECT  " +
+                        "avg(c.acctbal)  " +
+                        "FROM  " +
+                        "customer c " +
+                        "WHERE  " +
+                        "c.acctbal > 0.00  " +
+                        "AND substr(c.phone,1,2) IN ('13', '31', '23', '29', '30', '18', '17') " +
+                        ")  " +
+                        "AND NOT EXISTS ( " +
+                        "SELECT  " +
+                        "*  " +
+                        "FROM  " +
+                        "orders o " +
+                        "WHERE  " +
+                        "o.custkey = c.custkey " +
+                        ") " +
+                        ") AS custsale " +
+                        "GROUP BY  " +
+                        "cntrycode",
+                new Join(
+                        INNER,
+                        Optional.empty(),
+                        new Join(
+                                LEFT,
+                                Optional.empty(),
+                                new Join(
+                                        INNER,
+                                        Optional.empty(),
+                                        tpchSf10Table("customer"),
+                                        tpchSf10Table("customer")),
+                                tpchSf10Table("orders")),
+                        new Values()));
+    }
+
     private TableScan tpchSf10Table(String orders)
     {
         return new TableScan(format("tpch:%s:sf10.0", orders));

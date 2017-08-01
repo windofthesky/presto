@@ -45,6 +45,21 @@ public final class ColumnStatistics
         return distinctValuesCount;
     }
 
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ColumnStatistics columnStatistics = (ColumnStatistics)  o;
+        return getDataSize().equals(columnStatistics.getDataSize()) &&
+                getNullsCount().equals(columnStatistics.getNullsCount()) &&
+                getDistinctValuesCount().equals(columnStatistics.getDistinctValuesCount());
+    }
+
     public static Builder builder()
     {
         return new Builder();

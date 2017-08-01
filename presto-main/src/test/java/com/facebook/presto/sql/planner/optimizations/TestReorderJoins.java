@@ -118,7 +118,6 @@ public class TestReorderJoins
                                  new TableScan(sf10("orders")),
                                  new TableScan(sf10("customer")))));
     }
-    }
 
     private void assertJoinOrder(String sql, Node expected)
     {

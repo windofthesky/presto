@@ -48,6 +48,14 @@ public final class TableStatistics
     }
 
     @Override
+    public String toString()
+    {
+        return "TableStatistics {" +
+                "rowCount: " + getRowCount().toString() + ", " +
+                "columnStatistics: " + getColumnStatistics().toString() + "}";
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

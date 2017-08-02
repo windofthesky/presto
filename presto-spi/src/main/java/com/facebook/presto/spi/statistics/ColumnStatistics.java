@@ -48,6 +48,15 @@ public final class ColumnStatistics
     }
 
     @Override
+    public String toString()
+    {
+        return "ColumnStatistics {" +
+                "dataSize: " + getDataSize().toString() + ", " +
+                "nullsCount: " + getNullsCount().toString() + ", " +
+                "distinctValuesCount: " + getDistinctValuesCount().toString() + "}";
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

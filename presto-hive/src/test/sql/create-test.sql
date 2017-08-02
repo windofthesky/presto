@@ -236,8 +236,6 @@ SELECT 'test' FROM presto_test_sequence LIMIT 100;
 ANALYZE TABLE presto_test_sequence COMPUTE STATISTICS;
 ANALYZE TABLE presto_test_partition_format PARTITION(ds, file_format, dummy) COMPUTE STATISTICS;
 ANALYZE TABLE presto_test_unpartitioned COMPUTE STATISTICS;
-ANALYZE TABLE presto_test_offline PARTITION(ds) COMPUTE STATISTICS;
-ANALYZE TABLE presto_test_offline_partition PARTITION(ds) COMPUTE STATISTICS;
 ANALYZE TABLE presto_test_bucketed_by_string_int PARTITION(ds) COMPUTE STATISTICS;
 ANALYZE TABLE presto_test_bucketed_by_bigint_boolean PARTITION(ds) COMPUTE STATISTICS;
 ANALYZE TABLE presto_test_bucketed_by_double_float PARTITION(ds) COMPUTE STATISTICS;

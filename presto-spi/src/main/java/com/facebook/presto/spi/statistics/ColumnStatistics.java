@@ -14,6 +14,8 @@
 
 package com.facebook.presto.spi.statistics;
 
+import java.util.Objects;
+
 import static com.facebook.presto.spi.statistics.Estimate.unknownValue;
 import static java.util.Objects.requireNonNull;
 
@@ -54,10 +56,19 @@ public final class ColumnStatistics
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        ColumnStatistics columnStatistics = (ColumnStatistics)  o;
+        ColumnStatistics columnStatistics = (ColumnStatistics) o;
         return getDataSize().equals(columnStatistics.getDataSize()) &&
                 getNullsCount().equals(columnStatistics.getNullsCount()) &&
                 getDistinctValuesCount().equals(columnStatistics.getDistinctValuesCount());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(
+                getDataSize(),
+                getNullsCount(),
+                getDistinctValuesCount());
     }
 
     public static Builder builder()

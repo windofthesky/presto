@@ -66,6 +66,7 @@ import com.facebook.presto.spi.predicate.NullableValue;
 import com.facebook.presto.spi.predicate.Range;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.predicate.ValueSet;
+import com.facebook.presto.spi.statistics.ColumnStatistics;
 import com.facebook.presto.spi.statistics.Estimate;
 import com.facebook.presto.spi.statistics.TableStatistics;
 import com.facebook.presto.spi.type.ArrayType;
@@ -1063,29 +1064,67 @@ public abstract class AbstractTestHiveClient
     public void testGetTableStatsBucketedStringInt()
             throws Exception
     {
-        try (Transaction transaction = newTransaction()) {
-            ConnectorMetadata metadata = transaction.getMetadata();
-            ConnectorSession session = newSession();
-            ConnectorTableHandle tableHandle = getTableHandle(metadata, tableBucketedStringInt);
+        ColumnStatistics unknownStats = ColumnStatistics.builder().build();
+        ColumnStatistics dsStats = ColumnStatistics.builder()
+                .setNullsCount(new Estimate(0))
+                .setDistinctValuesCount(new Estimate(1))
+                .build();
 
-            assertEquals(
-                    metadata.getTableStatistics(session, tableHandle, Constraint.alwaysTrue()),
-                    new TableStatistics(new Estimate(10), ImmutableMap.of()));
-        }
+        assertTableStats(
+                tableBucketedStringInt,
+                new Estimate(100),
+                ImmutableMap.<String, ColumnStatistics>builder()
+                        .put("t_bigint", unknownStats)
+                        .put("t_boolean", unknownStats)
+                        .put("t_double", unknownStats)
+                        .put("t_float", unknownStats)
+                        .put("t_int", unknownStats)
+                        .put("t_smallint", unknownStats)
+                        .put("t_string", unknownStats)
+                        .put("t_tinyint", unknownStats)
+                        .put("ds", dsStats)
+                        .build());
     }
 
     @Test
     public void testGetTableStatsUnpartitioned()
             throws Exception
     {
+        ColumnStatistics unknownStats = ColumnStatistics.builder().build();
+        ColumnStatistics dsStats = ColumnStatistics.builder()
+                .setNullsCount(new Estimate(0))
+                .setDistinctValuesCount(new Estimate(1))
+                .build();
+
+        assertTableStats(
+                tableUnpartitioned,
+                new Estimate(100),
+                ImmutableMap.<String, ColumnStatistics>builder()
+                        .put("t_string", unknownStats)
+                        .put("t_tinyint", unknownStats)
+                        .build());
+    }
+
+    private void assertTableStats(
+            SchemaTableName tableName,
+            Estimate expectedRowCount,
+            Map<String, ColumnStatistics> expectedColumnStats)
+            throws Exception
+    {
         try (Transaction transaction = newTransaction()) {
             ConnectorMetadata metadata = transaction.getMetadata();
             ConnectorSession session = newSession();
-            ConnectorTableHandle tableHandle = getTableHandle(metadata, tableUnpartitioned);
+            ConnectorTableHandle tableHandle = getTableHandle(metadata, tableName);
 
+            ImmutableMap.Builder<ColumnHandle, ColumnStatistics> expectedColumnStatsBuilder = ImmutableMap.builder();
+            expectedColumnStats.forEach((columnName, columnStats) -> {
+                ColumnHandle columnHandle = metadata.getColumnHandles(session, tableHandle).get(columnName);
+                assertNotNull(columnHandle);
+                expectedColumnStatsBuilder.put(columnHandle, columnStats);
+            });
             assertEquals(
                     metadata.getTableStatistics(session, tableHandle, Constraint.alwaysTrue()),
-                    new TableStatistics(new Estimate(10), ImmutableMap.of()));
+                    new TableStatistics(expectedRowCount, expectedColumnStatsBuilder.build()));
         }
     }
 

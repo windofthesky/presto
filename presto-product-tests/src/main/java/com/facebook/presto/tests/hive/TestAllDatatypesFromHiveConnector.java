@@ -26,12 +26,19 @@ import com.teradata.tempto.fulfillment.table.TableHandle;
 import com.teradata.tempto.fulfillment.table.TableInstance;
 import com.teradata.tempto.query.QueryResult;
 import com.teradata.tempto.query.QueryType;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
+import org.joda.time.format.DateTimeParser;
+import org.joda.time.format.DateTimePrinter;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
 import static com.facebook.presto.tests.TestGroups.POST_HIVE_1_0_1;
@@ -52,7 +59,6 @@ import static com.teradata.tempto.fulfillment.table.TableHandle.tableHandle;
 import static com.teradata.tempto.fulfillment.table.TableRequirements.immutableTable;
 import static com.teradata.tempto.query.QueryExecutor.defaultQueryExecutor;
 import static com.teradata.tempto.query.QueryExecutor.query;
-import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInUTC;
 import static java.lang.String.format;
 import static java.sql.JDBCType.BIGINT;
 import static java.sql.JDBCType.BOOLEAN;
@@ -73,6 +79,14 @@ import static java.sql.JDBCType.VARCHAR;
 public class TestAllDatatypesFromHiveConnector
         extends ProductTest
 {
+    private static DateTimeParser[] timestampWithoutTimeZoneParser = {
+            DateTimeFormat.forPattern("yyyy-M-d").getParser(),
+            DateTimeFormat.forPattern("yyyy-M-d H:m").getParser(),
+            DateTimeFormat.forPattern("yyyy-M-d H:m:s").getParser(),
+            DateTimeFormat.forPattern("yyyy-M-d H:m:s.SSS").getParser()};
+    private static DateTimePrinter timestampWithoutTimeZonePrinter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS").getPrinter();
+    private static DateTimeFormatter dateTimeFormatter = new DateTimeFormatterBuilder().append(timestampWithoutTimeZonePrinter, timestampWithoutTimeZoneParser).toFormatter().withZoneUTC();
+
     public static final class TextRequirements
             implements RequirementsProvider
     {
@@ -117,6 +131,11 @@ public class TestAllDatatypesFromHiveConnector
         }
     }
 
+    public static Timestamp parseTimestampInLocalTimeZone(String value, DateTimeZone timeZone)
+    {
+        return new Timestamp(dateTimeFormatter.withZone(timeZone).parseMillis(value));
+    }
+
     @Requires(TextRequirements.class)
     @Test(groups = {HIVE_CONNECTOR, SMOKE})
     public void testSelectAllDatatypesTextFile()
@@ -138,7 +157,7 @@ public class TestAllDatatypesFromHiveConnector
                         234.567,
                         new BigDecimal("346"),
                         new BigDecimal("345.67800"),
-                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        parseTimestampInLocalTimeZone("2015-05-10 12:15:35.123", DateTimeZone.getDefault()),
                         Date.valueOf("2015-05-10"),
                         "ala ma kota",
                         "ala ma kot",
@@ -172,7 +191,7 @@ public class TestAllDatatypesFromHiveConnector
                         234.567,
                         new BigDecimal("346"),
                         new BigDecimal("345.67800"),
-                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        parseTimestampInLocalTimeZone("2015-05-10 12:15:35.123", DateTimeZone.getDefault()),
                         Date.valueOf("2015-05-10"),
                         "ala ma kota",
                         "ala ma kot",
@@ -204,7 +223,7 @@ public class TestAllDatatypesFromHiveConnector
                         234.567,
                         new BigDecimal("346"),
                         new BigDecimal("345.67800"),
-                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        parseTimestampInLocalTimeZone("2015-05-10 12:15:35.123", DateTimeZone.getDefault()),
                         Date.valueOf("2015-05-10"),
                         "ala ma kota",
                         "ala ma kot",
@@ -296,7 +315,7 @@ public class TestAllDatatypesFromHiveConnector
                 "234.567," +
                 "346," +
                 "345.67800," +
-                "'" + parseTimestampInUTC("2015-05-10 12:15:35.123").toString() + "'," +
+                "'" + parseTimestampInLocalTimeZone("2015-05-10 12:15:35.123", DateTimeZone.getDefault()).toString() + "'," +
                 "'ala ma kota'," +
                 "'ala ma kot'," +
                 "'ala ma    '," +
@@ -349,7 +368,7 @@ public class TestAllDatatypesFromHiveConnector
                         234.567,
                         new BigDecimal("346"),
                         new BigDecimal("345.67800"),
-                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        parseTimestampInLocalTimeZone("2015-05-10 12:15:35.123", DateTimeZone.getDefault()),
                         "ala ma kota",
                         "ala ma kot",
                         "ala ma    ",

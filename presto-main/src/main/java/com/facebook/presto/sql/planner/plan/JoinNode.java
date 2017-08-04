@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.sql.planner.plan;
 
+import com.facebook.presto.sql.planner.SortExpressionContext;
 import com.facebook.presto.sql.planner.Symbol;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.ComparisonExpressionType;
@@ -178,7 +179,9 @@ public class JoinNode
 
     public Optional<Expression> getSortExpression()
     {
-        return filter.map(filter -> extractSortExpression(ImmutableSet.copyOf(right.getOutputSymbols()), filter).orElse(null));
+        return filter
+                .flatMap(filter -> extractSortExpression(ImmutableSet.copyOf(right.getOutputSymbols()), filter))
+                .map(SortExpressionContext::getSortExpression);
     }
 
     @JsonProperty("leftHashSymbol")

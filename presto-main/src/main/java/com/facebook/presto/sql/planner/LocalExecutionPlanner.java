@@ -104,7 +104,7 @@ import com.facebook.presto.sql.gen.JoinFilterFunctionCompiler;
 import com.facebook.presto.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import com.facebook.presto.sql.parser.SqlParser;
 import com.facebook.presto.sql.planner.Partitioning.ArgumentBinding;
-import com.facebook.presto.sql.planner.SortExpressionExtractor.SortExpression;
+import com.facebook.presto.sql.planner.SortExpressionExtractor.RowSortExpressionContext;
 import com.facebook.presto.sql.planner.optimizations.IndexJoinOptimizer;
 import com.facebook.presto.sql.planner.plan.AggregationNode;
 import com.facebook.presto.sql.planner.plan.AggregationNode.Aggregation;
@@ -1631,7 +1631,7 @@ public class LocalExecutionPlanner
             Optional<Expression> rewrittenSortExpression = sortExpression.map(
                     expression -> new SymbolToInputRewriter(buildLayout).rewrite(expression));
 
-            Optional<SortExpression> sortChannel = rewrittenSortExpression.map(SortExpression::fromExpression);
+            Optional<RowSortExpressionContext> rowSortExpressionContext = rewrittenSortExpression.map(RowSortExpressionContext::fromExpression);
 
             Map<NodeRef<Expression>, Type> expressionTypes = getExpressionTypesFromInput(
                     session,
@@ -1642,7 +1642,7 @@ public class LocalExecutionPlanner
                     emptyList() /* parameters have already been replaced */);
 
             RowExpression translatedFilter = toRowExpression(rewrittenFilter, expressionTypes);
-            return joinFilterFunctionCompiler.compileJoinFilterFunction(translatedFilter, buildLayout.size(), sortChannel);
+            return joinFilterFunctionCompiler.compileJoinFilterFunction(translatedFilter, buildLayout.size(), rowSortExpressionContext);
         }
 
         private OperatorFactory createLookupJoin(

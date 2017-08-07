@@ -184,6 +184,13 @@ public class JoinNode
                 .map(SortExpressionContext::getSortExpression);
     }
 
+    public Optional<Expression> getSearchExpression()
+    {
+        return filter
+                .flatMap(filter -> extractSortExpression(ImmutableSet.copyOf(right.getOutputSymbols()), filter))
+                .map(SortExpressionContext::getSearchExpression);
+    }
+
     @JsonProperty("leftHashSymbol")
     public Optional<Symbol> getLeftHashSymbol()
     {

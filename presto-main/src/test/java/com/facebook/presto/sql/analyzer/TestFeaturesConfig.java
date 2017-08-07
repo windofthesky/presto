@@ -26,6 +26,8 @@ import static com.facebook.presto.sql.analyzer.RegexLibrary.RE2J;
 import static io.airlift.configuration.testing.ConfigAssertions.assertDeprecatedEquivalence;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -65,7 +67,9 @@ public class TestFeaturesConfig
                 .setIterativeOptimizerTimeout(new Duration(3, MINUTES))
                 .setExchangeCompressionEnabled(false)
                 .setEnableIntermediateAggregations(false)
-                .setPushAggregationThroughJoin(true));
+                .setPushAggregationThroughJoin(true)
+                .setFilterAndProjectMinOutputPageSize(new DataSize(25, KILOBYTE))
+                .setFilterAndProjectMinOutputPageRowCount(256));
     }
 
     @Test
@@ -103,6 +107,8 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
+                .put("experimental.filter-and-project-min-output-page-size", "10MB")
+                .put("experimental.filter-and-project-min-output-page-row-count", "2048")
                 .build();
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("experimental.resource-groups-enabled", "true")
@@ -136,6 +142,8 @@ public class TestFeaturesConfig
                 .put("experimental.memory-revoking-target", "0.8")
                 .put("exchange.compression-enabled", "true")
                 .put("optimizer.enable-intermediate-aggregations", "true")
+                .put("experimental.filter-and-project-min-output-page-size", "10MB")
+                .put("experimental.filter-and-project-min-output-page-row-count", "2048")
                 .build();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -169,7 +177,9 @@ public class TestFeaturesConfig
                 .setMemoryRevokingTarget(0.8)
                 .setLegacyOrderBy(true)
                 .setExchangeCompressionEnabled(true)
-                .setEnableIntermediateAggregations(true);
+                .setEnableIntermediateAggregations(true)
+                .setFilterAndProjectMinOutputPageSize(new DataSize(10, MEGABYTE))
+                .setFilterAndProjectMinOutputPageRowCount(2048);
 
         assertFullMapping(properties, expected);
         assertDeprecatedEquivalence(FeaturesConfig.class, properties, propertiesLegacy);

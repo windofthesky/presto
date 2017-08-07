@@ -73,6 +73,8 @@ public final class SystemSessionProperties
     public static final String ENABLE_INTERMEDIATE_AGGREGATIONS = "enable_intermediate_aggregations";
     public static final String PUSH_AGGREGATION_THROUGH_JOIN = "push_aggregation_through_join";
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
+    public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE = "filter_and_project_min_output_page_size";
+    public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_ROW_COUNT = "filter_and_project_min_output_page_row_count";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -318,6 +320,20 @@ public final class SystemSessionProperties
                         PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN,
                         "Push partial aggregations below joins",
                         false,
+                        false),
+                new PropertyMetadata<>(
+                        FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE,
+                        "Experimental: Minimum output page size for filter and project operators",
+                        VARCHAR,
+                        DataSize.class,
+                        featuresConfig.getFilterAndProjectMinOutputPageSize(),
+                        false,
+                        value -> DataSize.valueOf((String) value),
+                        DataSize::toString),
+                integerSessionProperty(
+                        FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_ROW_COUNT,
+                        "Experimental: Minimum output page row count for filter and project operators",
+                        featuresConfig.getFilterAndProjectMinOutputPageRowCount(),
                         false));
     }
 
@@ -498,5 +514,15 @@ public final class SystemSessionProperties
     public static boolean isPushAggregationThroughJoin(Session session)
     {
         return session.getSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN, Boolean.class);
+    }
+
+    public static DataSize getFilterAndProjectMinOutputPageSize(Session session)
+    {
+        return session.getSystemProperty(FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE, DataSize.class);
+    }
+
+    public static int getFilterAndProjectMinOutputPageRowCount(Session session)
+    {
+        return session.getSystemProperty(FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_ROW_COUNT, Integer.class);
     }
 }

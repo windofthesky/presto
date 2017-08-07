@@ -31,6 +31,7 @@ import java.util.List;
 
 import static com.facebook.presto.sql.analyzer.RegexLibrary.JONI;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 @DefunctConfig({
@@ -74,6 +75,9 @@ public class FeaturesConfig
     private double memoryRevokingThreshold = 0.9;
 
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
+
+    private DataSize filterAndProjectMinOutputPageSize = new DataSize(25, KILOBYTE);
+    private int filterAndProjectMinOutputPageRowCount = 256;
 
     public boolean isResourceGroupsEnabled()
     {
@@ -456,6 +460,31 @@ public class FeaturesConfig
     public FeaturesConfig setPushAggregationThroughJoin(boolean value)
     {
         this.pushAggregationThroughJoin = value;
+        return this;
+    }
+
+    public DataSize getFilterAndProjectMinOutputPageSize()
+    {
+        return filterAndProjectMinOutputPageSize;
+    }
+
+    @Config("experimental.filter-and-project-min-output-page-size")
+    public FeaturesConfig setFilterAndProjectMinOutputPageSize(DataSize filterAndProjectMinOutputPageSize)
+    {
+        this.filterAndProjectMinOutputPageSize = filterAndProjectMinOutputPageSize;
+        return this;
+    }
+
+    @Min(0)
+    public int getFilterAndProjectMinOutputPageRowCount()
+    {
+        return filterAndProjectMinOutputPageRowCount;
+    }
+
+    @Config("experimental.filter-and-project-min-output-page-row-count")
+    public FeaturesConfig setFilterAndProjectMinOutputPageRowCount(int filterAndProjectMinOutputPageRowCount)
+    {
+        this.filterAndProjectMinOutputPageRowCount = filterAndProjectMinOutputPageRowCount;
         return this;
     }
 }

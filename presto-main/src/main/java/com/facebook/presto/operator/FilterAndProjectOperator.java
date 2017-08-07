@@ -14,18 +14,19 @@
 package com.facebook.presto.operator;
 
 import com.facebook.presto.memory.LocalMemoryContext;
+import com.facebook.presto.operator.project.MergingPageOutput;
 import com.facebook.presto.operator.project.PageProcessor;
-import com.facebook.presto.operator.project.PageProcessorOutput;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.planner.plan.PlanNodeId;
 import com.google.common.collect.ImmutableList;
+import io.airlift.units.DataSize;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.facebook.presto.operator.project.PageProcessorOutput.EMPTY_PAGE_PROCESSOR_OUTPUT;
 import static com.google.common.base.Preconditions.checkState;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public class FilterAndProjectOperator
@@ -36,15 +37,20 @@ public class FilterAndProjectOperator
     private final LocalMemoryContext outputMemoryContext;
 
     private final PageProcessor processor;
-    private PageProcessorOutput currentOutput = EMPTY_PAGE_PROCESSOR_OUTPUT;
+    private MergingPageOutput currentOutput;
     private boolean finishing;
 
-    public FilterAndProjectOperator(OperatorContext operatorContext, Iterable<? extends Type> types, PageProcessor processor)
+    public FilterAndProjectOperator(
+            OperatorContext operatorContext,
+            Iterable<? extends Type> types,
+            PageProcessor processor,
+            MergingPageOutput mergingPageOutput)
     {
         this.processor = requireNonNull(processor, "processor is null");
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.outputMemoryContext = operatorContext.getSystemMemoryContext().newLocalMemoryContext();
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
+        this.currentOutput = requireNonNull(mergingPageOutput, "mergingPageOutput is null");
     }
 
     @Override
@@ -62,16 +68,16 @@ public class FilterAndProjectOperator
     @Override
     public final void finish()
     {
+        currentOutput.finish();
         finishing = true;
     }
 
     @Override
     public final boolean isFinished()
     {
-        boolean finished = finishing && !currentOutput.hasNext();
+        boolean finished = finishing && currentOutput.isFinished();
         if (finished) {
-            currentOutput = EMPTY_PAGE_PROCESSOR_OUTPUT;
-            outputMemoryContext.setBytes(0);
+            outputMemoryContext.setBytes(currentOutput.getRetainedSizeInBytes());
         }
         return finished;
     }
@@ -79,7 +85,7 @@ public class FilterAndProjectOperator
     @Override
     public final boolean needsInput()
     {
-        return !finishing && !currentOutput.hasNext();
+        return !finishing && currentOutput.needsInput();
     }
 
     @Override
@@ -87,19 +93,16 @@ public class FilterAndProjectOperator
     {
         checkState(!finishing, "Operator is already finishing");
         requireNonNull(page, "page is null");
-        checkState(!currentOutput.hasNext(), "Page buffer is full");
+        checkState(currentOutput.needsInput(), "Page buffer is full");
 
-        currentOutput = processor.process(operatorContext.getSession().toConnectorSession(), page);
+        currentOutput.addInput(processor.process(operatorContext.getSession().toConnectorSession(), page));
         outputMemoryContext.setBytes(currentOutput.getRetainedSizeInBytes());
     }
 
     @Override
     public final Page getOutput()
     {
-        if (!currentOutput.hasNext()) {
-            return null;
-        }
-        return currentOutput.next();
+        return currentOutput.getOutput();
     }
 
     public static class FilterAndProjectOperatorFactory
@@ -109,14 +112,24 @@ public class FilterAndProjectOperator
         private final PlanNodeId planNodeId;
         private final Supplier<PageProcessor> processor;
         private final List<Type> types;
+        private final DataSize minOutputPageSize;
+        private final int minOutputPageRowCount;
         private boolean closed;
 
-        public FilterAndProjectOperatorFactory(int operatorId, PlanNodeId planNodeId, Supplier<PageProcessor> processor, List<Type> types)
+        public FilterAndProjectOperatorFactory(
+                int operatorId,
+                PlanNodeId planNodeId,
+                Supplier<PageProcessor> processor,
+                List<Type> types,
+                DataSize minOutputPageSize,
+                int minOutputPageRowCount)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
             this.processor = requireNonNull(processor, "processor is null");
             this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
+            this.minOutputPageSize = requireNonNull(minOutputPageSize, "minOutputPageSize is null");
+            this.minOutputPageRowCount = minOutputPageRowCount;
         }
 
         @Override
@@ -130,7 +143,11 @@ public class FilterAndProjectOperator
         {
             checkState(!closed, "Factory is already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, FilterAndProjectOperator.class.getSimpleName());
-            return new FilterAndProjectOperator(operatorContext, types, processor.get());
+            return new FilterAndProjectOperator(
+                    operatorContext,
+                    types,
+                    processor.get(),
+                    new MergingPageOutput(types, toIntExact(minOutputPageSize.toBytes()), minOutputPageRowCount));
         }
 
         @Override
@@ -142,7 +159,7 @@ public class FilterAndProjectOperator
         @Override
         public OperatorFactory duplicate()
         {
-            return new FilterAndProjectOperatorFactory(operatorId, planNodeId, processor, types);
+            return new FilterAndProjectOperatorFactory(operatorId, planNodeId, processor, types, minOutputPageSize, minOutputPageRowCount);
         }
     }
 }

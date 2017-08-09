@@ -52,7 +52,7 @@ public class TestQueues
     // Copy of TestQueues with tests for db reconfiguration of resource groups
     private static final String LONG_LASTING_QUERY = "SELECT COUNT(*) FROM lineitem";
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testRunningQuery()
             throws Exception
     {
@@ -68,7 +68,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testBasic()
             throws Exception
     {
@@ -113,7 +113,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testTwoQueriesAtSameTime()
             throws Exception
     {
@@ -127,7 +127,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 90_000)
+    @Test(timeOut = 120_000)
     public void testTooManyQueries()
             throws Exception
     {
@@ -168,7 +168,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testRejection()
             throws Exception
     {
@@ -199,7 +199,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testRunningTimeLimit()
             throws Exception
     {
@@ -212,7 +212,7 @@ public class TestQueues
         }
     }
 
-    @Test(timeOut = 60_000)
+    @Test(timeOut = 120_000)
     public void testQueuedTimeLimit()
             throws Exception
     {

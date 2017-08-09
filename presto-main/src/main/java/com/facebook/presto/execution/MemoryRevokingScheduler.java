@@ -124,7 +124,7 @@ public class MemoryRevokingScheduler
             catch (Throwable e) {
                 log.error(e, "Error requesting system memory revoking");
             }
-        }, 1, 1, SECONDS);
+        }, 1, 100, SECONDS);
     }
 
     @PreDestroy

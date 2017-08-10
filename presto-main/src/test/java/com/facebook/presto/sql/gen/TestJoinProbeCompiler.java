@@ -122,6 +122,7 @@ public class TestJoinProbeCompiler
                 addresses,
                 channels,
                 hashChannel,
+                Optional.empty(),
                 Optional.empty())
                 .get();
 

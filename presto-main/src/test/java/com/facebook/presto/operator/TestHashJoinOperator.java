@@ -718,6 +718,7 @@ public class TestHashJoinOperator
                 buildPages.getHashChannel(),
                 false,
                 filterFunctionFactory,
+                Optional.empty(),
                 100,
                 partitionCount,
                 new PagesIndex.TestingFactory());

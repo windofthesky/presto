@@ -138,14 +138,14 @@ public abstract class TestDateTimeOperatorsBase
     @Test
     public void testTimestampPlusInterval()
     {
-        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' hour",  TIMESTAMP, sqlTimestampOf(2001, 1, 22, 6, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
-        assertFunction("INTERVAL '3' hour + TIMESTAMP '2001-1-22 03:04:05.321'",  TIMESTAMP, sqlTimestampOf(2001, 1, 22, 6, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
-        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' day",   TIMESTAMP, sqlTimestampOf(2001, 1, 25, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
-        assertFunction("INTERVAL '3' day + TIMESTAMP '2001-1-22 03:04:05.321'",   TIMESTAMP, sqlTimestampOf(2001, 1, 25, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' hour", TIMESTAMP, sqlTimestampOf(2001, 1, 22, 6, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("INTERVAL '3' hour + TIMESTAMP '2001-1-22 03:04:05.321'", TIMESTAMP, sqlTimestampOf(2001, 1, 22, 6, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' day", TIMESTAMP, sqlTimestampOf(2001, 1, 25, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("INTERVAL '3' day + TIMESTAMP '2001-1-22 03:04:05.321'", TIMESTAMP, sqlTimestampOf(2001, 1, 25, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
         assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' month", TIMESTAMP, sqlTimestampOf(2001, 4, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
         assertFunction("INTERVAL '3' month + TIMESTAMP '2001-1-22 03:04:05.321'", TIMESTAMP, sqlTimestampOf(2001, 4, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
-        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' year",  TIMESTAMP, sqlTimestampOf(2004, 1, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
-        assertFunction("INTERVAL '3' year + TIMESTAMP '2001-1-22 03:04:05.321'",  TIMESTAMP, sqlTimestampOf(2004, 1, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("TIMESTAMP '2001-1-22 03:04:05.321' + INTERVAL '3' year", TIMESTAMP, sqlTimestampOf(2004, 1, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
+        assertFunction("INTERVAL '3' year + TIMESTAMP '2001-1-22 03:04:05.321'", TIMESTAMP, sqlTimestampOf(2004, 1, 22, 3, 4, 5, 321, TIME_ZONE, TIME_ZONE_KEY, getConnectorSession()));
 
         assertFunction("TIMESTAMP '2001-1-22 03:04:05.321 +05:09' + INTERVAL '3' hour",
                 TIMESTAMP_WITH_TIME_ZONE,

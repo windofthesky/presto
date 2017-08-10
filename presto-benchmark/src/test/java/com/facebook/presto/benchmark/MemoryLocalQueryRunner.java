@@ -43,7 +43,6 @@ import static io.airlift.units.DataSize.Unit.GIGABYTE;
 public class MemoryLocalQueryRunner
 {
     protected final LocalQueryRunner localQueryRunner;
-    protected final Session session;
 
     public MemoryLocalQueryRunner()
     {
@@ -57,8 +56,7 @@ public class MemoryLocalQueryRunner
                 .setSchema("default");
         properties.forEach(sessionBuilder::setSystemProperty);
 
-        session = sessionBuilder.build();
-        localQueryRunner = createMemoryLocalQueryRunner(session);
+        localQueryRunner = createMemoryLocalQueryRunner(sessionBuilder.build());
     }
 
     public List<Page> execute(@Language("SQL") String query)
@@ -70,7 +68,7 @@ public class MemoryLocalQueryRunner
         SpillSpaceTracker spillSpaceTracker = new SpillSpaceTracker(new DataSize(1, GIGABYTE));
         TaskContext taskContext = new QueryContext(new QueryId("test"), new DataSize(1, GIGABYTE), memoryPool, systemMemoryPool, executor, new DataSize(4, GIGABYTE), spillSpaceTracker)
                 .addTaskContext(new TaskStateMachine(new TaskId("query", 0, 0), executor),
-                        session,
+                        localQueryRunner.getDefaultSession(),
                         false,
                         false);
 

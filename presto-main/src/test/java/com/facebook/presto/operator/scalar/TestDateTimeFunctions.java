@@ -25,7 +25,8 @@ import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_W
 import static com.facebook.presto.spi.type.VarcharType.createVarcharType;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 
-public class TestDateTimeFunctions extends TestDateTimeFunctionsBase
+public class TestDateTimeFunctions
+        extends TestDateTimeFunctionsBase
 {
     @Test
     public TestDateTimeFunctions()
@@ -35,8 +36,7 @@ public class TestDateTimeFunctions extends TestDateTimeFunctionsBase
                         .setTimeZoneKey(TIME_ZONE_KEY)
                         .setSystemProperty("legacy_timestamp", "false")
                         .setStartTime(new DateTime(2017, 04, 01, 12, 34, 56, 789, UTC_TIME_ZONE).getMillis())
-                        .build()
-        );
+                        .build());
     }
 
     @Test

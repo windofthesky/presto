@@ -33,7 +33,8 @@ import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
 import static java.util.concurrent.TimeUnit.HOURS;
 
-public class TestDateTimeOperatorsLegacy extends TestDateTimeOperatorsBase
+public class TestDateTimeOperatorsLegacy
+        extends TestDateTimeOperatorsBase
 {
     public TestDateTimeOperatorsLegacy()
     {
@@ -41,8 +42,7 @@ public class TestDateTimeOperatorsLegacy extends TestDateTimeOperatorsBase
                 testSessionBuilder()
                         .setTimeZoneKey(TIME_ZONE_KEY)
                         .setSystemProperty("legacy_timestamp", "true")
-                        .build()
-        );
+                        .build());
     }
 
     @Test

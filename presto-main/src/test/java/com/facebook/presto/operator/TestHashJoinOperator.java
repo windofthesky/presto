@@ -719,6 +719,7 @@ public class TestHashJoinOperator
                 false,
                 filterFunctionFactory,
                 Optional.empty(),
+                Optional.empty(),
                 100,
                 partitionCount,
                 new PagesIndex.TestingFactory());

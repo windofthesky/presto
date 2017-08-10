@@ -16,19 +16,27 @@ package com.facebook.presto.sql.planner;
 import com.facebook.presto.sql.tree.AstVisitor;
 import com.facebook.presto.sql.tree.ComparisonExpression;
 import com.facebook.presto.sql.tree.Expression;
+import com.facebook.presto.sql.tree.LogicalBinaryExpression;
 import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.SymbolReference;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.Optional;
 import java.util.Set;
 
+import static com.facebook.presto.sql.tree.LogicalBinaryExpression.Type.AND;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static java.util.Collections.singleton;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Currently this class handles only simple expressions like:
+ * Currently this class handles simple expressions like:
  * <p>
  * A.a < f(B.x, B.y, B.z)
+ * and queries with range predicates involving a single build symbol
+ * reference (A.a) like:
+ * A.a < f(B.x) AND A.a > g(B.y)
  * <p>
  * where a is the build side symbol reference and x,y,z are probe
  * side symbol references.
@@ -55,8 +63,52 @@ public final class SortExpressionExtractor
             return Optional.empty();
         }
 
-        if (filter instanceof ComparisonExpression) {
-            ComparisonExpression comparison = (ComparisonExpression) filter;
+        return new SortExpressionVisitor(buildSymbols).process(filter);
+    }
+
+    private static class SortExpressionVisitor
+            extends AstVisitor<Optional<SortExpressionContext>, Void>
+    {
+        private final Set<Symbol> buildSymbols;
+
+        public SortExpressionVisitor(Set<Symbol> buildSymbols)
+        {
+            this.buildSymbols = buildSymbols;
+        }
+
+        @Override
+        protected Optional<SortExpressionContext> visitExpression(Expression expression, Void context)
+        {
+            return Optional.empty();
+        }
+
+        @Override
+        protected Optional<SortExpressionContext> visitLogicalBinaryExpression(LogicalBinaryExpression binaryExpression, Void context)
+        {
+            if (binaryExpression.getType() != AND) {
+                return Optional.empty();
+            }
+            Optional<SortExpressionContext> leftProcessed = process(binaryExpression.getLeft());
+            Optional<SortExpressionContext> rightProcessed = process(binaryExpression.getRight());
+
+            if (!leftProcessed.isPresent() || !rightProcessed.isPresent() || !leftProcessed.get().getSortExpression().equals(rightProcessed.get().getSortExpression())) {
+                return Optional.empty();
+            }
+            return Optional.of(merge(leftProcessed.get(), rightProcessed.get()));
+        }
+
+        private SortExpressionContext merge(SortExpressionContext left, SortExpressionContext right)
+        {
+            checkArgument(left.getSortExpression().equals(right.getSortExpression()));
+            ImmutableSet.Builder<Expression> searchExpressions = ImmutableSet.builder();
+            searchExpressions.addAll(left.getSearchExpressions());
+            searchExpressions.addAll(right.getSearchExpressions());
+            return new SortExpressionContext(left.getSortExpression(), searchExpressions.build());
+        }
+
+        @Override
+        protected Optional<SortExpressionContext> visitComparisonExpression(ComparisonExpression comparison, Void context)
+        {
             switch (comparison.getType()) {
                 case GREATER_THAN:
                 case GREATER_THAN_OR_EQUAL:
@@ -69,15 +121,13 @@ public final class SortExpressionExtractor
                         hasBuildReferencesOnOtherSide = hasBuildSymbolReference(buildSymbols, comparison.getRight());
                     }
                     if (sortChannel.isPresent() && !hasBuildReferencesOnOtherSide) {
-                        return sortChannel.map(symbolReference -> new SortExpressionContext(symbolReference, filter));
+                        return sortChannel.map(symbolReference -> new SortExpressionContext(symbolReference, singleton(comparison)));
                     }
                     return Optional.empty();
                 default:
                     return Optional.empty();
             }
         }
-
-        return Optional.empty();
     }
 
     private static Optional<SymbolReference> asBuildSymbolReference(Set<Symbol> buildLayout, Expression expression)

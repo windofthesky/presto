@@ -30,12 +30,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.facebook.presto.sql.planner.SortExpressionExtractor.extractSortExpression;
 import static com.facebook.presto.sql.planner.plan.JoinNode.Type.INNER;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
 
 @Immutable
@@ -184,11 +186,12 @@ public class JoinNode
                 .map(SortExpressionContext::getSortExpression);
     }
 
-    public Optional<Expression> getSearchExpression()
+    public Set<Expression> getSearchExpressions()
     {
         return filter
                 .flatMap(filter -> extractSortExpression(ImmutableSet.copyOf(right.getOutputSymbols()), filter))
-                .map(SortExpressionContext::getSearchExpression);
+                .map(SortExpressionContext::getSearchExpressions)
+                .orElse(emptySet());
     }
 
     @JsonProperty("leftHashSymbol")

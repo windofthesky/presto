@@ -14,7 +14,6 @@
 package com.facebook.presto.connector.unittest;
 
 import com.facebook.presto.connector.meta.RequiredFeatures;
-import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.testing.TestingConnectorSession;
 import com.google.common.collect.ImmutableList;
@@ -22,7 +21,6 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import java.util.List;
 import java.util.Map;
 
 import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
@@ -37,8 +35,6 @@ public interface MetadataSchemaTest
         extends BaseMetadataTest
 {
     Map<String, Object> getTableProperties();
-
-    List<ColumnMetadata> getConnectorColumns();
 
     @Test
     default void testCreateDropSchema()

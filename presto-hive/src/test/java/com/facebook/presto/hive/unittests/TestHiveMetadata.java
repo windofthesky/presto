@@ -32,6 +32,7 @@ import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.testing.TestingConnectorContext;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.io.File;
@@ -84,6 +85,13 @@ public class TestHiveMetadata
         this.connector = createHiveConnector();
     }
 
+    @AfterAll
+    public void cleanUp()
+            throws Exception
+    {
+        connector.shutdown();
+    }
+
     @Override
     public Connector getConnector()
     {
@@ -101,10 +109,12 @@ public class TestHiveMetadata
     }
 
     @Override
-    public List<ColumnMetadata> getConnectorColumns()
+    public List<ColumnMetadata> withSystemColumns(List<ColumnMetadata> connectorColumns)
     {
-        return ImmutableList.of(
-                new ColumnMetadata("$path", VARCHAR, null, true));
+        return ImmutableList.<ColumnMetadata>builder()
+                .addAll(connectorColumns)
+                .add(new ColumnMetadata("$path", VARCHAR, null, true))
+                .build();
     }
 
     private static Connector createHiveConnector()

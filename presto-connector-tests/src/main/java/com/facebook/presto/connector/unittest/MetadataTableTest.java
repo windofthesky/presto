@@ -107,10 +107,7 @@ public interface MetadataTableTest
                 new ColumnMetadata("bigint_column", BIGINT),
                 new ColumnMetadata("double_column", DOUBLE));
 
-        List<ColumnMetadata> expectedColumns = ImmutableList.<ColumnMetadata>builder()
-                .addAll(columns)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedColumns = withSystemColumns(columns);
 
         ConnectorTableMetadata tableMetadata11 = new ConnectorTableMetadata(schemaTableName1, columns, getTableProperties());
         ConnectorTableMetadata tableMetadata12 = new ConnectorTableMetadata(schemaTableName2, columns, getTableProperties());
@@ -144,10 +141,7 @@ public interface MetadataTableTest
                 new ColumnMetadata("bigint_column", BIGINT),
                 new ColumnMetadata("double_column", DOUBLE));
 
-        List<ColumnMetadata> expectedColumns = ImmutableList.<ColumnMetadata>builder()
-                .addAll(columns)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedColumns = withSystemColumns(columns);
 
         ConnectorTableMetadata tableMetadata11 = new ConnectorTableMetadata(schemaTableName11, columns, getTableProperties());
         ConnectorTableMetadata tableMetadata12 = new ConnectorTableMetadata(schemaTableName12, columns, getTableProperties());
@@ -180,16 +174,13 @@ public interface MetadataTableTest
 
         ColumnMetadata newColumn = new ColumnMetadata("varchar_column", VARCHAR);
 
-        List<ColumnMetadata> expectedInitialColumns = ImmutableList.<ColumnMetadata>builder()
-                .addAll(initialColumns)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedInitialColumns = withSystemColumns(initialColumns);
 
-        List<ColumnMetadata> expectedFinalColumns = ImmutableList.<ColumnMetadata>builder()
-                .addAll(initialColumns)
-                .add(newColumn)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedFinalColumns = withSystemColumns(
+                ImmutableList.<ColumnMetadata>builder()
+                        .addAll(initialColumns)
+                        .add(newColumn)
+                        .build());
 
         ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(schemaTableName, initialColumns, getTableProperties());
 
@@ -217,16 +208,13 @@ public interface MetadataTableTest
 
         List<ColumnMetadata> initialColumns = ImmutableList.of(unchanging, initial);
 
-        List<ColumnMetadata> expectedInitialColumns = ImmutableList.<ColumnMetadata>builder()
-                .addAll(initialColumns)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedInitialColumns = withSystemColumns(initialColumns);
 
-        List<ColumnMetadata> expectedFinalColumns = ImmutableList.<ColumnMetadata>builder()
-                .add(unchanging)
-                .add(renamed)
-                .addAll(getConnectorColumns())
-                .build();
+        List<ColumnMetadata> expectedFinalColumns = withSystemColumns(
+                ImmutableList.<ColumnMetadata>builder()
+                        .add(unchanging)
+                        .add(renamed)
+                        .build());
 
         ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(schemaTableName, initialColumns, getTableProperties());
 

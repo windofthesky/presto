@@ -50,7 +50,10 @@ public interface BaseMetadataTest
 {
     Map<String, Object> getTableProperties();
 
-    List<ColumnMetadata> getConnectorColumns();
+    default List<ColumnMetadata> withSystemColumns(List<ColumnMetadata> expectedColumns)
+    {
+        return expectedColumns;
+    }
 
     default List<String> systemSchemas()
     {

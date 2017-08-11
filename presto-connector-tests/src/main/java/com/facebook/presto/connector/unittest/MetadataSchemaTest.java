@@ -46,13 +46,12 @@ public interface MetadataSchemaTest
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
         String schemaName = "testCreateSchema";
 
-        run(this,
-                ImmutableList.of(
-                        metadata -> metadata.createSchema(session, schemaName, ImmutableMap.of()),
-                        metadata -> assertEquals(getOnlyElement(metadata.listSchemaNames(session)), schemaName),
-                        metadata -> assertEquals(metadata.listTables(session, schemaName).size(), 0),
-                        metadata -> assertEquals(metadata.listTables(session, null).size(), 0),
-                        metadata -> metadata.dropSchema(session, schemaName)));
+        run(ImmutableList.of(
+                metadata -> metadata.createSchema(session, schemaName, ImmutableMap.of()),
+                metadata -> assertEquals(getOnlyElement(metadata.listSchemaNames(session)), schemaName),
+                metadata -> assertEquals(metadata.listTables(session, schemaName).size(), 0),
+                metadata -> assertEquals(metadata.listTables(session, null).size(), 0),
+                metadata -> metadata.dropSchema(session, schemaName)));
     }
 
     @Test
@@ -63,13 +62,12 @@ public interface MetadataSchemaTest
         String initialSchemaName = "testRenameSchemaInitial";
         String renamedSchemaName = "testRenameSchemaRenamed";
 
-        run(this,
-                ImmutableList.of(
-                        metadata -> metadata.createSchema(session, initialSchemaName, ImmutableMap.of()),
-                        metadata -> metadata.renameSchema(session, initialSchemaName, renamedSchemaName),
-                        metadata -> assertEquals(getOnlyElement(metadata.listSchemaNames(session)), renamedSchemaName),
-                        metadata -> assertEquals(metadata.listTables(session, renamedSchemaName).size(), 0),
-                        metadata -> assertEquals(metadata.listTables(session, null).size(), 0),
-                        metadata -> metadata.dropSchema(session, renamedSchemaName)));
+        run(ImmutableList.of(
+                metadata -> metadata.createSchema(session, initialSchemaName, ImmutableMap.of()),
+                metadata -> metadata.renameSchema(session, initialSchemaName, renamedSchemaName),
+                metadata -> assertEquals(getOnlyElement(metadata.listSchemaNames(session)), renamedSchemaName),
+                metadata -> assertEquals(metadata.listTables(session, renamedSchemaName).size(), 0),
+                metadata -> assertEquals(metadata.listTables(session, null).size(), 0),
+                metadata -> metadata.dropSchema(session, renamedSchemaName)));
     }
 }

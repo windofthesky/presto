@@ -51,6 +51,7 @@ public interface MetadataTableTest
         extends BaseMetadataTest
 {
     default void testRenameTable(SchemaTableName initial, SchemaTableName renamed)
+            throws Exception
     {
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
 
@@ -61,21 +62,22 @@ public interface MetadataTableTest
                         new ColumnMetadata("double_column", DOUBLE)),
                 getTableProperties());
 
-        run(this,
-                withSchema(session, distinctSchemas(initial, renamed),
-                        ImmutableList.of(
-                                metadata -> {
-                                    ConnectorOutputTableHandle handle = metadata.beginCreateTable(session, tableMetadata, Optional.empty());
-                                    metadata.finishCreateTable(session, handle, ImmutableList.of());
-                                },
-                                metadata -> metadata.renameTable(session, metadata.getTableHandle(session, initial), renamed),
-                                metadata -> assertEquals(getOnlyElement(metadata.listTables(session, renamed.getSchemaName())), renamed),
-                                metadata -> metadata.dropTable(session, metadata.getTableHandle(session, renamed)))));
+        try (AutoCloseable cleanup = new AllCloser(withSchemas(session, schemaNamesOf(initial, renamed)))) {
+            run(ImmutableList.of(
+                    metadata -> {
+                        ConnectorOutputTableHandle handle = metadata.beginCreateTable(session, tableMetadata, Optional.empty());
+                        metadata.finishCreateTable(session, handle, ImmutableList.of());
+                    },
+                    metadata -> metadata.renameTable(session, metadata.getTableHandle(session, initial), renamed),
+                    metadata -> assertEquals(getOnlyElement(metadata.listTables(session, renamed.getSchemaName())), renamed),
+                    metadata -> metadata.dropTable(session, metadata.getTableHandle(session, renamed))));
+        }
     }
 
     @Test
     @RequiredFeatures(RENAME_TABLE)
     default void testRenameTableWithinSchema()
+            throws Exception
     {
         testRenameTable(
                 schemaTableName("initial"),
@@ -85,6 +87,7 @@ public interface MetadataTableTest
     @Test
     @RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
     default void testRenameTableAcrossSchema()
+            throws Exception
     {
         testRenameTable(
                 schemaTableName("initialSchema", "initialTable"),
@@ -93,6 +96,7 @@ public interface MetadataTableTest
 
     @Test
     default void testListColumnsOneSchema()
+            throws Exception
     {
         SchemaTableName schemaTableName1 = schemaTableName("table1");
         SchemaTableName schemaTableName2 = schemaTableName("table2");
@@ -111,21 +115,22 @@ public interface MetadataTableTest
         ConnectorTableMetadata tableMetadata11 = new ConnectorTableMetadata(schemaTableName1, columns, getTableProperties());
         ConnectorTableMetadata tableMetadata12 = new ConnectorTableMetadata(schemaTableName2, columns, getTableProperties());
 
-        run(this,
-                withTableDropped(session, ImmutableList.of(tableMetadata11, tableMetadata12),
-                        ImmutableList.of(
-                                metadata -> assertEquals(metadata.listTableColumns(session, new SchemaTablePrefix()),
-                                        ImmutableMap.of(
-                                                schemaTableName1, expectedColumns,
-                                                schemaTableName2, expectedColumns)),
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOf(schemaTableName1)),
-                                        ImmutableMap.of(
-                                                schemaTableName1, expectedColumns)))));
+        try (AutoCloseable cleanup = withTables(session, tableMetadata11, tableMetadata12)) {
+            run(ImmutableList.of(
+                    metadata -> assertEquals(metadata.listTableColumns(session, new SchemaTablePrefix()),
+                            ImmutableMap.of(
+                                    schemaTableName1, expectedColumns,
+                                    schemaTableName2, expectedColumns)),
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOf(schemaTableName1)),
+                            ImmutableMap.of(
+                                    schemaTableName1, expectedColumns))));
+        }
     }
 
     @Test
     @RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
     default void testListColumnsMultiSchema()
+            throws Exception
     {
         String schemaName1 = "testListColumns1";
         String schemaName2 = "testListColumns2";
@@ -148,22 +153,23 @@ public interface MetadataTableTest
         ConnectorTableMetadata tableMetadata12 = new ConnectorTableMetadata(schemaTableName12, columns, getTableProperties());
         ConnectorTableMetadata tableMetadata2 = new ConnectorTableMetadata(schemaTableName2, columns, getTableProperties());
 
-        run(this,
-                withTableDropped(session, ImmutableList.of(tableMetadata11, tableMetadata12, tableMetadata2),
-                        ImmutableList.of(
-                                metadata -> assertEquals(metadata.listTableColumns(session, new SchemaTablePrefix()),
-                                        ImmutableMap.of(
-                                                schemaTableName11, expectedColumns,
-                                                schemaTableName12, expectedColumns,
-                                                schemaTableName2, expectedColumns)),
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName2)),
-                                        ImmutableMap.of(
-                                                schemaTableName2, expectedColumns)))));
+        try (AutoCloseable cleanup = withTables(session, tableMetadata11, tableMetadata12, tableMetadata2)) {
+            run(ImmutableList.of(
+                    metadata -> assertEquals(metadata.listTableColumns(session, new SchemaTablePrefix()),
+                            ImmutableMap.of(
+                                    schemaTableName11, expectedColumns,
+                                    schemaTableName12, expectedColumns,
+                                    schemaTableName2, expectedColumns)),
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName2)),
+                            ImmutableMap.of(
+                                    schemaTableName2, expectedColumns))));
+        }
     }
 
     @Test
     @RequiredFeatures(ADD_COLUMN)
     default void testAddColumn()
+            throws Exception
     {
         SchemaTableName schemaTableName = schemaTableName("table");
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
@@ -187,19 +193,20 @@ public interface MetadataTableTest
 
         ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(schemaTableName, initialColumns, getTableProperties());
 
-        run(this,
-                withTableDropped(session, ImmutableList.of(tableMetadata),
-                        ImmutableList.of(
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
-                                        ImmutableMap.of(schemaTableName, expectedInitialColumns)),
-                                metadata -> metadata.addColumn(session, metadata.getTableHandle(session, schemaTableName), newColumn),
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
-                                        ImmutableMap.of(schemaTableName, expectedFinalColumns)))));
+        try (AutoCloseable cleanup = withTables(session, tableMetadata)) {
+            run(ImmutableList.of(
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
+                            ImmutableMap.of(schemaTableName, expectedInitialColumns)),
+                    metadata -> metadata.addColumn(session, metadata.getTableHandle(session, schemaTableName), newColumn),
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
+                            ImmutableMap.of(schemaTableName, expectedFinalColumns))));
+        }
     }
 
     @Test
     @RequiredFeatures(RENAME_COLUMN)
     default void testRenameColumn()
+            throws Exception
     {
         SchemaTableName schemaTableName = schemaTableName("table");
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
@@ -223,21 +230,21 @@ public interface MetadataTableTest
 
         ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(schemaTableName, initialColumns, getTableProperties());
 
-        run(this,
-                withTableDropped(session, ImmutableList.of(tableMetadata),
-                        ImmutableList.of(
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
-                                        ImmutableMap.of(schemaTableName, expectedInitialColumns)),
-                                metadata -> {
-                                    ConnectorTableHandle table = metadata.getTableHandle(session, schemaTableName);
-                                    Map<String, ColumnHandle> columns = metadata.getColumnHandles(session, table);
-                                    metadata.renameColumn(
-                                            session,
-                                            table,
-                                            columns.get("initial_column"),
-                                            "renamed_column");
-                                },
-                                metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
-                                        ImmutableMap.of(schemaTableName, expectedFinalColumns)))));
+        try (AutoCloseable cleanup = withTables(session, tableMetadata)) {
+            run(ImmutableList.of(
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
+                            ImmutableMap.of(schemaTableName, expectedInitialColumns)),
+                    metadata -> {
+                        ConnectorTableHandle table = metadata.getTableHandle(session, schemaTableName);
+                        Map<String, ColumnHandle> columns = metadata.getColumnHandles(session, table);
+                        metadata.renameColumn(
+                                session,
+                                table,
+                                columns.get("initial_column"),
+                                "renamed_column");
+                    },
+                    metadata -> assertEquals(metadata.listTableColumns(session, prefixOfSchemaName(schemaTableName)),
+                            ImmutableMap.of(schemaTableName, expectedFinalColumns))));
+        }
     }
 }

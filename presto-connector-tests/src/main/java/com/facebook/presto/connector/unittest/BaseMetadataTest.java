@@ -17,6 +17,7 @@ import com.facebook.presto.connector.meta.RequiredFeatures;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
@@ -27,6 +28,7 @@ import com.facebook.presto.spi.transaction.IsolationLevel;
 import com.facebook.presto.testing.TestingConnectorSession;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Streams;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -70,15 +72,15 @@ public interface BaseMetadataTest
     {
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
 
-        run(this,
-                ImmutableList.of(
-                        metadata -> assertEquals(metadata.listSchemaNames(session), systemSchemas()),
-                        metadata -> assertEquals(metadata.listTables(session, null), ImmutableList.of())));
+        run(ImmutableList.of(
+                metadata -> assertEquals(metadata.listSchemaNames(session), systemSchemas()),
+                metadata -> assertEquals(metadata.listTables(session, null), ImmutableList.of())));
     }
 
     @Test
     @RequiredFeatures({CREATE_TABLE, DROP_TABLE})
     default void testCreateDropTable()
+            throws Exception
     {
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
         String tableName = "table";
@@ -91,12 +93,12 @@ public interface BaseMetadataTest
                         new ColumnMetadata("double_column", DOUBLE)),
                 getTableProperties());
 
-        run(this,
-                withSchema(session, schemaNamesOf(schemaTableName),
-                        ImmutableList.of(
-                                metadata -> metadata.createTable(session, tableMetadata),
-                                metadata -> assertEquals(getOnlyElement(metadata.listTables(session, schemaTableName.getSchemaName())), schemaTableName),
-                                metadata -> metadata.dropTable(session, metadata.getTableHandle(session, schemaTableName)))));
+        try (AllCloser cleanup = AllCloser.of(new Schema(this, session, schemaTableName.getSchemaName()))) {
+            run(ImmutableList.of(
+                    metadata -> metadata.createTable(session, tableMetadata),
+                    metadata -> assertEquals(getOnlyElement(metadata.listTables(session, schemaTableName.getSchemaName())), schemaTableName),
+                    metadata -> metadata.dropTable(session, metadata.getTableHandle(session, schemaTableName))));
+        }
     }
 
     default List<String> schemaNamesOf(SchemaTableName... schemaTableNames)
@@ -106,9 +108,11 @@ public interface BaseMetadataTest
                 .collect(toImmutableList());
     }
 
-    default List<String> distinctSchemas(SchemaTableName... schemaTableNames)
+    default List<String> schemaNamesOf(List<ConnectorTableMetadata> tables)
     {
-        return schemaNamesOf(schemaTableNames).stream()
+        return tables.stream()
+                .map(ConnectorTableMetadata::getTable)
+                .map(SchemaTableName::getSchemaName)
                 .distinct()
                 .collect(toImmutableList());
     }
@@ -123,60 +127,114 @@ public interface BaseMetadataTest
         return new SchemaTablePrefix(schemaTableName.getSchemaName(), schemaTableName.getTableName());
     }
 
-    default void run(SPITest test, List<Consumer<ConnectorMetadata>> consumers)
+    default void run(List<Consumer<ConnectorMetadata>> consumers)
     {
-        consumers.forEach(consumer -> withMetadata(test, ImmutableList.of(consumer)));
+        consumers.forEach(this::withMetadata);
     }
 
-    default void withMetadata(SPITest test, List<Consumer<ConnectorMetadata>> consumers)
+    default void withMetadata(Consumer<ConnectorMetadata> consumer)
     {
-        Connector connector = test.getConnector();
+        Connector connector = getConnector();
         ConnectorTransactionHandle transaction = connector.beginTransaction(IsolationLevel.READ_UNCOMMITTED, true);
         ConnectorMetadata metadata = connector.getMetadata(transaction);
-        consumers.forEach(consumer -> consumer.accept(metadata));
+        consumer.accept(metadata);
         connector.commit(transaction);
     }
 
-    default List<Consumer<ConnectorMetadata>> withSchema(ConnectorSession session, List<String> schemaNames, List<Consumer<ConnectorMetadata>> consumers)
+    class AllCloser
+            implements AutoCloseable
     {
-        ImmutableList.Builder<Consumer<ConnectorMetadata>> builder = ImmutableList.builder();
+        List<AutoCloseable> items;
 
-        for (String schemaName : schemaNames) {
-            builder.add(metadata -> metadata.createSchema(session, schemaName, ImmutableMap.of()));
+        public AllCloser(List<AutoCloseable> items)
+        {
+            this.items = items;
         }
 
-        builder.addAll(consumers);
-
-        for (String schemaName : schemaNames) {
-            builder.add(metadata -> metadata.dropSchema(session, schemaName));
+        static AllCloser of(AutoCloseable... elements)
+        {
+            return new AllCloser(ImmutableList.copyOf(elements));
         }
 
-        return builder.build();
+        @Override
+        public void close()
+                throws Exception
+        {
+            for (int i = items.size() - 1; i >= 0; --i) {
+                items.get(i).close();
+            }
+        }
     }
 
-    default List<Consumer<ConnectorMetadata>> withTableDropped(ConnectorSession session, List<ConnectorTableMetadata> tables, List<Consumer<ConnectorMetadata>> consumers)
+    class Schema
+            implements AutoCloseable
     {
-        ImmutableList.Builder<Consumer<ConnectorMetadata>> builder = ImmutableList.builder();
+        private final BaseMetadataTest test;
+        private final ConnectorSession session;
+        private final String name;
 
-        List<String> schemaNames = tables.stream()
-                .map(ConnectorTableMetadata::getTable)
-                .map(SchemaTableName::getSchemaName)
+        public Schema(BaseMetadataTest test, ConnectorSession session, String name)
+        {
+            this.test = test;
+            this.session = session;
+            this.name = name;
+
+            test.withMetadata(metadata -> metadata.createSchema(session, name, ImmutableMap.of()));
+        }
+
+        @Override
+        public void close()
+                throws Exception
+        {
+            test.withMetadata(metadata -> metadata.dropSchema(session, name));
+        }
+    }
+
+    default List<AutoCloseable> withSchemas(ConnectorSession session, List<String> schemaNames)
+    {
+        return schemaNames.stream()
                 .distinct()
+                .map(schemaName -> new Schema(this, session, schemaName))
                 .collect(toImmutableList());
+    }
 
-        for (ConnectorTableMetadata table : tables) {
-            builder.add(metadata -> {
-                ConnectorOutputTableHandle handle = metadata.beginCreateTable(session, table, Optional.empty());
+    class Table
+            implements AutoCloseable
+    {
+        private final BaseMetadataTest test;
+        private final ConnectorSession session;
+        private final ConnectorTableMetadata tableMetadata;
+
+        public Table(BaseMetadataTest test, ConnectorSession session, ConnectorTableMetadata tableMetadata)
+        {
+            this.test = test;
+            this.session = session;
+            this.tableMetadata = tableMetadata;
+
+            test.withMetadata(metadata -> {
+                ConnectorOutputTableHandle handle = metadata.beginCreateTable(session, tableMetadata, Optional.empty());
                 metadata.finishCreateTable(session, handle, ImmutableList.of());
             });
         }
 
-        builder.addAll(consumers);
-
-        for (ConnectorTableMetadata table : tables) {
-            builder.add(metadata -> metadata.dropTable(session, metadata.getTableHandle(session, table.getTable())));
+        @Override
+        public void close()
+                throws Exception
+        {
+            test.withMetadata(metadata -> {
+                ConnectorTableHandle handle = metadata.getTableHandle(session, tableMetadata.getTable());
+                metadata.dropTable(session, handle);
+            });
         }
+    }
 
-        return withSchema(session, schemaNames, builder.build());
+    default AllCloser withTables(ConnectorSession session, ConnectorTableMetadata... tables)
+    {
+        List<ConnectorTableMetadata> tableList = Arrays.asList(tables);
+        return new AllCloser(Streams.concat(
+                withSchemas(session, schemaNamesOf(tableList)).stream(),
+                tableList.stream()
+                        .map(table -> new Table(this, session, table)))
+                .collect(toImmutableList()));
     }
 }

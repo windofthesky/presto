@@ -18,7 +18,6 @@ import com.facebook.presto.connector.unittest.BaseMetadataTest;
 import com.facebook.presto.connector.unittest.MetadataSchemaTest;
 import com.facebook.presto.connector.unittest.MetadataTableTest;
 import com.facebook.presto.plugin.postgresql.PostgreSqlPlugin;
-import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.Connector;
@@ -27,6 +26,7 @@ import com.facebook.presto.testing.TestingConnectorContext;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.testing.postgresql.TestingPostgreSqlServer;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.util.List;
@@ -42,13 +42,23 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 public class TestPostgresqlMetadata
         implements BaseMetadataTest, MetadataTableTest, MetadataSchemaTest
 {
+    private TestingPostgreSqlServer server;
     private Connector connector;
 
     @BeforeAll
     public void beforeAll()
             throws Exception
     {
-        this.connector = createPostgresqlConnector();
+        this.server = new TestingPostgreSqlServer("testuser", "unittests");
+        this.connector = createPostgresqlConnector(server);
+    }
+
+    @AfterAll
+    public void cleanUp()
+            throws Exception
+    {
+        connector.shutdown();
+        server.close();
     }
 
     @Override
@@ -57,11 +67,9 @@ public class TestPostgresqlMetadata
         return connector;
     }
 
-    private static Connector createPostgresqlConnector()
+    private static Connector createPostgresqlConnector(TestingPostgreSqlServer server)
             throws Exception
     {
-        TestingPostgreSqlServer server = new TestingPostgreSqlServer("testuser", "unittests");
-
         PostgreSqlPlugin plugin = new PostgreSqlPlugin();
         Iterable<ConnectorFactory> connectorFactories = plugin.getConnectorFactories();
 
@@ -78,12 +86,6 @@ public class TestPostgresqlMetadata
     public Map<String, Object> getTableProperties()
     {
         return ImmutableMap.of();
-    }
-
-    @Override
-    public List<ColumnMetadata> getConnectorColumns()
-    {
-        return ImmutableList.of();
     }
 
     @Override

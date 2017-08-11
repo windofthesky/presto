@@ -19,7 +19,8 @@ import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
 
 @SupportedFeatures({DROP_SCHEMA, CREATE_TABLE, DROP_TABLE})
 public class MissingBaseFeaturesConnectorTest
-        implements AnotherTest
+        extends VerifyRun
+        implements SubTest
 {
     @Override
     public void dropSchema()

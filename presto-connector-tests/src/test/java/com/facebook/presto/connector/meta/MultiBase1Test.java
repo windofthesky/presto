@@ -13,15 +13,16 @@
  */
 package com.facebook.presto.connector.meta;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
+import static org.junit.jupiter.api.Assertions.fail;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD}) @Inherited
-public @interface ContainsRequiredFeatures
+@RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
+public interface MultiBase1Test
+        extends BaseSPITest
 {
-    RequiredFeatures[] value();
+    default void dropSchema()
+    {
+        fail("Unsupported dropSchema");
+    }
 }

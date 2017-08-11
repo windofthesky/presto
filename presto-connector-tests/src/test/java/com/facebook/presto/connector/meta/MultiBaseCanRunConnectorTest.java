@@ -13,17 +13,28 @@
  */
 package com.facebook.presto.connector.meta;
 
-public enum ConnectorFeature
+import com.google.common.collect.ImmutableSet;
+
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
+
+@SupportedFeatures({CREATE_SCHEMA, DROP_SCHEMA})
+public class MultiBaseCanRunConnectorTest
+        extends VerifyRun
+        implements MultiBaseSubTest
 {
-    READ_DATA,
-    WRITE_DATA,
-    CREATE_SCHEMA,
-    DROP_SCHEMA,
-    RENAME_SCHEMA,
-    CREATE_TABLE,
-    CREATE_TABLE_AS,
-    DROP_TABLE,
-    RENAME_TABLE,
-    ADD_COLUMN,
-    RENAME_COLUMN;
+    public MultiBaseCanRunConnectorTest()
+    {
+        super(ImmutableSet.of("test"));
+    }
+
+    @Override
+    public void createSchema()
+    {
+    }
+
+    @Override
+    public void dropSchema()
+    {
+    }
 }

@@ -14,33 +14,39 @@
 package com.facebook.presto.connector.meta;
 
 import com.google.common.collect.ImmutableSet;
+import org.junit.jupiter.api.TestInfo;
 
-import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
-import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE;
-import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
+import java.util.HashSet;
+import java.util.Set;
 
-@SupportedFeatures({CREATE_SCHEMA, CREATE_TABLE, DROP_TABLE})
-public class MissingChildFeaturesConnectorTest
-        extends VerifyRun
-        implements SubTest
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class VerifyRun
+        implements BaseSPITest
 {
-    public MissingChildFeaturesConnectorTest()
+    private final Set<String> shouldRunTestNames;
+    private Set<String> didRunTestNames;
+
+    protected VerifyRun()
     {
-        super(ImmutableSet.of("baseTest"));
+        this(ImmutableSet.of());
+    }
+
+    protected VerifyRun(Set<String> shouldRunTestNames)
+    {
+        this.shouldRunTestNames = shouldRunTestNames;
+        this.didRunTestNames = new HashSet<>();
     }
 
     @Override
-    public void createSchema()
+    public void ran(TestInfo testInfo)
     {
+        didRunTestNames.add(testInfo.getTestMethod().get().getName());
     }
 
     @Override
-    public void createTable()
+    public void validate()
     {
-    }
-
-    @Override
-    public void dropTable()
-    {
+        assertEquals(shouldRunTestNames, didRunTestNames);
     }
 }

@@ -13,17 +13,21 @@
  */
 package com.facebook.presto.connector.meta;
 
-public enum ConnectorFeature
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(SupportedTestCondition.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public interface BaseSPITest
 {
-    READ_DATA,
-    WRITE_DATA,
-    CREATE_SCHEMA,
-    DROP_SCHEMA,
-    RENAME_SCHEMA,
-    CREATE_TABLE,
-    CREATE_TABLE_AS,
-    DROP_TABLE,
-    RENAME_TABLE,
-    ADD_COLUMN,
-    RENAME_COLUMN;
+    void ran(TestInfo testInfo);
+    void validate();
+
+    @AfterAll
+    default void postValidate()
+    {
+        validate();
+    }
 }

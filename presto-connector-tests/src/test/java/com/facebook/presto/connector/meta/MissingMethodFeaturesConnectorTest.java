@@ -13,13 +13,21 @@
  */
 package com.facebook.presto.connector.meta;
 
+import com.google.common.collect.ImmutableSet;
+
 import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
 import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
 
 @SupportedFeatures({CREATE_SCHEMA, DROP_SCHEMA})
 public class MissingMethodFeaturesConnectorTest
-        implements AnotherTest
+        extends VerifyRun
+        implements SubTest
 {
+    public MissingMethodFeaturesConnectorTest()
+    {
+        super(ImmutableSet.of("baseTest", "noMoreFeaturesRequiredTest"));
+    }
+
     @Override
     public void createSchema()
     {

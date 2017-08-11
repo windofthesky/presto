@@ -14,14 +14,16 @@
 package com.facebook.presto.connector.meta;
 
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Repeatable(ContainsRequiredFeatures.class)
-@Target({ElementType.TYPE, ElementType.METHOD}) @Inherited
+/*
+ * This can be applied to test methods and test interfaces/classes. See
+ * SupportedTestCondition for an explanation of how the requirements of a test
+ * method are determined from the class hierarchy.
+ */
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequiredFeatures
 {

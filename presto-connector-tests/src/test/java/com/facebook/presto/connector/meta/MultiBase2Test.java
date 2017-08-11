@@ -13,17 +13,15 @@
  */
 package com.facebook.presto.connector.meta;
 
-public enum ConnectorFeature
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static org.junit.jupiter.api.Assertions.fail;
+
+@RequiredFeatures({CREATE_SCHEMA})
+public interface MultiBase2Test
+        extends BaseSPITest
 {
-    READ_DATA,
-    WRITE_DATA,
-    CREATE_SCHEMA,
-    DROP_SCHEMA,
-    RENAME_SCHEMA,
-    CREATE_TABLE,
-    CREATE_TABLE_AS,
-    DROP_TABLE,
-    RENAME_TABLE,
-    ADD_COLUMN,
-    RENAME_COLUMN;
+    default void createSchema()
+    {
+        fail("Unsupported createSchema");
+    }
 }

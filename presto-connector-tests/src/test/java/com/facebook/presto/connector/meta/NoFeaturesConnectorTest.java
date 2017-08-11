@@ -15,6 +15,7 @@ package com.facebook.presto.connector.meta;
 
 @SupportedFeatures({})
 public class NoFeaturesConnectorTest
-        implements AnotherTest
+        extends VerifyRun
+        implements SubTest
 {
 }

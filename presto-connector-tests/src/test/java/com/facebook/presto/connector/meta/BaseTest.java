@@ -14,18 +14,19 @@
 package com.facebook.presto.connector.meta;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.TestInfo;
 
 import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @RequiredFeatures({CREATE_SCHEMA})
-@ExtendWith(SupportedTestCondition.class)
 public interface BaseTest
+        extends BaseSPITest
 {
     @Test
-    default void baseTest()
+    default void baseTest(TestInfo info)
     {
+        ran(info);
         createSchema();
     }
 

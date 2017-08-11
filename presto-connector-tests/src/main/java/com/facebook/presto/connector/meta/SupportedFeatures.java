@@ -18,6 +18,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/*
+ * This almost certainly only makes sense when applied to a leaf class that
+ * provides the infrastructure needed to run tests specified in various test
+ * interfaces implemented by that class.
+ */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface SupportedFeatures

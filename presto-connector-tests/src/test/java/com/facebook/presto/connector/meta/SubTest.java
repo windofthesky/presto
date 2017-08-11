@@ -14,6 +14,7 @@
 package com.facebook.presto.connector.meta;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE;
 import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
@@ -21,20 +22,22 @@ import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @RequiredFeatures(DROP_SCHEMA)
-public interface AnotherTest
+public interface SubTest
         extends BaseTest
 {
     @Test
-    default void noMoreFeaturesRequiredTest()
+    default void noMoreFeaturesRequiredTest(TestInfo info)
     {
+        ran(info);
         createSchema();
         dropSchema();
     }
 
     @Test
     @RequiredFeatures({CREATE_TABLE, DROP_TABLE})
-    default void moreFeaturesRequiredTest()
+    default void moreFeaturesRequiredTest(TestInfo info)
     {
+        ran(info);
         createSchema();
         createTable();
         dropTable();

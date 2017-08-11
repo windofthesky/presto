@@ -13,17 +13,17 @@
  */
 package com.facebook.presto.connector.meta;
 
-public enum ConnectorFeature
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+
+public interface MultiBaseSubTest
+        extends MultiBase1Test, MultiBase2Test
 {
-    READ_DATA,
-    WRITE_DATA,
-    CREATE_SCHEMA,
-    DROP_SCHEMA,
-    RENAME_SCHEMA,
-    CREATE_TABLE,
-    CREATE_TABLE_AS,
-    DROP_TABLE,
-    RENAME_TABLE,
-    ADD_COLUMN,
-    RENAME_COLUMN;
+    @Test
+    default void test(TestInfo info)
+    {
+        ran(info);
+        createSchema();
+        dropSchema();
+    }
 }

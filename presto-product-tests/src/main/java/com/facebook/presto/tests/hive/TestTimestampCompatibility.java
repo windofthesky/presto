@@ -65,8 +65,8 @@ public class TestTimestampCompatibility
 
         QueryResult prestoResult = query(String.format("SELECT * FROM %s", TABLE_NAME));
         QueryResult hiveResult = onHive().executeQuery(String.format("SELECT * FROM %s", TABLE_NAME));
-        assertThat(prestoResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
         assertThat(hiveResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
+        assertThat(prestoResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
 
         resetSessionProperty(connection, "legacy_timestamp");
     }

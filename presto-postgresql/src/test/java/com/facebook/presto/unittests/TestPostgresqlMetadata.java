@@ -13,7 +13,9 @@
  */
 package com.facebook.presto.unittests;
 
+import com.facebook.presto.connector.meta.SupportedFeatures;
 import com.facebook.presto.connector.unittest.BaseMetadataTest;
+import com.facebook.presto.connector.unittest.MetadataSchemaTest;
 import com.facebook.presto.connector.unittest.MetadataTableTest;
 import com.facebook.presto.plugin.postgresql.PostgreSqlPlugin;
 import com.facebook.presto.spi.ColumnMetadata;
@@ -32,10 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE_AS;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
+@SupportedFeatures({
+        CREATE_TABLE_AS,
+        DROP_TABLE})
 public class TestPostgresqlMetadata
-        implements BaseMetadataTest, MetadataTableTest
+        implements BaseMetadataTest, MetadataTableTest, MetadataSchemaTest
 {
     private Connector connector;
 
@@ -97,35 +104,5 @@ public class TestPostgresqlMetadata
     public List<Consumer<ConnectorMetadata>> withSchema(ConnectorSession session, List<String> schemaNames, List<Consumer<ConnectorMetadata>> consumers)
     {
         return consumers;
-    }
-
-    @Override
-    public void testCreateDropTable()
-    {
-    }
-
-    @Override
-    public void testRenameTableWithinSchema()
-    {
-    }
-
-    @Override
-    public void testRenameTableAcrossSchema()
-    {
-    }
-
-    @Override
-    public void testListColumnsMultiSchema()
-    {
-    }
-
-    @Override
-    public void testAddColumn()
-    {
-    }
-
-    @Override
-    public void testRenameColumn()
-    {
     }
 }

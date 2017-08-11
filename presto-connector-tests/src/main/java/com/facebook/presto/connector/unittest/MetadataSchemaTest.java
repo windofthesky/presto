@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.connector.unittest;
 
+import com.facebook.presto.connector.meta.RequiredFeatures;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.testing.TestingConnectorSession;
@@ -24,10 +25,14 @@ import org.junit.jupiter.api.TestInstance;
 import java.util.List;
 import java.util.Map;
 
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_SCHEMA;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
 public interface MetadataSchemaTest
         extends BaseMetadataTest
 {
@@ -51,6 +56,7 @@ public interface MetadataSchemaTest
     }
 
     @Test
+    @RequiredFeatures({RENAME_SCHEMA})
     default void testRenameSchema()
     {
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());

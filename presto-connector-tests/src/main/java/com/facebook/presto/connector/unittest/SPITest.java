@@ -13,9 +13,12 @@
  */
 package com.facebook.presto.connector.unittest;
 
+import com.facebook.presto.connector.meta.SupportedTestCondition;
 import com.facebook.presto.spi.connector.Connector;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(SupportedTestCondition.class)
 public interface SPITest
 {
     Connector getConnector();

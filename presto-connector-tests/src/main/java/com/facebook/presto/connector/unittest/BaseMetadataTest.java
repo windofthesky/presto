@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.connector.unittest;
 
+import com.facebook.presto.connector.meta.RequiredFeatures;
+import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorTableMetadata;
@@ -29,15 +31,25 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
+import static com.facebook.presto.spi.type.BigintType.BIGINT;
+import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public interface BaseMetadataTest
         extends SPITest
 {
+    Map<String, Object> getTableProperties();
+
+    List<ColumnMetadata> getConnectorColumns();
+
     default List<String> systemSchemas()
     {
         return ImmutableList.of();
@@ -62,6 +74,29 @@ public interface BaseMetadataTest
                 ImmutableList.of(
                         metadata -> assertEquals(metadata.listSchemaNames(session), systemSchemas()),
                         metadata -> assertEquals(metadata.listTables(session, null), ImmutableList.of())));
+    }
+
+    @Test
+    @RequiredFeatures({CREATE_TABLE, DROP_TABLE})
+    default void testCreateDropTable()
+    {
+        ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
+        String tableName = "table";
+        SchemaTableName schemaTableName = schemaTableName(tableName);
+
+        ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(
+                schemaTableName,
+                ImmutableList.of(
+                        new ColumnMetadata("bigint_column", BIGINT),
+                        new ColumnMetadata("double_column", DOUBLE)),
+                getTableProperties());
+
+        run(this,
+                withSchema(session, schemaNamesOf(schemaTableName),
+                        ImmutableList.of(
+                                metadata -> metadata.createTable(session, tableMetadata),
+                                metadata -> assertEquals(getOnlyElement(metadata.listTables(session, schemaTableName.getSchemaName())), schemaTableName),
+                                metadata -> metadata.dropTable(session, metadata.getTableHandle(session, schemaTableName)))));
     }
 
     default List<String> schemaNamesOf(SchemaTableName... schemaTableNames)

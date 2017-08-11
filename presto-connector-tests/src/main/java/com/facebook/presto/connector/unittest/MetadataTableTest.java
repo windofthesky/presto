@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.connector.unittest;
 
+import com.facebook.presto.connector.meta.RequiredFeatures;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorOutputTableHandle;
@@ -31,6 +32,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.facebook.presto.connector.meta.ConnectorFeature.ADD_COLUMN;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE_AS;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_COLUMN;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_TABLE;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
@@ -38,35 +46,10 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@RequiredFeatures({CREATE_TABLE_AS, DROP_TABLE})
 public interface MetadataTableTest
         extends BaseMetadataTest
 {
-    Map<String, Object> getTableProperties();
-
-    List<ColumnMetadata> getConnectorColumns();
-
-    @Test
-    default void testCreateDropTable()
-    {
-        ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
-        String tableName = "table";
-        SchemaTableName schemaTableName = schemaTableName(tableName);
-
-        ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(
-                schemaTableName,
-                ImmutableList.of(
-                        new ColumnMetadata("bigint_column", BIGINT),
-                        new ColumnMetadata("double_column", DOUBLE)),
-                getTableProperties());
-
-        run(this,
-                withSchema(session, schemaNamesOf(schemaTableName),
-                        ImmutableList.of(
-                                metadata -> metadata.createTable(session, tableMetadata),
-                                metadata -> assertEquals(getOnlyElement(metadata.listTables(session, schemaTableName.getSchemaName())), schemaTableName),
-                                metadata -> metadata.dropTable(session, metadata.getTableHandle(session, schemaTableName)))));
-    }
-
     default void testRenameTable(SchemaTableName initial, SchemaTableName renamed)
     {
         ConnectorSession session = new TestingConnectorSession(ImmutableList.of());
@@ -91,6 +74,7 @@ public interface MetadataTableTest
     }
 
     @Test
+    @RequiredFeatures(RENAME_TABLE)
     default void testRenameTableWithinSchema()
     {
         testRenameTable(
@@ -99,6 +83,7 @@ public interface MetadataTableTest
     }
 
     @Test
+    @RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
     default void testRenameTableAcrossSchema()
     {
         testRenameTable(
@@ -139,6 +124,7 @@ public interface MetadataTableTest
     }
 
     @Test
+    @RequiredFeatures({CREATE_SCHEMA, DROP_SCHEMA})
     default void testListColumnsMultiSchema()
     {
         String schemaName1 = "testListColumns1";
@@ -176,6 +162,7 @@ public interface MetadataTableTest
     }
 
     @Test
+    @RequiredFeatures(ADD_COLUMN)
     default void testAddColumn()
     {
         SchemaTableName schemaTableName = schemaTableName("table");
@@ -211,6 +198,7 @@ public interface MetadataTableTest
     }
 
     @Test
+    @RequiredFeatures(RENAME_COLUMN)
     default void testRenameColumn()
     {
         SchemaTableName schemaTableName = schemaTableName("table");

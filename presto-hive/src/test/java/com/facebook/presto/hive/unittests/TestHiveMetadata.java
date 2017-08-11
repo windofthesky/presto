@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.hive.unittests;
 
+import com.facebook.presto.connector.meta.SupportedFeatures;
 import com.facebook.presto.connector.unittest.BaseMetadataTest;
 import com.facebook.presto.connector.unittest.MetadataSchemaTest;
 import com.facebook.presto.connector.unittest.MetadataTableTest;
@@ -39,6 +40,17 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 
+import static com.facebook.presto.connector.meta.ConnectorFeature.ADD_COLUMN;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE;
+import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE_AS;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
+import static com.facebook.presto.connector.meta.ConnectorFeature.READ_DATA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_COLUMN;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_SCHEMA;
+import static com.facebook.presto.connector.meta.ConnectorFeature.RENAME_TABLE;
+import static com.facebook.presto.connector.meta.ConnectorFeature.WRITE_DATA;
 import static com.facebook.presto.hive.HiveQueryRunner.TIME_ZONE;
 import static com.facebook.presto.hive.HiveStorageFormat.TEXTFILE;
 import static com.facebook.presto.hive.HiveTableProperties.BUCKETED_BY_PROPERTY;
@@ -48,6 +60,18 @@ import static com.facebook.presto.hive.HiveTableProperties.STORAGE_FORMAT_PROPER
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
+@SupportedFeatures({
+        READ_DATA,
+        WRITE_DATA,
+        CREATE_SCHEMA,
+        DROP_SCHEMA,
+        RENAME_SCHEMA,
+        CREATE_TABLE,
+        CREATE_TABLE_AS,
+        DROP_TABLE,
+        RENAME_TABLE,
+        ADD_COLUMN,
+        RENAME_COLUMN})
 public class TestHiveMetadata
         implements BaseMetadataTest, MetadataSchemaTest, MetadataTableTest
 {

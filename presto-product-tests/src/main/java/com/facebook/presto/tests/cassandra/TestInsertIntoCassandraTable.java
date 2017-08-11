@@ -22,19 +22,25 @@ import com.teradata.tempto.query.QueryResult;
 import io.airlift.units.Duration;
 import org.testng.annotations.Test;
 
+import java.sql.Connection;
+
 import static com.facebook.presto.tests.TemptoProductTestRunner.PRODUCT_TESTS_TIME_ZONE;
 import static com.facebook.presto.tests.TestGroups.CASSANDRA;
 import static com.facebook.presto.tests.cassandra.DataTypesTableDefinition.CASSANDRA_ALL_TYPES;
 import static com.facebook.presto.tests.cassandra.TestConstants.CONNECTOR_NAME;
 import static com.facebook.presto.tests.cassandra.TestConstants.KEY_SPACE;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.resetSessionProperty;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.setSessionProperty;
 import static com.facebook.presto.tests.utils.QueryAssertions.assertContainsEventually;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
 import static com.teradata.tempto.assertions.QueryAssert.assertThat;
 import static com.teradata.tempto.fulfillment.table.MutableTableRequirement.State.CREATED;
 import static com.teradata.tempto.fulfillment.table.MutableTablesState.mutableTablesState;
 import static com.teradata.tempto.fulfillment.table.TableRequirements.mutableTable;
+import static com.teradata.tempto.query.QueryExecutor.defaultQueryExecutor;
 import static com.teradata.tempto.query.QueryExecutor.query;
 import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInLocalTime;
+import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInUTC;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -88,6 +94,32 @@ public class TestInsertIntoCassandraTable
                 "'varchar value'," +
                 "null)");
 
+        Connection connection = defaultQueryExecutor().getConnection();
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
+                row(
+                        "ascii value",
+                        99999,
+                        null,
+                        true,
+                        null,
+                        123.456789,
+                        123.45678,
+                        null,
+                        null,
+                        123,
+                        null,
+                        null,
+                        null,
+                        "text value",
+                        parseTimestampInUTC("9999-12-31 23:59:59"),
+                        null,
+                        null,
+                        "varchar value",
+                        null));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
                 row(
                         "ascii value",
@@ -109,6 +141,8 @@ public class TestInsertIntoCassandraTable
                         null,
                         "varchar value",
                         null));
+
+        resetSessionProperty(connection, "legacy_timestamp");
 
         // insert null for all datatypes
         query("INSERT INTO " + tableNameInDatabase +

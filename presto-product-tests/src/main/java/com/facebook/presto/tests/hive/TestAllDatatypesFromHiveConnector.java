@@ -43,6 +43,8 @@ import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.ALL_
 import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.ALL_HIVE_SIMPLE_TYPES_TEXTFILE;
 import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.onHive;
 import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.populateDataToHiveTable;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.resetSessionProperty;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.setSessionProperty;
 import static com.facebook.presto.tests.utils.JdbcDriverUtils.usingPrestoJdbcDriver;
 import static com.facebook.presto.tests.utils.JdbcDriverUtils.usingTeradataJdbcDriver;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
@@ -54,6 +56,7 @@ import static com.teradata.tempto.fulfillment.table.TableRequirements.immutableT
 import static com.teradata.tempto.query.QueryExecutor.defaultQueryExecutor;
 import static com.teradata.tempto.query.QueryExecutor.query;
 import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInLocalTime;
+import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInUTC;
 import static java.lang.String.format;
 import static java.sql.JDBCType.BIGINT;
 import static java.sql.JDBCType.BOOLEAN;
@@ -128,7 +131,30 @@ public class TestAllDatatypesFromHiveConnector
         assertProperAllDatatypesSchema(tableName);
         QueryResult queryResult = query(format("SELECT * FROM %s", tableName));
 
+        Connection connection = defaultQueryExecutor().getConnection();
+
         assertColumnTypes(queryResult);
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(queryResult).containsOnly(
+                row(
+                        127,
+                        32767,
+                        2147483647,
+                        9223372036854775807L,
+                        123.345f,
+                        234.567,
+                        new BigDecimal("346"),
+                        new BigDecimal("345.67800"),
+                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        Date.valueOf("2015-05-10"),
+                        "ala ma kota",
+                        "ala ma kot",
+                        "ala ma    ",
+                        true,
+                        "kot binarny".getBytes()));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(queryResult).containsOnly(
                 row(
                         127,
@@ -146,6 +172,8 @@ public class TestAllDatatypesFromHiveConnector
                         "ala ma    ",
                         true,
                         "kot binarny".getBytes()));
+
+        resetSessionProperty(connection, "legacy_timestamp");
     }
 
     @Requires(OrcRequirements.class)
@@ -192,7 +220,31 @@ public class TestAllDatatypesFromHiveConnector
         assertProperAllDatatypesSchema(tableName);
 
         QueryResult queryResult = query(format("SELECT * FROM %s", tableName));
+
+        Connection connection = defaultQueryExecutor().getConnection();
+
         assertColumnTypes(queryResult);
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(queryResult).containsOnly(
+                row(
+                        127,
+                        32767,
+                        2147483647,
+                        9223372036854775807L,
+                        123.345f,
+                        234.567,
+                        new BigDecimal("346"),
+                        new BigDecimal("345.67800"),
+                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        Date.valueOf("2015-05-10"),
+                        "ala ma kota",
+                        "ala ma kot",
+                        "ala ma    ",
+                        true,
+                        "kot binarny".getBytes()));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(queryResult).containsOnly(
                 row(
                         127,
@@ -210,6 +262,8 @@ public class TestAllDatatypesFromHiveConnector
                         "ala ma    ",
                         true,
                         "kot binarny".getBytes()));
+
+        resetSessionProperty(connection, "legacy_timestamp");
     }
 
     private void assertProperAllDatatypesSchema(String tableName)
@@ -333,6 +387,27 @@ public class TestAllDatatypesFromHiveConnector
                 BOOLEAN,
                 LONGVARBINARY);
 
+        Connection connection = defaultQueryExecutor().getConnection();
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(queryResult).containsOnly(
+                row(
+                        127,
+                        32767,
+                        2147483647,
+                        9223372036854775807L,
+                        123.345f,
+                        234.567,
+                        new BigDecimal("346"),
+                        new BigDecimal("345.67800"),
+                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        "ala ma kota",
+                        "ala ma kot",
+                        "ala ma    ",
+                        true,
+                        "kot binarny".getBytes()));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(queryResult).containsOnly(
                 row(
                         127,
@@ -349,6 +424,8 @@ public class TestAllDatatypesFromHiveConnector
                         "ala ma    ",
                         true,
                         "kot binarny".getBytes()));
+
+        resetSessionProperty(connection, "legacy_timestamp");
     }
 
     private static TableInstance mutableTableInstanceOf(TableDefinition tableDefinition)

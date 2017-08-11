@@ -21,12 +21,16 @@ import com.teradata.tempto.configuration.Configuration;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.SQLException;
 
 import static com.facebook.presto.tests.TemptoProductTestRunner.PRODUCT_TESTS_TIME_ZONE;
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
 import static com.facebook.presto.tests.TestGroups.POST_HIVE_1_0_1;
 import static com.facebook.presto.tests.hive.AllSimpleTypesTableDefinitions.ALL_HIVE_SIMPLE_TYPES_TEXTFILE;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.resetSessionProperty;
+import static com.facebook.presto.tests.utils.JdbcDriverUtils.setSessionProperty;
 import static com.teradata.tempto.Requirements.compose;
 import static com.teradata.tempto.assertions.QueryAssert.Row.row;
 import static com.teradata.tempto.assertions.QueryAssert.assertThat;
@@ -34,8 +38,10 @@ import static com.teradata.tempto.fulfillment.table.MutableTableRequirement.Stat
 import static com.teradata.tempto.fulfillment.table.MutableTablesState.mutableTablesState;
 import static com.teradata.tempto.fulfillment.table.TableRequirements.immutableTable;
 import static com.teradata.tempto.fulfillment.table.TableRequirements.mutableTable;
+import static com.teradata.tempto.query.QueryExecutor.defaultQueryExecutor;
 import static com.teradata.tempto.query.QueryExecutor.query;
 import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInLocalTime;
+import static com.teradata.tempto.util.DateTimeUtils.parseTimestampInUTC;
 
 public class TestInsertIntoHiveTable
         extends ProductTest
@@ -57,6 +63,7 @@ public class TestInsertIntoHiveTable
     @Test(groups = {HIVE_CONNECTOR, POST_HIVE_1_0_1})
     @Requires(AllSimpleTypesTables.class)
     public void testInsertIntoValuesToHiveTableAllHiveSimpleTypes()
+            throws SQLException
     {
         String tableNameInDatabase = mutableTablesState().get(TABLE_NAME).getNameInDatabase();
         assertThat(query("SELECT * FROM " + tableNameInDatabase)).hasNoRows();
@@ -78,6 +85,28 @@ public class TestInsertIntoHiveTable
                 "from_base64('a290IGJpbmFybnk=')" +
                 ")");
 
+        Connection connection = defaultQueryExecutor().getConnection();
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
+                row(
+                        127,
+                        32767,
+                        2147483647,
+                        9223372036854775807L,
+                        123.345f,
+                        234.567,
+                        new BigDecimal("346"),
+                        new BigDecimal("345.67800"),
+                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        Date.valueOf("2015-05-10"),
+                        "ala ma kota",
+                        "ala ma kot",
+                        "ala ma    ",
+                        true,
+                        "kot binarny".getBytes()));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
                 row(
                         127,
@@ -95,15 +124,41 @@ public class TestInsertIntoHiveTable
                         "ala ma    ",
                         true,
                         "kot binarny".getBytes()));
+
+        resetSessionProperty(connection, "legacy_timestamp");
     }
 
     @Test(groups = {HIVE_CONNECTOR, POST_HIVE_1_0_1})
     @Requires(AllSimpleTypesTables.class)
     public void testInsertIntoSelectToHiveTableAllHiveSimpleTypes()
+            throws SQLException
     {
         String tableNameInDatabase = mutableTablesState().get(TABLE_NAME).getNameInDatabase();
         assertThat(query("SELECT * FROM " + tableNameInDatabase)).hasNoRows();
         assertThat(query("INSERT INTO " + tableNameInDatabase + " SELECT * from textfile_all_types")).containsExactly(row(1));
+
+        Connection connection = defaultQueryExecutor().getConnection();
+
+        setSessionProperty(connection, "legacy_timestamp", "false");
+        assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
+                row(
+                        127,
+                        32767,
+                        2147483647,
+                        9223372036854775807L,
+                        123.345f,
+                        234.567,
+                        new BigDecimal("346"),
+                        new BigDecimal("345.67800"),
+                        parseTimestampInUTC("2015-05-10 12:15:35.123"),
+                        Date.valueOf("2015-05-10"),
+                        "ala ma kota",
+                        "ala ma kot",
+                        "ala ma    ",
+                        true,
+                        "kot binarny".getBytes()));
+
+        setSessionProperty(connection, "legacy_timestamp", "true");
         assertThat(query("SELECT * FROM " + tableNameInDatabase)).containsOnly(
                 row(
                         127,
@@ -121,5 +176,7 @@ public class TestInsertIntoHiveTable
                         "ala ma    ",
                         true,
                         "kot binarny".getBytes()));
+
+        resetSessionProperty(connection, "legacy_timestamp");
     }
 }

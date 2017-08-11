@@ -23,7 +23,6 @@ import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.testing.TestingConnectorContext;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.BeforeAll;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import static com.facebook.presto.connector.meta.ConnectorFeature.CREATE_TABLE_AS;
 import static com.facebook.presto.connector.meta.ConnectorFeature.DROP_TABLE;
@@ -101,8 +99,8 @@ public class TestPostgresqlMetadata
     }
 
     @Override
-    public List<Consumer<ConnectorMetadata>> withSchema(ConnectorSession session, List<String> schemaNames, List<Consumer<ConnectorMetadata>> consumers)
+    public List<AutoCloseable> withSchemas(ConnectorSession session, List<String> schemaNames)
     {
-        return consumers;
+        return ImmutableList.of();
     }
 }

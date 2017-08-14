@@ -13,13 +13,24 @@
  */
 package com.facebook.presto.spi.type;
 
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
+import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 
+import java.util.Map;
+import java.util.stream.Collector;
+
+import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
+import static com.facebook.presto.spi.type.RealType.REAL;
+import static java.lang.Float.floatToRawIntBits;
+
 public final class TypeUtils
 {
+    public static final int NULL_HASH_CODE = 0;
+
     private TypeUtils()
     {
     }
@@ -81,6 +92,104 @@ public final class TypeUtils
         }
         else {
             type.writeObject(blockBuilder, value);
+        }
+    }
+
+    public static long hashPosition(Type type, Block block, int position)
+    {
+        if (block.isNull(position)) {
+            return NULL_HASH_CODE;
+        }
+        return type.hash(block, position);
+    }
+
+    public static <T> Collector<T, ?, ImmutableList<T>> toImmutableList()
+    {
+        return Collector.<T, ImmutableList.Builder<T>, ImmutableList<T>>of(
+                ImmutableList.Builder::new,
+                ImmutableList.Builder::add,
+                (left, right) -> {
+                    left.addAll(right.build());
+                    return left;
+                },
+                ImmutableList.Builder::build);
+    }
+
+    public static void checkElementNotNull(boolean isNull, String errorMsg)
+    {
+        if (isNull) {
+            throw new PrestoException(NOT_SUPPORTED, errorMsg);
+        }
+    }
+
+    public static long getHash(long previousHashValue, long value)
+    {
+        return (31 * previousHashValue + value);
+    }
+
+    public static void appendToBlockBuilder(Type type, Object element, BlockBuilder blockBuilder)
+    {
+        Class<?> javaType = type.getJavaType();
+        if (element == null) {
+            blockBuilder.appendNull();
+        }
+        else if (type.getTypeSignature().getBase().equals(StandardTypes.ARRAY) && element instanceof Iterable<?>) {
+            BlockBuilder subBlockBuilder = blockBuilder.beginBlockEntry();
+            for (Object subElement : (Iterable<?>) element) {
+                appendToBlockBuilder(type.getTypeParameters().get(0), subElement, subBlockBuilder);
+            }
+            blockBuilder.closeEntry();
+        }
+        else if (type.getTypeSignature().getBase().equals(StandardTypes.ROW) && element instanceof Iterable<?>) {
+            BlockBuilder subBlockBuilder = blockBuilder.beginBlockEntry();
+            int field = 0;
+            for (Object subElement : (Iterable<?>) element) {
+                appendToBlockBuilder(type.getTypeParameters().get(field), subElement, subBlockBuilder);
+                field++;
+            }
+            blockBuilder.closeEntry();
+        }
+        else if (type.getTypeSignature().getBase().equals(StandardTypes.MAP) && element instanceof Map<?, ?>) {
+            BlockBuilder subBlockBuilder = blockBuilder.beginBlockEntry();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) element).entrySet()) {
+                appendToBlockBuilder(type.getTypeParameters().get(0), entry.getKey(), subBlockBuilder);
+                appendToBlockBuilder(type.getTypeParameters().get(1), entry.getValue(), subBlockBuilder);
+            }
+            blockBuilder.closeEntry();
+        }
+        else if (javaType == boolean.class) {
+            type.writeBoolean(blockBuilder, (Boolean) element);
+        }
+        else if (javaType == long.class) {
+            if (element instanceof SqlDecimal) {
+                type.writeLong(blockBuilder, ((SqlDecimal) element).getUnscaledValue().longValue());
+            }
+            else if (REAL.equals(type)) {
+                type.writeLong(blockBuilder, floatToRawIntBits(((Number) element).floatValue()));
+            }
+            else {
+                type.writeLong(blockBuilder, ((Number) element).longValue());
+            }
+        }
+        else if (javaType == double.class) {
+            type.writeDouble(blockBuilder, ((Number) element).doubleValue());
+        }
+        else if (javaType == Slice.class) {
+            if (element instanceof String) {
+                type.writeSlice(blockBuilder, Slices.utf8Slice(element.toString()));
+            }
+            else if (element instanceof byte[]) {
+                type.writeSlice(blockBuilder, Slices.wrappedBuffer((byte[]) element));
+            }
+            else if (element instanceof SqlDecimal) {
+                type.writeSlice(blockBuilder, Decimals.encodeUnscaledValue(((SqlDecimal) element).getUnscaledValue()));
+            }
+            else {
+                type.writeSlice(blockBuilder, (Slice) element);
+            }
+        }
+        else {
+            type.writeObject(blockBuilder, element);
         }
     }
 }

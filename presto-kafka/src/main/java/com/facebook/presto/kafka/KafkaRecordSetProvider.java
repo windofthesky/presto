@@ -25,10 +25,18 @@ import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.avro.Conversions;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.specific.SpecificData;
 
 import javax.inject.Inject;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.facebook.presto.kafka.KafkaHandleResolver.convertColumnHandle;
 import static com.facebook.presto.kafka.KafkaHandleResolver.convertSplit;
@@ -64,6 +72,7 @@ public class KafkaRecordSetProvider
 
         for (ColumnHandle handle : columns) {
             KafkaColumnHandle columnHandle = convertColumnHandle(handle);
+
             handleBuilder.add(columnHandle);
 
             if (!columnHandle.isInternal()) {
@@ -86,10 +95,35 @@ public class KafkaRecordSetProvider
             }
         }
 
-        ImmutableList<DecoderColumnHandle> handles = handleBuilder.build();
+        ImmutableList<DecoderColumnHandle> handles = attachRecordReaders(handleBuilder.build());
         ImmutableMap<DecoderColumnHandle, FieldDecoder<?>> keyFieldDecoders = keyFieldDecoderBuilder.build();
         ImmutableMap<DecoderColumnHandle, FieldDecoder<?>> messageFieldDecoders = messageFieldDecoderBuilder.build();
 
         return new KafkaRecordSet(kafkaSplit, consumerManager, handles, keyDecoder, messageDecoder, keyFieldDecoders, messageFieldDecoders);
+    }
+
+    private ImmutableList<DecoderColumnHandle> attachRecordReaders(ImmutableList<DecoderColumnHandle> decoderColumnHandles)
+    {
+        final GenericData genericData = GenericData.get();
+        final SpecificData specificData = SpecificData.get();
+        genericData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        specificData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+
+        Map<Integer, GenericDatumReader> recordReaders = Collections.EMPTY_MAP;
+
+        for (DecoderColumnHandle dc : decoderColumnHandles) {
+            if (!dc.isInternal() && dc.getSchemas() != null && !dc.getSchemas().isEmpty()) {
+                recordReaders = dc.getSchemas().entrySet().stream()
+                        .collect(Collectors.toMap(entry -> entry.getKey(),
+                                entry -> (GenericDatumReader) genericData.createDatumReader(
+                                        new Schema.Parser().parse(entry.getValue()))));
+                break;
+            }
+        }
+
+        for (DecoderColumnHandle dc : decoderColumnHandles) {
+            ((KafkaColumnHandle) dc).setRecordReaders(recordReaders);
+        }
+        return decoderColumnHandles;
     }
 }

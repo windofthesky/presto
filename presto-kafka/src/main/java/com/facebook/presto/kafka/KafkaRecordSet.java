@@ -20,7 +20,9 @@ import com.facebook.presto.decoder.RowDecoder;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
+import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.type.Type;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
@@ -51,9 +53,12 @@ public class KafkaRecordSet
         implements RecordSet
 {
     private static final Logger log = Logger.get(KafkaRecordSet.class);
-
-    private static final int KAFKA_READ_BUFFER_SIZE = 100_000;
-    private static final byte [] EMPTY_BYTE_ARRAY = new byte [0];
+    // Ankur: Core services expect to have a max message size of 12 MB
+    // hence the large buffer, coz with a smaller buffer, the consumer
+    // simply gets stuck
+    private static final int KAFKA_READ_BUFFER_SIZE = 16 * 1024 * 1024;
+    private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    private static final int MAX_SPLIT_END_ATTEMPTS = 100;
 
     private final KafkaSplit split;
     private final KafkaSimpleConsumerManager consumerManager;
@@ -156,8 +161,15 @@ public class KafkaRecordSet
         @Override
         public boolean advanceNextPosition()
         {
+            long lastCursorOffset = cursorOffset;
+            int retryAttempts = 0;
+
             while (true) {
-                if (cursorOffset >= split.getEnd()) {
+                if (cursorOffset >= split.getEnd() || retryAttempts >= MAX_SPLIT_END_ATTEMPTS) {
+                    // Ankur: If a message size larger than KAFKA_READ_BUFFER_SIZE
+                    // Then simple consumer gets stuck in an infinite loop,
+                    // never getting past the offset where it finds the message
+                    // larger than KAFKA_READ_BUFFER_SIZE
                     return endOfData(); // Split end is exclusive.
                 }
                 // Create a fetch request
@@ -176,6 +188,16 @@ public class KafkaRecordSet
                     }
                 }
                 messageAndOffsetIterator = null;
+
+                if (lastCursorOffset == cursorOffset) {
+                    // Last cursor offset did not change, update retry attempt
+                    retryAttempts++;
+                }
+                else {
+                    // Else set last cursor offset to current cursor offset
+                    lastCursorOffset = cursorOffset;
+                    retryAttempts = 0;
+                }
             }
         }
 
@@ -279,7 +301,9 @@ public class KafkaRecordSet
         @Override
         public Object getObject(int field)
         {
-            throw new UnsupportedOperationException();
+            checkArgument(field < columnHandles.size(), "Invalid field index");
+            checkFieldType(field, Block.class);
+            return isNull(field) ? null : fieldValueProviders[field].getObject();
         }
 
         @Override
@@ -308,17 +332,30 @@ public class KafkaRecordSet
                 FetchRequest req = new FetchRequestBuilder()
                         .clientId("presto-worker-" + Thread.currentThread().getName())
                         .addFetch(split.getTopicName(), split.getPartitionId(), cursorOffset, KAFKA_READ_BUFFER_SIZE)
+                        .maxWait(10000)
                         .build();
 
                 // TODO - this should look at the actual node this is running on and prefer
                 // that copy if running locally. - look into NodeInfo
+                boolean commFailure = false;
                 SimpleConsumer consumer = consumerManager.getConsumer(split.getLeader());
+                FetchResponse fetchResponse = null;
+                try {
+                    fetchResponse = consumer.fetch(req);
+                    log.debug("Fetch request returned successfully");
+                }
+                catch (Exception e) {
+                    commFailure = true;
+                    log.warn("Kafka consumer failed to talk to:  %s, %s", split.getLeader(),
+                            Throwables.getStackTraceAsString(e));
+                }
+                if (commFailure || fetchResponse.hasError()) {
+                    short errorCode = (fetchResponse == null ? -1 : fetchResponse.errorCode(split.getTopicName(), split.getPartitionId()));
+                    String errorMsg = String.format("FAILED! Fetching %d bytes from offset %d (%d - %d). %d messages read so far from broker: %s, error code: %d", KAFKA_READ_BUFFER_SIZE, cursorOffset, split.getStart(), split.getEnd(), totalMessages, split.getLeader(), errorCode);
 
-                FetchResponse fetchResponse = consumer.fetch(req);
-                if (fetchResponse.hasError()) {
-                    short errorCode = fetchResponse.errorCode(split.getTopicName(), split.getPartitionId());
-                    log.warn("Fetch response has error: %d", errorCode);
-                    throw new PrestoException(KAFKA_SPLIT_ERROR, "could not fetch data from Kafka, error code is '" + errorCode + "'");
+                    log.error(errorMsg);
+                    consumerManager.invalidateConsumer(split.getLeader());
+                    throw new PrestoException(KAFKA_SPLIT_ERROR, errorMsg);
                 }
 
                 messageAndOffsetIterator = fetchResponse.messageSet(split.getTopicName(), split.getPartitionId()).iterator();

@@ -18,6 +18,7 @@ import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.type.ArrayAvroType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.ExpressionUtils;
 import com.facebook.presto.sql.analyzer.Analysis;
@@ -393,6 +394,9 @@ class RelationPlanner
             if (type instanceof ArrayType) {
                 unnestSymbols.put(inputSymbol, ImmutableList.of(unnestedSymbolsIterator.next()));
             }
+            else if (type instanceof ArrayAvroType) {
+                unnestSymbols.put(inputSymbol, ImmutableList.of(unnestedSymbolsIterator.next()));
+            }
             else if (type instanceof MapType) {
                 unnestSymbols.put(inputSymbol, ImmutableList.of(unnestedSymbolsIterator.next(), unnestedSymbolsIterator.next()));
             }
@@ -496,6 +500,9 @@ class RelationPlanner
             Symbol inputSymbol = symbolAllocator.newSymbol(expression, type);
             argumentSymbols.add(inputSymbol);
             if (type instanceof ArrayType) {
+                unnestSymbols.put(inputSymbol, ImmutableList.of(unnestedSymbolsIterator.next()));
+            }
+            else if (type instanceof ArrayAvroType) {
                 unnestSymbols.put(inputSymbol, ImmutableList.of(unnestedSymbolsIterator.next()));
             }
             else if (type instanceof MapType) {

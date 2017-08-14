@@ -41,8 +41,7 @@ public class KafkaConnectorModule
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(KafkaConnector.class).in(Scopes.SINGLETON);
-
+        binder.bind(KafkaSessionProperties.class).in(Scopes.SINGLETON);
         binder.bind(KafkaMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KafkaSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(KafkaRecordSetProvider.class).in(Scopes.SINGLETON);
@@ -53,6 +52,7 @@ public class KafkaConnectorModule
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(KafkaTopicDescription.class);
+        jsonCodecBinder(binder).bindListJsonCodec(KafkaTopicDescription.class);
 
         binder.install(new DecoderModule());
 

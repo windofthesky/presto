@@ -19,6 +19,8 @@ import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -73,6 +75,10 @@ public final class KafkaColumnHandle
      */
     private final boolean internal;
 
+    private final Map<Integer, String> schemas;
+
+    private Map recordReaders;
+
     @JsonCreator
     public KafkaColumnHandle(
             @JsonProperty("connectorId") String connectorId,
@@ -84,7 +90,8 @@ public final class KafkaColumnHandle
             @JsonProperty("formatHint") String formatHint,
             @JsonProperty("keyDecoder") boolean keyDecoder,
             @JsonProperty("hidden") boolean hidden,
-            @JsonProperty("internal") boolean internal)
+            @JsonProperty("internal") boolean internal,
+            @JsonProperty("schemas") Map<Integer, String> schemas)
 
     {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
@@ -97,6 +104,19 @@ public final class KafkaColumnHandle
         this.keyDecoder = keyDecoder;
         this.hidden = hidden;
         this.internal = internal;
+        this.schemas = schemas;
+        this.recordReaders = Collections.emptyMap();
+    }
+
+    public void setRecordReaders(Map recordReaders)
+    {
+        this.recordReaders = recordReaders;
+    }
+
+    @Override
+    public Map getRecordReaders()
+    {
+        return recordReaders;
     }
 
     @JsonProperty
@@ -171,9 +191,16 @@ public final class KafkaColumnHandle
     }
 
     @Override
+    @JsonProperty
+    public Map<Integer, String> getSchemas()
+    {
+        return schemas;
+    }
+
+    @Override
     public int hashCode()
     {
-        return Objects.hash(connectorId, ordinalPosition, name, type, mapping, dataFormat, formatHint, keyDecoder, hidden, internal);
+        return Objects.hash(connectorId, ordinalPosition, name, type, mapping, dataFormat, formatHint, keyDecoder, hidden, internal, schemas);
     }
 
     @Override
@@ -196,7 +223,8 @@ public final class KafkaColumnHandle
                 Objects.equals(this.formatHint, other.formatHint) &&
                 Objects.equals(this.keyDecoder, other.keyDecoder) &&
                 Objects.equals(this.hidden, other.hidden) &&
-                Objects.equals(this.internal, other.internal);
+                Objects.equals(this.internal, other.internal) &&
+                Objects.equals(this.schemas, other.schemas);
     }
 
     @Override
@@ -219,6 +247,7 @@ public final class KafkaColumnHandle
                 .add("keyDecoder", keyDecoder)
                 .add("hidden", hidden)
                 .add("internal", internal)
+                .add("schemas", schemas)
                 .toString();
     }
 }

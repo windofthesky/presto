@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
@@ -139,7 +140,8 @@ public class KafkaInternalFieldDescription
                 null,
                 false,
                 hidden,
-                true);
+                true,
+                Collections.emptyMap());
     }
 
     ColumnMetadata getColumnMetadata(boolean hidden)

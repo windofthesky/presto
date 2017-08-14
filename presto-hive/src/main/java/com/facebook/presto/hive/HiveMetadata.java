@@ -227,6 +227,9 @@ public class HiveMetadata
     {
         requireNonNull(tableHandle, "tableHandle is null");
         SchemaTableName tableName = schemaTableName(tableHandle);
+        if (HiveSessionProperties.isCleanupAvroCache(session)) {
+            HiveUtil.cleanupAvroCache();
+        }
         return getTableMetadata(tableName);
     }
 
@@ -1374,7 +1377,7 @@ public class HiveMetadata
         return handle -> new ColumnMetadata(
                 handle.getName(),
                 typeManager.getType(handle.getTypeSignature()),
-                columnComment.get(handle.getName()).orElse(null),
+                columnComment.get(handle.getName()) == null ? null : columnComment.get(handle.getName()).orElse(null),
                 columnExtraInfo(handle.isPartitionKey()),
                 handle.isHidden());
     }

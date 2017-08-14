@@ -37,6 +37,7 @@ public final class HiveSessionProperties
     private static final String PARQUET_OPTIMIZED_READER_ENABLED = "parquet_optimized_reader_enabled";
     private static final String MAX_SPLIT_SIZE = "max_split_size";
     private static final String MAX_INITIAL_SPLIT_SIZE = "max_initial_split_size";
+    private static final String CLEAN_UP_AVRO_CACHE = "clean_up_avro_cache";
     private static final String RCFILE_OPTIMIZED_READER_ENABLED = "rcfile_optimized_reader_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -90,6 +91,11 @@ public final class HiveSessionProperties
                         "Max split size",
                         config.getMaxSplitSize(),
                         true),
+                booleanSessionProperty(
+                        CLEAN_UP_AVRO_CACHE,
+                        "clean up avro cache",
+                        false,
+                        false),
                 dataSizeSessionProperty(
                         MAX_INITIAL_SPLIT_SIZE,
                         "Max initial split size",
@@ -115,6 +121,11 @@ public final class HiveSessionProperties
     public static boolean isForceLocalScheduling(ConnectorSession session)
     {
         return session.getProperty(FORCE_LOCAL_SCHEDULING, Boolean.class);
+    }
+
+    public static boolean isCleanupAvroCache(ConnectorSession session)
+    {
+        return session.getProperty(CLEAN_UP_AVRO_CACHE, Boolean.class);
     }
 
     public static boolean isParquetOptimizedReaderEnabled(ConnectorSession session)

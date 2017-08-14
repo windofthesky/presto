@@ -29,7 +29,11 @@ import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceUtf8;
 import io.airlift.slice.Slices;
@@ -37,6 +41,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.JavaUtils;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.MetaStoreUtils;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.io.SymlinkTextInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
@@ -71,6 +78,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -116,6 +124,8 @@ import static java.lang.Short.parseShort;
 import static java.lang.String.format;
 import static java.math.BigDecimal.ROUND_UNNECESSARY;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 import static org.apache.hadoop.hive.common.FileUtils.unescapePathName;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.FILE_INPUT_FORMAT;
@@ -128,6 +138,44 @@ import static org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Cate
 public final class HiveUtil
 {
     public static final String PRESTO_VIEW_FLAG = "presto_view";
+    // Ankur: This is stupid, AVRO code does not expose anyway to check if a schema
+    // is bad, so we have to create a copy of the bad schema string here and
+    // do our checks
+    static final String BAD_AVRO_SCHEMA = "{\n" +
+            "    \"namespace\": \"org.apache.hadoop.hive\",\n" +
+            "    \"name\": \"CannotDetermineSchemaSentinel\",\n" +
+            "    \"type\": \"record\",\n" +
+            "    \"fields\": [\n" +
+            "        {\n" +
+            "            \"name\":\"ERROR_ERROR_ERROR_ERROR_ERROR_ERROR_ERROR\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"Cannot_determine_schema\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"check\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"schema\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"url\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"and\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        },\n" +
+            "        {\n" +
+            "            \"name\":\"literal\",\n" +
+            "            \"type\":\"string\"\n" +
+            "        }\n" +
+            "    ]\n" +
+            "}";
 
     private static final String VIEW_PREFIX = "/* Presto View: ";
     private static final String VIEW_SUFFIX = " */";
@@ -140,6 +188,14 @@ public final class HiveUtil
     private static final int DECIMAL_SCALE_GROUP = 2;
 
     private static final String BIG_DECIMAL_POSTFIX = "BD";
+
+    private static final String AVRO_SERDE_LIB = "org.apache.hadoop.hive.serde2.avro.AvroSerDe";
+    private static final Cache<String, String> AvroSchemaCache =
+            CacheBuilder.newBuilder()
+                    .maximumSize(10000)
+                    .concurrencyLevel(25)
+                    .build();
+    private static final Logger LOG = Logger.get(HiveUtil.class);
 
     static {
         DateTimeParser[] timestampWithoutTimeZoneParser = {
@@ -314,10 +370,92 @@ public final class HiveUtil
         return name;
     }
 
+    /**
+     * Ankur: Synchronize on HiveUtil.class to avoid Data race in
+     * AvroObjectInspectorGenerator.java that uses SchemaToTypeInfo.java
+     * which internally uses InstanceCache (a wrapper around java.util.HashMap)
+     * to cache TypeInfo and this cache can get corrupted in a multi-threaded
+     * environment.
+     *
+     * @param schema
+     * @return
+     */
+    @SuppressWarnings("deprecation")
+    private static Properties setAvroSchema(Properties schema)
+    {
+        String tableName = schema.getProperty("name", "");
+        String avroSchemaURL = schema.getProperty("avro.schema.url", "");
+
+        checkArgument(nonNull(avroSchemaURL) && !avroSchemaURL.isEmpty(), "Invalid Avro Schema URL: " + avroSchemaURL);
+        checkArgument(nonNull(tableName) && !tableName.isEmpty(), "Invalid Avro Table name: " + tableName);
+        // Move this to optional config
+        final String hdfsSiteLocation = "/etc/hadoop/conf/hdfs-site.xml";
+        final String coreSiteLocation = "/etc/hadoop/conf/core-site.xml";
+        Random rand = new Random(11);
+        String avroSchemaStr = "";
+        try {
+            avroSchemaStr = AvroSchemaCache.get(tableName, () -> {
+                Configuration conf = new Configuration();
+                final Path hdfsSite = new Path(hdfsSiteLocation);
+                final Path coreSite = new Path(coreSiteLocation);
+                conf.addResource(hdfsSite);
+                conf.addResource(coreSite);
+                LOG.info("Load Avro schema URL: " + avroSchemaURL);
+                Path schemaPath = new Path(avroSchemaURL);
+                FileSystem fs = FileSystem.get(conf);
+                LOG.info("Using Default FileSystem: " + fs.getClass().getName());
+                String schemaJson = null;
+                for (int attempts = 0; attempts < 3; attempts++) {
+                    if (!fs.exists(schemaPath)) {
+                        LOG.error("Avro Schema missing from HDFS: " + avroSchemaURL + "... retry after 1 sec");
+                        TimeUnit.MILLISECONDS.sleep(rand.nextInt(1000));
+                        continue;
+                    }
+                    byte[] schemaBytes = ByteStreams.toByteArray(fs.open(schemaPath));
+                    if (isNull(schemaBytes) || schemaBytes.length == 0) {
+                        LOG.error("Unable to read Avro schema: " + schemaPath
+                                + " (file empty/HDFS communication failure) " + schemaPath + "... retry after 1 sec");
+                        TimeUnit.MILLISECONDS.sleep(rand.nextInt(1000));
+                        continue;
+                    }
+                    schemaJson = new String(schemaBytes);
+                    if (BAD_AVRO_SCHEMA.equals(schemaJson)) {
+                        LOG.error("Bad avro schema: " + avroSchemaURL + "... retry after 1 sec");
+                        TimeUnit.MILLISECONDS.sleep(rand.nextInt(1000));
+                    }
+                    else {
+                        break;
+                    }
+                }
+                // Never ever cache a BAD schema
+                checkArgument(!BAD_AVRO_SCHEMA.equals(schemaJson)
+                                && nonNull(schemaJson)
+                                && !schemaJson.isEmpty(),
+                        "Failed to load valid Avro schema from: " + avroSchemaURL);
+                LOG.info("Successfully loaded Avro schema URL: " + avroSchemaURL);
+                return schemaJson.intern();
+            });
+        }
+        catch (Exception e) {
+            Throwables.propagate(e);
+        }
+
+        // Set the property 'avro.schema.literal' so that AvroSerde does NOT fetch
+        // the schema from HDFS using the value of 'avro.schema.url'
+        if (!avroSchemaStr.isEmpty()) {
+            schema.setProperty("avro.schema.literal", avroSchemaStr);
+        }
+
+        return schema;
+    }
+
     @SuppressWarnings("deprecation")
     public static Deserializer getDeserializer(Properties schema)
     {
         String name = getDeserializerClassName(schema);
+        if (AVRO_SERDE_LIB.equals(name)) {
+            setAvroSchema(schema);
+        }
 
         Deserializer deserializer = createDeserializer(getDeserializerClass(name));
         initializeDeserializer(deserializer, schema);
@@ -358,7 +496,10 @@ public final class HiveUtil
     private static void initializeDeserializer(Deserializer deserializer, Properties schema)
     {
         try {
-            deserializer.initialize(new Configuration(false), schema);
+            Configuration conf = new Configuration();
+            conf.addResource("/etc/hadoop/conf/hdfs-site.xml");
+            conf.addResource("/etc/hadoop/conf/core-site.xml");
+            deserializer.initialize(conf, schema);
         }
         catch (SerDeException e) {
             throw new RuntimeException("error initializing deserializer: " + deserializer.getClass().getName());
@@ -721,18 +862,68 @@ public final class HiveUtil
         return columns.build();
     }
 
+    /**
+     * Resolve schema using Serde if one is available.
+     * This has the additional benefit of caching schema
+     * so future references get it from cache instead of HDFS
+     *
+     * @param table
+     * @return
+     */
+    @SuppressWarnings("deprecation")
+    public static List<FieldSchema> getEffectiveTableFieldSchema(Table table)
+    {
+        List<FieldSchema> fields = ImmutableList.of();
+
+        Properties schema = getHiveSchema(table);
+
+        try {
+            Deserializer d = getDeserializer(schema);
+            fields = MetaStoreUtils.getFieldsFromDeserializer(table.getTableName(), d);
+        }
+        catch (Exception e) {
+            Throwables.propagate(e);
+        }
+
+        return fields;
+    }
+
     public static List<HiveColumnHandle> getRegularColumnHandles(String connectorId, Table table)
     {
         ImmutableList.Builder<HiveColumnHandle> columns = ImmutableList.builder();
 
         int hiveColumnIndex = 0;
-        for (Column field : table.getDataColumns()) {
-            // ignore unsupported types rather than failing
-            HiveType hiveType = field.getType();
-            if (hiveType.isSupportedType()) {
-                columns.add(new HiveColumnHandle(connectorId, field.getName(), hiveType, hiveType.getTypeSignature(), hiveColumnIndex, REGULAR, field.getComment()));
+        Configuration hiveConf = new Configuration();
+        final Path hdfsSite = new Path("/etc/hadoop/conf/hdfs-site.xml"); // Move this to optional config
+        hiveConf.addResource(hdfsSite);
+        if (null == table.getStorage().getStorageFormat().getSerDe() ||
+                hiveConf.getStringCollection(HiveConf.ConfVars.SERDESUSINGMETASTOREFORSCHEMA.varname).contains
+                        (table.getStorage().getStorageFormat().getSerDe())) {
+            for (Column field : table.getDataColumns()) {
+                // ignore unsupported types rather than failing
+                HiveType hiveType = field.getType();
+                if (hiveType.isSupportedType()) {
+                    columns.add(new HiveColumnHandle(connectorId, field.getName(), hiveType, hiveType.getTypeSignature(), hiveColumnIndex, REGULAR, field.getComment()));
+                }
+                hiveColumnIndex++;
             }
-            hiveColumnIndex++;
+        }
+        else {
+            List<FieldSchema> fields = getEffectiveTableFieldSchema(table);
+
+            for (FieldSchema field : fields) {
+                // ignore unsupported types rather than failing
+                HiveType hiveType = HiveType.valueOf(field.getType());
+                if (hiveType.isSupportedType()) {
+                    columns.add(new HiveColumnHandle(connectorId,
+                            field.getName(),
+                            hiveType,
+                            hiveType.getTypeSignature(),
+                            hiveColumnIndex,
+                            REGULAR, Optional.of(field.getComment())));
+                }
+                hiveColumnIndex++;
+            }
         }
 
         return columns.build();
@@ -822,5 +1013,10 @@ public final class HiveUtil
                 throwable.addSuppressed(e);
             }
         }
+    }
+
+    public static void cleanupAvroCache()
+    {
+        AvroSchemaCache.invalidateAll();
     }
 }

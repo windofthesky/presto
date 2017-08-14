@@ -18,6 +18,7 @@ import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Map;
 import java.util.Objects;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -37,6 +38,7 @@ public final class KafkaTopicFieldDescription
     private final String dataFormat;
     private final String formatHint;
     private final boolean hidden;
+    private final Map<Integer, String> schemas;
 
     @JsonCreator
     public KafkaTopicFieldDescription(
@@ -46,7 +48,8 @@ public final class KafkaTopicFieldDescription
             @JsonProperty("comment") String comment,
             @JsonProperty("dataFormat") String dataFormat,
             @JsonProperty("formatHint") String formatHint,
-            @JsonProperty("hidden") boolean hidden)
+            @JsonProperty("hidden") boolean hidden,
+            @JsonProperty("schemas") Map<Integer, String> schemas)
     {
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         this.name = name;
@@ -56,6 +59,7 @@ public final class KafkaTopicFieldDescription
         this.dataFormat = dataFormat;
         this.formatHint = formatHint;
         this.hidden = hidden;
+        this.schemas = schemas;
     }
 
     @JsonProperty
@@ -100,6 +104,12 @@ public final class KafkaTopicFieldDescription
         return hidden;
     }
 
+    @JsonProperty
+    public Map<Integer, String> getSchemas()
+    {
+        return schemas;
+    }
+
     KafkaColumnHandle getColumnHandle(String connectorId, boolean keyDecoder, int index)
     {
         return new KafkaColumnHandle(connectorId,
@@ -111,7 +121,8 @@ public final class KafkaTopicFieldDescription
                 getFormatHint(),
                 keyDecoder,
                 isHidden(),
-                false);
+                false,
+                getSchemas());
     }
 
     ColumnMetadata getColumnMetadata()

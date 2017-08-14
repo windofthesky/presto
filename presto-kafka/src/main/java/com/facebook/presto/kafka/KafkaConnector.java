@@ -13,16 +13,18 @@
  */
 package com.facebook.presto.kafka;
 
+import com.facebook.presto.spi.classloader.ThreadContextClassLoader;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.spi.session.PropertyMetadata;
 import com.facebook.presto.spi.transaction.IsolationLevel;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 
-import javax.inject.Inject;
+import java.util.List;
 
 import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static com.facebook.presto.spi.transaction.IsolationLevel.checkConnectorSupports;
@@ -40,43 +42,62 @@ public class KafkaConnector
     private final KafkaMetadata metadata;
     private final KafkaSplitManager splitManager;
     private final KafkaRecordSetProvider recordSetProvider;
+    private final KafkaSessionProperties sessionProperties;
+    private final ClassLoader classLoader;
 
-    @Inject
     public KafkaConnector(
             LifeCycleManager lifeCycleManager,
             KafkaMetadata metadata,
             KafkaSplitManager splitManager,
-            KafkaRecordSetProvider recordSetProvider)
+            KafkaSessionProperties sessionProperties,
+            KafkaRecordSetProvider recordSetProvider,
+            ClassLoader classLoader)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.sessionProperties = requireNonNull(sessionProperties, "sessionProperty is null");
+        this.classLoader = requireNonNull(classLoader, "classLoader is null");
     }
 
     @Override
     public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly)
     {
-        checkConnectorSupports(READ_COMMITTED, isolationLevel);
+        try (ThreadContextClassLoader ignore = new ThreadContextClassLoader(classLoader)) {
+            checkConnectorSupports(READ_COMMITTED, isolationLevel);
+        }
         return KafkaTransactionHandle.INSTANCE;
     }
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle)
     {
-        return metadata;
+        try (ThreadContextClassLoader ignore = new ThreadContextClassLoader(classLoader)) {
+            return metadata;
+        }
     }
 
     @Override
     public ConnectorSplitManager getSplitManager()
     {
-        return splitManager;
+        try (ThreadContextClassLoader ignore = new ThreadContextClassLoader(classLoader)) {
+            return splitManager;
+        }
     }
 
     @Override
     public ConnectorRecordSetProvider getRecordSetProvider()
     {
-        return recordSetProvider;
+        try (ThreadContextClassLoader ignore = new ThreadContextClassLoader(classLoader)) {
+            return recordSetProvider;
+        }
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties()
+    {
+        return sessionProperties.getSessionProperties();
     }
 
     @Override

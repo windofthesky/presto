@@ -25,7 +25,8 @@ import io.airlift.units.MinDuration;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
-import java.io.File;
+import java.net.URI;
+import java.util.Iterator;
 import java.util.Set;
 
 import static com.google.common.collect.Iterables.transform;
@@ -62,7 +63,7 @@ public class KafkaConnectorConfig
     /**
      * Folder holding the JSON description files for Kafka topics.
      */
-    private File tableDescriptionDir = new File("etc/kafka/");
+    private Set<URI> tableDescriptionDirs = ImmutableSet.of();
 
     /**
      * Whether internal columns are shown in table metadata or not. Default is no.
@@ -70,15 +71,30 @@ public class KafkaConnectorConfig
     private boolean hideInternalColumns = true;
 
     @NotNull
-    public File getTableDescriptionDir()
+    public Set<URI> getTableDescriptionDir()
     {
-        return tableDescriptionDir;
+        return tableDescriptionDirs;
     }
 
     @Config("kafka.table-description-dir")
-    public KafkaConnectorConfig setTableDescriptionDir(File tableDescriptionDir)
+    public KafkaConnectorConfig setTableDescriptionDir(String tableDescriptionDirs)
     {
-        this.tableDescriptionDir = tableDescriptionDir;
+        Iterator<String> itr = Splitter.on(',')
+                .omitEmptyStrings()
+                .trimResults()
+                .split(tableDescriptionDirs)
+                .iterator();
+        ImmutableSet.Builder<URI> setBuilder = ImmutableSet.builder();
+        while (itr.hasNext()) {
+            String tableDescDir = itr.next();
+            try {
+                setBuilder.add(URI.create(tableDescDir));
+            }
+            catch (Exception e) {
+                System.err.println("Ignoring bad Kafka table desc dir: " + tableDescDir);
+            }
+        }
+        this.tableDescriptionDirs = setBuilder.build();
         return this;
     }
 

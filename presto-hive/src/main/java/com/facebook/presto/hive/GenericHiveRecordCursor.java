@@ -21,6 +21,7 @@ import com.facebook.presto.spi.type.Decimals;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.google.common.base.Throwables;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import org.apache.hadoop.hive.common.type.HiveChar;
@@ -105,6 +106,7 @@ class GenericHiveRecordCursor<K, V extends Writable>
     private long completedBytes;
     private Object rowData;
     private boolean closed;
+    private static final Logger LOG = Logger.get(HiveUtil.class);
 
     public GenericHiveRecordCursor(
             RecordReader<K, V> recordReader,
@@ -126,8 +128,43 @@ class GenericHiveRecordCursor<K, V extends Writable>
         this.value = recordReader.createValue();
         this.hiveStorageTimeZone = hiveStorageTimeZone;
 
-        this.deserializer = getDeserializer(splitSchema);
-        this.rowInspector = getTableObjectInspector(deserializer);
+        Deserializer tmpDeserializer = getDeserializer(splitSchema);
+        StructObjectInspector tmpRowInspector = getTableObjectInspector(tmpDeserializer);
+
+        for (int i = 0; i < columns.size(); i++) {
+            HiveColumnHandle column = columns.get(i);
+            Type tmpType = typeManager.getType(column.getTypeSignature());
+
+            if (!column.isPartitionKey()) {
+                StructField field = null;
+                try {
+                    field = tmpRowInspector.getStructFieldRef(column.getName());
+                }
+                catch (RuntimeException e) {
+                    LOG.warn("field can not find,will try to reload schema");
+                }
+                if (field == null) {
+                    HiveUtil.cleanupAvroCache();
+                    tmpDeserializer = getDeserializer(splitSchema);
+                    tmpRowInspector = getTableObjectInspector(tmpDeserializer);
+                    LOG.warn("schema cache reload for new column: " + column.getName());
+                }
+                if (field != null) {
+                    if (isStructuralType(column.getHiveType()) && field.getFieldObjectInspector().getCategory().equals(ObjectInspector.Category.STRUCT)) {
+                        StructObjectInspector tmpFieldInspector = (StructObjectInspector) field.getFieldObjectInspector();
+                        if (tmpFieldInspector.getAllStructFieldRefs().size() != tmpType.getTypeParameters().size()) {
+                            HiveUtil.cleanupAvroCache();
+                            tmpDeserializer = getDeserializer(splitSchema);
+                            tmpRowInspector = getTableObjectInspector(tmpDeserializer);
+                            LOG.warn("schema cache reload for new struct column: " + column.getName());
+                        }
+                    }
+                }
+            }
+        }
+
+        this.deserializer = tmpDeserializer;
+        this.rowInspector = tmpRowInspector;
 
         int size = columns.size();
 

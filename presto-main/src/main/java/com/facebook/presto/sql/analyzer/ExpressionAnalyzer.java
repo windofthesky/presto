@@ -26,6 +26,7 @@ import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.CharType;
 import com.facebook.presto.spi.type.DecimalParseResult;
 import com.facebook.presto.spi.type.Decimals;
+import com.facebook.presto.spi.type.StructType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignatureParameter;
@@ -377,25 +378,44 @@ public class ExpressionAnalyzer
             }
 
             Type baseType = process(node.getBase(), context);
-            if (!(baseType instanceof RowType)) {
+            if (!(baseType instanceof RowType) && !(baseType instanceof StructType)) {
                 throw new SemanticException(TYPE_MISMATCH, node.getBase(), "Expression %s is not of type ROW", node.getBase());
             }
 
-            RowType rowType = (RowType) baseType;
+            if (baseType instanceof RowType) {
+                RowType rowType = (RowType) baseType;
 
-            Type rowFieldType = null;
-            for (RowField rowField : rowType.getFields()) {
-                if (node.getFieldName().equalsIgnoreCase(rowField.getName().orElse(null))) {
-                    rowFieldType = rowField.getType();
-                    break;
+                Type rowFieldType = null;
+                for (RowField rowField : rowType.getFields()) {
+                    if (node.getFieldName().equalsIgnoreCase(rowField.getName().orElse(null))) {
+                        rowFieldType = rowField.getType();
+                        break;
+                    }
                 }
-            }
-            if (rowFieldType == null) {
-                throw missingAttributeException(node);
-            }
+                if (rowFieldType == null) {
+                    throw missingAttributeException(node);
+                }
 
-            expressionTypes.put(node, rowFieldType);
-            return rowFieldType;
+                expressionTypes.put(node, rowFieldType);
+                return rowFieldType;
+            }
+            else {
+                StructType rowType = (StructType) baseType;
+
+                Type rowFieldType = null;
+                for (StructType.RowField rowField : rowType.getFields()) {
+                    if (node.getFieldName().equalsIgnoreCase(rowField.getName().orElse(null))) {
+                        rowFieldType = rowField.getType();
+                        break;
+                    }
+                }
+                if (rowFieldType == null) {
+                    throw missingAttributeException(node);
+                }
+
+                expressionTypes.put(node, rowFieldType);
+                return rowFieldType;
+            }
         }
 
         @Override

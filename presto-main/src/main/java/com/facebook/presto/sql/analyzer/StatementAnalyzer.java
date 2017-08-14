@@ -29,6 +29,7 @@ import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.security.Identity;
+import com.facebook.presto.spi.type.ArrayAvroType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.sql.ExpressionUtils;
@@ -570,6 +571,9 @@ class StatementAnalyzer
             Type expressionType = expressionAnalysis.getType(expression);
             if (expressionType instanceof ArrayType) {
                 outputFields.add(Field.newUnqualified(Optional.empty(), ((ArrayType) expressionType).getElementType()));
+            }
+            else if (expressionType instanceof ArrayAvroType) {
+                outputFields.add(Field.newUnqualified(Optional.empty(), ((ArrayAvroType) expressionType).getElementType()));
             }
             else if (expressionType instanceof MapType) {
                 outputFields.add(Field.newUnqualified(Optional.empty(), ((MapType) expressionType).getKeyType()));

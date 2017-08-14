@@ -30,6 +30,7 @@ import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.airlift.log.Logger;
 
 import javax.inject.Inject;
 
@@ -53,8 +54,11 @@ public class KafkaMetadata
 {
     private final String connectorId;
     private final boolean hideInternalColumns;
-    private final Map<SchemaTableName, KafkaTopicDescription> tableDescriptions;
+    private Map<SchemaTableName, KafkaTopicDescription> tableDescriptions;
     private final Set<KafkaInternalFieldDescription> internalFieldDescriptions;
+    private final KafkaTableDescriptionSupplier tableDescriptionRef;
+
+    private static final Logger log = Logger.get(KafkaMetadata.class);
 
     @Inject
     public KafkaMetadata(
@@ -70,6 +74,7 @@ public class KafkaMetadata
 
         requireNonNull(kafkaTableDescriptionSupplier, "kafkaTableDescriptionSupplier is null");
         this.tableDescriptions = kafkaTableDescriptionSupplier.get();
+        this.tableDescriptionRef = (KafkaTableDescriptionSupplier) kafkaTableDescriptionSupplier;
         this.internalFieldDescriptions = requireNonNull(internalFieldDescriptions, "internalFieldDescriptions is null");
     }
 
@@ -86,6 +91,11 @@ public class KafkaMetadata
     @Override
     public KafkaTableHandle getTableHandle(ConnectorSession session, SchemaTableName schemaTableName)
     {
+        if (KafkaSessionProperties.isCleanupAvroCache(session)) {
+            log.debug("get the kafka avro schema reload.......");
+            this.tableDescriptions = this.tableDescriptionRef.get();
+        }
+
         KafkaTopicDescription table = tableDescriptions.get(schemaTableName);
         if (table == null) {
             return null;

@@ -22,6 +22,7 @@ import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -42,9 +43,11 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 import static com.facebook.presto.kafka.KafkaErrorCode.KAFKA_SPLIT_ERROR;
 import static com.facebook.presto.kafka.KafkaHandleResolver.convertLayout;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -76,11 +79,27 @@ public class KafkaSplitManager
     public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableLayoutHandle layout)
     {
         KafkaTableHandle kafkaTableHandle = convertLayout(layout).getTable();
-
-        SimpleConsumer simpleConsumer = consumerManager.getConsumer(selectRandom(nodes));
-
-        TopicMetadataRequest topicMetadataRequest = new TopicMetadataRequest(ImmutableList.of(kafkaTableHandle.getTopicName()));
-        TopicMetadataResponse topicMetadataResponse = simpleConsumer.send(topicMetadataRequest);
+        HostAddress hostAddress = null;
+        SimpleConsumer simpleConsumer = null;
+        TopicMetadataResponse topicMetadataResponse = null;
+        // Try every node twice, before giving up
+        for (int i = 1; i <= 2 * nodes.size(); i++) {
+            try {
+                hostAddress = selectRandom(nodes);
+                simpleConsumer = consumerManager.getConsumer(hostAddress);
+                TopicMetadataRequest topicMetadataRequest = new TopicMetadataRequest(ImmutableList.of(kafkaTableHandle.getTopicName()));
+                topicMetadataResponse = simpleConsumer.send(topicMetadataRequest);
+                break;
+            }
+            catch (Exception e) {
+                log.error("FAILED! Metadata request to host: " + hostAddress);
+                log.error(Throwables.getStackTraceAsString(e));
+                // Invalidate cache entry and retry after sleeping
+                consumerManager.invalidateConsumer(hostAddress);
+                sleepUninterruptibly(100 * i, TimeUnit.MILLISECONDS);
+            }
+        }
+        requireNonNull(topicMetadataResponse, "All Kafka brokers refused metadata request: " + nodes);
 
         ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
 
@@ -99,24 +118,32 @@ public class KafkaSplitManager
                 SimpleConsumer leaderConsumer = consumerManager.getConsumer(partitionLeader);
                 // Kafka contains a reverse list of "end - start" pairs for the splits
 
-                long[] offsets = findAllOffsets(leaderConsumer,  metadata.topic(), part.partitionId());
-
-                for (int i = offsets.length - 1; i > 0; i--) {
-                    KafkaSplit split = new KafkaSplit(
-                            connectorId,
-                            metadata.topic(),
-                            kafkaTableHandle.getKeyDataFormat(),
-                            kafkaTableHandle.getMessageDataFormat(),
-                            part.partitionId(),
-                            offsets[i],
-                            offsets[i - 1],
-                            partitionLeader);
-                    splits.add(split);
+                long[] offsets = findAllOffsets(leaderConsumer, metadata.topic(), part.partitionId());
+                // Read a min of 10K messages per split
+                long minKafkaSplitSize = 10 * 1024;
+                int start = offsets.length - 1;
+                for (int i = start; i > 0; i--) {
+                    int end = i - 1;
+                    if (end == 0 || (offsets[end] - offsets[start] >= minKafkaSplitSize)) {
+                        KafkaSplit split = new KafkaSplit(
+                                connectorId,
+                                metadata.topic(),
+                                kafkaTableHandle.getKeyDataFormat(),
+                                kafkaTableHandle.getMessageDataFormat(),
+                                part.partitionId(),
+                                offsets[start],
+                                offsets[end],
+                                partitionLeader);
+                        splits.add(split);
+                        start = end;
+                    }
                 }
             }
         }
 
-        return new FixedSplitSource(splits.build());
+        ImmutableList<ConnectorSplit> listOfSplits = splits.build();
+        log.info("Kafka - number of splits created: " + listOfSplits.size());
+        return new FixedSplitSource(listOfSplits);
     }
 
     private static long[] findAllOffsets(SimpleConsumer consumer, String topicName, int partitionId)

@@ -20,6 +20,7 @@ import com.facebook.presto.orc.stream.StreamSource;
 import com.facebook.presto.orc.stream.StreamSources;
 import com.facebook.presto.spi.block.ArrayBlock;
 import com.facebook.presto.spi.block.Block;
+import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.block.InterleavedBlock;
 import com.facebook.presto.spi.type.Type;
@@ -97,10 +98,17 @@ public class StructStreamReader
         boolean[] nullVector = new boolean[nextBatchSize];
         Block[] blocks = new Block[typeParameters.size()];
         if (presentStream == null) {
-            for (int i = 0; i < typeParameters.size(); i++) {
+            for (int i = 0; i < structFields.length; i++) {
                 StreamReader structField = structFields[i];
                 structField.prepareNextRead(nextBatchSize);
                 blocks[i] = structField.readBlock(typeParameters.get(i));
+            }
+            for (int i = structFields.length; i < typeParameters.size(); i++) {
+                BlockBuilder builder = typeParameters.get(i).createBlockBuilder(new BlockBuilderStatus(), nextBatchSize);
+                for (int j = 0; j < nextBatchSize; j++) {
+                    builder.appendNull();
+                }
+                blocks[i] = builder.build();
             }
         }
         else {

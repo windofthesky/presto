@@ -16,6 +16,9 @@ package com.facebook.presto.decoder;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.type.Type;
 
+import java.util.Collections;
+import java.util.Map;
+
 // Connectors that have rows that can be decoded into
 // columns using com.facebook.presto.decoder
 // can choose to implement this interface
@@ -33,4 +36,14 @@ public interface DecoderColumnHandle
     String getMapping();
 
     String getDataFormat();
+
+    default Map<Integer, String> getSchemas()
+    {
+        return Collections.EMPTY_MAP;
+    }
+
+    default Map getRecordReaders()
+    {
+        return Collections.EMPTY_MAP;
+    }
 }

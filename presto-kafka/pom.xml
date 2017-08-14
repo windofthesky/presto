@@ -17,6 +17,18 @@
     </properties>
 
     <dependencies>
+
+        <dependency>
+            <groupId>com.facebook.presto.hadoop</groupId>
+            <artifactId>hadoop-apache2</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>1.7.6-cdh5.7.1</version>
+        </dependency>
+
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
@@ -95,6 +107,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.openjdk.jol</groupId>
+            <artifactId>jol-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>slice</artifactId>
             <scope>provided</scope>
@@ -136,6 +154,44 @@
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
             <scope>test</scope>
+            <exclusions>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>ojdbc7</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>ucp</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>ons</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>oraclepki</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>orai18n</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>osdt_cert</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>osdt_core</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>xmlparserv2</artifactId>
+            </exclusion>
+            <exclusion>
+                <groupId>com.oracle.jdbc</groupId>
+                <artifactId>xdb6</artifactId>
+            </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

@@ -87,6 +87,19 @@ public class KafkaSimpleConsumerManager
         }
     }
 
+    public void invalidateConsumer(HostAddress host)
+    {
+        requireNonNull(host, "host is null");
+        SimpleConsumer consumer = getConsumer(host);
+        try {
+            consumer.close();
+        }
+        catch (Exception e) {
+            log.warn(e, "(Cache-entry invalidation) Error while closing consumer %s: ", host);
+        }
+        consumerCache.invalidate(host);
+    }
+
     private class SimpleConsumerCacheLoader
             extends CacheLoader<HostAddress, SimpleConsumer>
     {

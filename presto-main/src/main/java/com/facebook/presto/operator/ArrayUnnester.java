@@ -16,6 +16,7 @@ package com.facebook.presto.operator;
 import com.facebook.presto.spi.PageBuilder;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
+import com.facebook.presto.spi.type.ArrayAvroType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.type.ArrayType;
 
@@ -33,10 +34,15 @@ public class ArrayUnnester
     private int position;
     private final int positionCount;
 
-    public ArrayUnnester(ArrayType arrayType, @Nullable Block arrayBlock)
+    public ArrayUnnester(Type arrayType, @Nullable Block arrayBlock)
     {
         this.channelCount = 1;
-        this.elementType = requireNonNull(arrayType, "arrayType is null").getElementType();
+        if (arrayType instanceof ArrayType) {
+            this.elementType = requireNonNull((ArrayType) arrayType, "arrayType is null").getElementType();
+        }
+        else {
+            this.elementType = requireNonNull((ArrayAvroType) arrayType, "arrayType is null").getElementType();
+        }
 
         this.arrayBlock = arrayBlock;
         this.positionCount = arrayBlock == null ? 0 : arrayBlock.getPositionCount();

@@ -289,6 +289,10 @@ public class BackgroundHiveSplitLoader
         InputFormat<?, ?> inputFormat = getInputFormat(configuration, schema, false);
         FileSystem fs = hdfsEnvironment.getFileSystem(session.getUser(), path);
 
+        if (!fs.exists(path)) {
+            return;
+        }
+
         if (inputFormat instanceof SymlinkTextInputFormat) {
             if (bucketHandle.isPresent()) {
                 throw new PrestoException(StandardErrorCode.NOT_SUPPORTED, "Bucketed table in SymlinkTextInputFormat is not yet supported");
@@ -473,7 +477,8 @@ public class BackgroundHiveSplitLoader
         if (splittable) {
             PeekingIterator<BlockLocation> blockLocationIterator = Iterators.peekingIterator(Arrays.stream(blockLocations).iterator());
 
-            return new AbstractIterator<HiveSplit>() {
+            return new AbstractIterator<HiveSplit>()
+            {
                 private long chunkOffset = 0;
 
                 @Override

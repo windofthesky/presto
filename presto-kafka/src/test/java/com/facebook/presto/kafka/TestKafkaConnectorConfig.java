@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.testing.ConfigAssertions;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.Map;
 
 public class TestKafkaConnectorConfig
@@ -31,7 +30,7 @@ public class TestKafkaConnectorConfig
                 .setKafkaBufferSize("64kB")
                 .setDefaultSchema("default")
                 .setTableNames("")
-                .setTableDescriptionDir(new File("etc/kafka/"))
+                .setTableDescriptionDir("")
                 .setHideInternalColumns(true));
     }
 
@@ -49,7 +48,7 @@ public class TestKafkaConnectorConfig
                 .build();
 
         KafkaConnectorConfig expected = new KafkaConnectorConfig()
-                .setTableDescriptionDir(new File("/var/lib/kafka"))
+                .setTableDescriptionDir("var/lib/kafka")
                 .setTableNames("table1, table2, table3")
                 .setDefaultSchema("kafka")
                 .setNodes("localhost:12345, localhost:23456")

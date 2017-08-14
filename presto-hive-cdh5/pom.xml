@@ -67,10 +67,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.openx.data
-            </groupId>
+            <groupId>org.keedio.openx.data</groupId>
             <artifactId>json-serde</artifactId>
-            <version>1.3.6-SNAPSHOT-jar-with-dependencies</version>
+            <version>1.3.7.3</version>
             <scope>runtime</scope>
         </dependency>
 

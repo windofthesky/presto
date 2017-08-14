@@ -32,12 +32,6 @@
         </artifact>
     </artifactSet>
 
-    <artifactSet to="plugin/oracle">
-        <artifact id="${project.groupId}:presto-oracle:zip:${project.version}">
-            <unpack />
-        </artifact>
-    </artifactSet>
-
     <artifactSet to="plugin/logevent">
         <artifact id="${project.groupId}:presto-logevent:zip:${project.version}">
             <unpack />

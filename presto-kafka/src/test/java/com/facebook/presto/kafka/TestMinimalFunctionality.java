@@ -14,9 +14,11 @@
 package com.facebook.presto.kafka;
 
 import com.facebook.presto.Session;
+import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.kafka.util.EmbeddedKafka;
 import com.facebook.presto.kafka.util.TestUtils;
 import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.security.AllowAllAccessControl;
 import com.facebook.presto.spi.SchemaTableName;
@@ -45,10 +47,8 @@ import static org.testng.Assert.assertTrue;
 @Test(singleThreaded = true)
 public class TestMinimalFunctionality
 {
-    private static final Session SESSION = testSessionBuilder()
-            .setCatalog("kafka")
-            .setSchema("default")
-            .build();
+
+    private Session session;
 
     private EmbeddedKafka embeddedKafka;
     private String topicName;
@@ -60,6 +60,12 @@ public class TestMinimalFunctionality
     {
         embeddedKafka = EmbeddedKafka.createEmbeddedKafka();
         embeddedKafka.start();
+        SessionPropertyManager sessionPropertyManager = new SessionPropertyManager();
+        sessionPropertyManager.addConnectorSessionProperties(new ConnectorId("kafka"), new KafkaSessionProperties().getSessionProperties());
+        session = testSessionBuilder(sessionPropertyManager)
+                .setCatalog("kafka")
+                .setSchema("default")
+                .build();
     }
 
     @AfterClass
@@ -78,7 +84,7 @@ public class TestMinimalFunctionality
         Properties topicProperties = new Properties();
         embeddedKafka.createTopics(2, 1, topicProperties, topicName);
 
-        this.queryRunner = new StandaloneQueryRunner(SESSION);
+        this.queryRunner = new StandaloneQueryRunner(session);
 
         TestUtils.installKafkaPlugin(embeddedKafka, queryRunner,
                 ImmutableMap.<SchemaTableName, KafkaTopicDescription>builder()
@@ -111,7 +117,7 @@ public class TestMinimalFunctionality
 
         transaction(queryRunner.getTransactionManager(), new AllowAllAccessControl())
                 .singleStatement()
-                .execute(SESSION, session -> {
+                .execute(session, session -> {
                     Optional<TableHandle> handle = queryRunner.getServer().getMetadata().getTableHandle(session, name);
                     assertTrue(handle.isPresent());
                 });
@@ -123,7 +129,7 @@ public class TestMinimalFunctionality
     {
         MaterializedResult result = queryRunner.execute("SELECT count(1) from " + topicName);
 
-        MaterializedResult expected = MaterializedResult.resultBuilder(SESSION, BigintType.BIGINT)
+        MaterializedResult expected = MaterializedResult.resultBuilder(session, BigintType.BIGINT)
                 .row(0L)
                 .build();
 
@@ -134,7 +140,7 @@ public class TestMinimalFunctionality
 
         result = queryRunner.execute("SELECT count(1) from " + topicName);
 
-        expected = MaterializedResult.resultBuilder(SESSION, BigintType.BIGINT)
+        expected = MaterializedResult.resultBuilder(session, BigintType.BIGINT)
                 .row((long) count)
                 .build();
 

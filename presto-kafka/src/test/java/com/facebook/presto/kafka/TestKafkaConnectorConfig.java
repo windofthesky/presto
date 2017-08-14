@@ -48,7 +48,7 @@ public class TestKafkaConnectorConfig
                 .build();
 
         KafkaConnectorConfig expected = new KafkaConnectorConfig()
-                .setTableDescriptionDir("var/lib/kafka")
+                .setTableDescriptionDir("/var/lib/kafka")
                 .setTableNames("table1, table2, table3")
                 .setDefaultSchema("kafka")
                 .setNodes("localhost:12345, localhost:23456")

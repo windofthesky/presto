@@ -56,7 +56,7 @@ public class KafkaMetadata
     private final boolean hideInternalColumns;
     private Map<SchemaTableName, KafkaTopicDescription> tableDescriptions;
     private final Set<KafkaInternalFieldDescription> internalFieldDescriptions;
-    private final KafkaTableDescriptionSupplier tableDescriptionRef;
+    private final Supplier<Map<SchemaTableName, KafkaTopicDescription>> tableDescriptionRef;
 
     private static final Logger log = Logger.get(KafkaMetadata.class);
 
@@ -74,7 +74,7 @@ public class KafkaMetadata
 
         requireNonNull(kafkaTableDescriptionSupplier, "kafkaTableDescriptionSupplier is null");
         this.tableDescriptions = kafkaTableDescriptionSupplier.get();
-        this.tableDescriptionRef = (KafkaTableDescriptionSupplier) kafkaTableDescriptionSupplier;
+        this.tableDescriptionRef =  kafkaTableDescriptionSupplier;
         this.internalFieldDescriptions = requireNonNull(internalFieldDescriptions, "internalFieldDescriptions is null");
     }
 

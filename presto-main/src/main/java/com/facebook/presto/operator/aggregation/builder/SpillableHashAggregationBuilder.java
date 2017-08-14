@@ -189,10 +189,10 @@ public class SpillableHashAggregationBuilder
     @Override
     public void close()
     {
-        if (hashAggregationBuilder != null) {
-            hashAggregationBuilder.close();
-        }
         try (Closer closer = Closer.create()) {
+            if (hashAggregationBuilder != null) {
+                closer.register(hashAggregationBuilder::close);
+            }
             merger.ifPresent(closer::register);
             spiller.ifPresent(closer::register);
             mergeHashSort.ifPresent(closer::register);

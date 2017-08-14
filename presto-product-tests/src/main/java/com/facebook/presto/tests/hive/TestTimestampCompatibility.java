@@ -15,11 +15,13 @@ package com.facebook.presto.tests.hive;
 
 import com.teradata.tempto.ProductTest;
 import com.teradata.tempto.query.QueryResult;
+import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 
 import static com.facebook.presto.tests.TemptoProductTestRunner.PRODUCT_TESTS_TIME_ZONE;
 import static com.facebook.presto.tests.TestGroups.HIVE_CONNECTOR;
@@ -37,54 +39,64 @@ public class TestTimestampCompatibility
         extends ProductTest
 {
     private static final String TABLE_NAME = "timestamp_compatibility";
-    private static final String TIMESTAMP_LITERAL = "2000-01-01 00:00";
+    private static final String TIMESTAMP_LITERAL = "2000-01-01 00:00:00";
+    private static final Timestamp EXPECTED_TIMESTAMP = parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE);
 
     // format, params, legacy_mode
     @DataProvider(name = "storage_formats")
     public static Object[][] storageFormats()
     {
         return new String[][] {
-                {"ORC"},
-                {"PARQUET"},
-                {"RCBINARY"},
-                {"RCTEXT"},
-                {"SEQUENCEFILE"},
-                {"TEXTFILE"}
+                {"ORC", "true"},
+                {"ORC", "false"},
+                {"PARQUET", "true"},
+                {"PARQUET", "false"},
+                {"RCBINARY", "true"},
+                {"RCBINARY", "false"},
+                {"RCTEXT", "true"},
+                {"RCTEXT", "false"},
+                {"SEQUENCEFILE", "true"},
+                {"SEQUENCEFILE", "false"},
+                {"TEXTFILE", "true"},
+                {"TEXTFILE", "false"}
         };
     }
 
     @Test(dataProvider = "storage_formats", groups = {HIVE_CONNECTOR, TIMESTAMP})
-    public void testTimestampCompatibility(String storageFormat)
+    public void testTimestampCompatibility(String storageFormat, String legacyTimestamp)
             throws SQLException
     {
         Connection connection = defaultQueryExecutor().getConnection();
-        setSessionProperty(connection, "legacy_timestamp", "false");
+        setSessionProperty(connection, "legacy_timestamp", legacyTimestamp);
 
         query(String.format("DROP TABLE IF EXISTS %s", TABLE_NAME));
         query(String.format("CREATE TABLE %s WITH (format = '%s') AS SELECT TIMESTAMP '%s' ts", TABLE_NAME, storageFormat, TIMESTAMP_LITERAL));
 
         QueryResult prestoResult = query(String.format("SELECT * FROM %s", TABLE_NAME));
         QueryResult hiveResult = onHive().executeQuery(String.format("SELECT * FROM %s", TABLE_NAME));
-        assertThat(hiveResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
-        assertThat(prestoResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
+        assertThat(hiveResult).containsExactly(row(EXPECTED_TIMESTAMP));
+        assertThat(prestoResult).containsExactly(row(EXPECTED_TIMESTAMP));
 
         resetSessionProperty(connection, "legacy_timestamp");
     }
 
     @Test(dataProvider = "storage_formats", groups = {HIVE_CONNECTOR, TIMESTAMP})
-    public void testLegacyTimestampCompatibility(String storageFormat)
+    public void testArrayCompatibility(String storageFormat, String legacyTimestamp)
             throws SQLException
     {
+        if (storageFormat.equals("PARQUET")) {
+            throw new SkipException("This is disabled due to #8729 bug in Presto.");
+        }
         Connection connection = defaultQueryExecutor().getConnection();
-        setSessionProperty(connection, "legacy_timestamp", "true");
+        setSessionProperty(connection, "legacy_timestamp", legacyTimestamp);
 
         query(String.format("DROP TABLE IF EXISTS %s", TABLE_NAME));
-        query(String.format("CREATE TABLE %s WITH (format = '%s') AS SELECT TIMESTAMP '%s' ts", TABLE_NAME, storageFormat, TIMESTAMP_LITERAL));
+        query(String.format("CREATE TABLE %s WITH (format = '%s') AS SELECT ARRAY[TIMESTAMP '%s', TIMESTAMP '%s'] ts", TABLE_NAME, storageFormat, TIMESTAMP_LITERAL, TIMESTAMP_LITERAL));
 
-        QueryResult prestoResult = query(String.format("SELECT * FROM %s", TABLE_NAME));
-        QueryResult hiveResult = onHive().executeQuery(String.format("SELECT * FROM %s", TABLE_NAME));
-        assertThat(prestoResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
-        assertThat(hiveResult).containsExactly(row(parseTimestampInLocalTime(TIMESTAMP_LITERAL, PRODUCT_TESTS_TIME_ZONE)));
+        QueryResult prestoResult = query(String.format("SELECT ts[1], ts[2] FROM %s", TABLE_NAME));
+        QueryResult hiveResult = onHive().executeQuery(String.format("SELECT ts[0], ts[1] FROM %s", TABLE_NAME));
+        assertThat(hiveResult).containsExactly(row(EXPECTED_TIMESTAMP, EXPECTED_TIMESTAMP));
+        assertThat(prestoResult).containsExactly(row(EXPECTED_TIMESTAMP, EXPECTED_TIMESTAMP));
 
         resetSessionProperty(connection, "legacy_timestamp");
     }

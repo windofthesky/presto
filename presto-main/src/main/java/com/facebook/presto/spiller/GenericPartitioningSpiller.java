@@ -186,9 +186,7 @@ public class GenericPartitioningSpiller
     {
         Optional<SingleStreamSpiller> spiller = spillers[partition];
         if (!spiller.isPresent()) {
-            spiller = Optional.of(closer.register(
-                    spillerFactory.create(types, spillContext, memoryContext.newLocalMemoryContext())
-            ));
+            spiller = Optional.of(closer.register(spillerFactory.create(types, spillContext, memoryContext.newLocalMemoryContext())));
             spillers[partition] = spiller;
         }
         return spiller.get();

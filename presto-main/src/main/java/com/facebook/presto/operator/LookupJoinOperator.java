@@ -680,8 +680,7 @@ public class LookupJoinOperator
             return new SpillInfoSnapshot(
                     lookupSourceLease.hasSpilled(),
                     lookupSourceLease.spillEpoch(),
-                    lookupSourceLease.getSpillMask()
-            );
+                    lookupSourceLease.getSpillMask());
         }
 
         public static SpillInfoSnapshot noSpill()

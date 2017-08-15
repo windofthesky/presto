@@ -25,8 +25,12 @@ import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.NullableValue;
 import com.facebook.presto.spi.predicate.TupleDomain;
 import com.facebook.presto.spi.predicate.ValueSet;
+import com.facebook.presto.spi.type.CharType;
+import com.facebook.presto.spi.type.DecimalType;
+import com.facebook.presto.spi.type.Decimals;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
+import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -51,6 +55,7 @@ import static com.facebook.presto.hive.HiveUtil.parsePartitionValue;
 import static com.facebook.presto.hive.metastore.MetastoreUtil.getProtectMode;
 import static com.facebook.presto.hive.metastore.MetastoreUtil.verifyOnline;
 import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
+import static com.facebook.presto.spi.type.Chars.padSpaces;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Predicates.not;
 import static java.lang.String.format;
@@ -225,7 +230,20 @@ public class HivePartitionManager
                     filter.add(HivePartitionKey.HIVE_DEFAULT_DYNAMIC_PARTITION);
                 }
                 else if (value instanceof Slice) {
-                    filter.add(((Slice) value).toStringUtf8());
+                    Type type = domain.getType();
+                    Slice slice = (Slice) value;
+                    if (type instanceof CharType) {
+                        filter.add(padSpaces(slice, type).toStringUtf8());
+                    }
+                    else if (type instanceof DecimalType) {
+                        filter.add(Decimals.toString(slice, ((DecimalType) type).getScale()));
+                    }
+                    else if (type instanceof VarcharType) {
+                        filter.add(slice.toStringUtf8());
+                    }
+                    else {
+                        throw new PrestoException(NOT_SUPPORTED, format("Unsupported partition key type: %s", type.getDisplayName()));
+                    }
                 }
                 else if ((value instanceof Boolean) || (value instanceof Double) || (value instanceof Long)) {
                     if (assumeCanonicalPartitionKeys) {

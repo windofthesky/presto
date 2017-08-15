@@ -302,6 +302,18 @@ public class TestHiveIntegrationSmokeTest
 
         assertUpdate(session, "INSERT INTO test_partitioned_table " + select, 1);
         assertQuery(session, "SELECT * from test_partitioned_table", select);
+        assertQuery(session,
+                "SELECT * from test_partitioned_table WHERE" +
+                        " 'foo' = _partition_string" +
+                        " AND 'bar' = _partition_varchar" +
+                        " AND CAST('boo' AS CHAR(10)) = _partition_char" +
+                        " AND CAST(1 AS TINYINT) = _partition_tinyint" +
+                        " AND CAST(1 AS SMALLINT) = _partition_smallint" +
+                        " AND 1 = _partition_integer" +
+                        " AND CAST(1 AS BIGINT) = _partition_bigint" +
+                        " AND CAST('3.14' AS DECIMAL(3,2)) = _partition_decimal_short" +
+                        " AND CAST('12345678901234567890.0123456789' AS DECIMAL(30,10)) = _partition_decimal_long",
+                select);
 
         assertUpdate(session, "DROP TABLE test_partitioned_table");
 

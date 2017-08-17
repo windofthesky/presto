@@ -278,9 +278,10 @@ public class SpillableHashAggregationBuilder
         if (hashAggregationBuilder != null) {
             hashCollisions += hashAggregationBuilder.getHashCollisions();
             expectedHashCollisions += hashAggregationBuilder.getExpectedHashCollisions();
+            hashAggregationBuilder.close();
         }
 
-        this.hashAggregationBuilder = new InMemoryHashAggregationBuilder(
+        hashAggregationBuilder = new InMemoryHashAggregationBuilder(
                 accumulatorFactories,
                 step,
                 expectedGroups,
@@ -290,6 +291,6 @@ public class SpillableHashAggregationBuilder
                 operatorContext,
                 DataSize.succinctBytes(0),
                 joinCompiler);
-        this.emptyHashAggregationBuilderSize = this.hashAggregationBuilder.getSizeInMemory();
+        emptyHashAggregationBuilderSize = hashAggregationBuilder.getSizeInMemory();
     }
 }

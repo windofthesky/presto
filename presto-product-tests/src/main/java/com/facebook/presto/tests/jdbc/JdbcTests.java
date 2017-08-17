@@ -87,7 +87,7 @@ public class JdbcTests
             throws SQLException
     {
         try (Statement statement = connection.createStatement()) {
-            QueryResult result = queryResult(statement, "select * from hive.default.nation");
+            QueryResult result = queryResult(statement, "select * from hive.s3internal.nation");
             assertThat(result).matches(PRESTO_NATION_RESULT);
         }
     }
@@ -114,7 +114,7 @@ public class JdbcTests
             throws SQLException
     {
         connection.setCatalog("hive");
-        connection.setSchema("default");
+        connection.setSchema("s3internal");
         try (Statement statement = connection.createStatement()) {
             QueryResult result = queryResult(statement, "select * from nation");
             assertThat(result).matches(PRESTO_NATION_RESULT);
@@ -159,7 +159,7 @@ public class JdbcTests
             throws SQLException
     {
         QueryResult result = QueryResult.forResultSet(metaData().getSchemas("hive", null));
-        assertThat(result).contains(row("default", "hive"));
+        assertThat(result).contains(row("s3internal", "hive"));
     }
 
     @Test(groups = JDBC)
@@ -168,7 +168,7 @@ public class JdbcTests
             throws SQLException
     {
         QueryResult result = QueryResult.forResultSet(metaData().getTables("hive", null, null, null));
-        assertThat(result).contains(row("hive", "default", "nation", "TABLE", null, null, null, null, null, null));
+        assertThat(result).contains(row("hive", "s3internal", "nation", "TABLE", null, null, null, null, null, null));
     }
 
     @Test(groups = JDBC)
@@ -178,7 +178,7 @@ public class JdbcTests
     {
         // The JDBC spec is vague on what values getColumns() should return, so accept the values that Facebook or Simba return.
 
-        QueryResult result = QueryResult.forResultSet(metaData().getColumns("hive", "default", "nation", null));
+        QueryResult result = QueryResult.forResultSet(metaData().getColumns("hive", "s3internal", "nation", null));
         if (usingPrestoJdbcDriver(connection)) {
             assertThat(result).matches(sqlResultDescriptorForResource("com/facebook/presto/tests/jdbc/get_nation_columns.result"));
         }

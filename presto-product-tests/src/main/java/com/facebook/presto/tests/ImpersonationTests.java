@@ -18,7 +18,7 @@ import com.google.inject.name.Named;
 import com.teradata.tempto.ProductTest;
 import com.teradata.tempto.Requires;
 import com.teradata.tempto.fulfillment.table.hive.tpch.ImmutableTpchTablesRequirements.ImmutableNationTable;
-import com.teradata.tempto.hadoop.hdfs.HdfsClient;
+import com.teradata.tempto.hadoop.FileSystemClient;
 import org.testng.annotations.Test;
 
 import static com.facebook.presto.tests.TestGroups.HDFS_IMPERSONATION;
@@ -33,7 +33,7 @@ public class ImpersonationTests
         extends ProductTest
 {
     @Inject
-    private HdfsClient hdfsClient;
+    private FileSystemClient fsClient;
 
     @Inject
     @Named("databases.presto.jdbc_user")
@@ -76,7 +76,7 @@ public class ImpersonationTests
         query(format("DROP TABLE IF EXISTS %s", tableName));
         query(format("CREATE TABLE %s AS SELECT * FROM NATION", tableName));
         String tableLocation = getTableLocation(tableName);
-        String owner = hdfsClient.getOwner(tableLocation);
+        String owner = fsClient.getOwner(tableLocation);
         assertEquals(owner, expectedOwner);
         query(format("DROP TABLE IF EXISTS %s", tableName));
     }

@@ -105,7 +105,7 @@ public class PrestoLdapCliTests
     {
         launchPrestoCliWithServerArgument();
         presto.waitForPrompt();
-        presto.getProcessInput().println("select * from hive.default.nation;");
+        presto.getProcessInput().println("select * from hive.s3internal.nation;");
         assertThat(trimLines(presto.readLinesUntilPrompt())).containsAll(nationTableInteractiveLines);
     }
 
@@ -113,7 +113,7 @@ public class PrestoLdapCliTests
     public void shouldRunBatchQueryWithLdap()
             throws IOException, InterruptedException
     {
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertThat(trimLines(presto.readRemainingOutputLines())).containsAll(nationTableBatchLines);
     }
 
@@ -123,7 +123,7 @@ public class PrestoLdapCliTests
     {
         File temporayFile = File.createTempFile("test-sql", null);
         temporayFile.deleteOnExit();
-        Files.write("select * from hive.default.nation;\n", temporayFile, UTF_8);
+        Files.write("select * from hive.s3internal.nation;\n", temporayFile, UTF_8);
 
         launchPrestoCliWithServerArgument("--file", temporayFile.getAbsolutePath());
         assertThat(trimLines(presto.readRemainingOutputLines())).containsAll(nationTableBatchLines);
@@ -171,7 +171,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapUserPassword = "wrong_password";
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Invalid credentials")));
     }
 
@@ -180,7 +180,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapUserName = "invalid_user";
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Invalid credentials")));
     }
 
@@ -189,7 +189,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapUserName = "";
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Malformed decoded credentials")));
     }
 
@@ -201,7 +201,7 @@ public class PrestoLdapCliTests
                 "--truststore-path", ldapTruststorePath,
                 "--truststore-password", ldapTruststorePassword,
                 "--user", ldapUserName,
-                "--execute", "select * from hive.default.nation;");
+                "--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Authentication failed: Unauthorized")));
     }
 
@@ -210,7 +210,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapServerAddress = format("http://%s:8443", serverHost);
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Authentication using username/password requires HTTPS to be enabled")));
         skipAfterTestWithContext();
     }
@@ -220,7 +220,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapTruststorePassword = "wrong_password";
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Keystore was tampered with, or password was incorrect")));
         skipAfterTestWithContext();
     }
@@ -246,7 +246,7 @@ public class PrestoLdapCliTests
             throws IOException, InterruptedException
     {
         ldapUserName = "UserWith:Colon";
-        launchPrestoCliWithServerArgument("--execute", "select * from hive.default.nation;");
+        launchPrestoCliWithServerArgument("--execute", "select * from hive.s3internal.nation;");
         assertTrue(trimLines(presto.readRemainingErrorLines()).stream().anyMatch(str -> str.contains("Illegal character ':' found in username")));
         skipAfterTestWithContext();
     }

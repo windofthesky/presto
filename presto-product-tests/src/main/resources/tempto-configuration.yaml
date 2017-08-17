@@ -15,11 +15,13 @@ databases:
     jdbc_user: hdfs
     jdbc_password: na
     jdbc_pooling: false
-    schema: default
+    schema: s3internal
     prepare_statement: USE ${databases.hive.schema}
     table_manager_type: hive
-    warehouse_directory_path: /user/hive/warehouse
-    path: /user/hive/warehouse
+    warehouse_directory_path: /sean-aws-test
+    path: /sean-aws-test
+    analyze_immutable_tables: false
+    analyze_mutable_tables: false
 
   presto:
     host: localhost
@@ -94,9 +96,20 @@ databases:
     jdbc_pooling: true
     table_manager_type: jdbc
 
+s3:
+  auth:
+    keyid:
+    secret: 
+  bucketname: udacenterforhadoop
+
 tests:
-  hdfs:
-    path: /product-test
+  fs:
+    type: s3
+    prefix: s3n://udacenterforhadoop
+    path: sean-aws-test
+#    type: hdfs
+#    prefix: "***empty***"
+#    path: /product-test
   assert:
     float_tolerance: 0.000001
 

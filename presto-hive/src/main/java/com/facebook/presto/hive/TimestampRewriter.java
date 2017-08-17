@@ -39,7 +39,7 @@ import java.util.function.LongUnaryOperator;
 import static com.facebook.presto.spi.block.MethodHandleUtil.compose;
 import static com.facebook.presto.spi.block.MethodHandleUtil.nativeValueGetter;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
-import static org.weakref.jmx.internal.guava.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 public class TimestampRewriter
 {
@@ -210,4 +210,3 @@ public class TimestampRewriter
         return blockBuilder.build();
     }
 }
-

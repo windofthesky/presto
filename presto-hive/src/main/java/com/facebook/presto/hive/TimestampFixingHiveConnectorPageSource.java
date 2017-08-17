@@ -33,7 +33,8 @@ public class TimestampFixingHiveConnectorPageSource
     public TimestampFixingHiveConnectorPageSource(ConnectorPageSource connectorPageSource,
             List<HiveColumnHandle> columns,
             TypeManager typeManager,
-            DateTimeZone storageTimeZone) {
+            DateTimeZone storageTimeZone)
+    {
         this.connectorPageSource = connectorPageSource;
 
         List<Type> columnTypes = columns.stream()

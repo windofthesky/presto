@@ -81,37 +81,37 @@ public class MapBlock
     }
 
     @Override
-    protected Block getKeys()
+    public Block getKeys()
     {
         return keyBlock;
     }
 
     @Override
-    protected Block getValues()
+    public Block getValues()
     {
         return valueBlock;
     }
 
     @Override
-    protected int[] getHashTables()
+    public int[] getHashTables()
     {
         return hashTables;
     }
 
     @Override
-    protected int[] getOffsets()
+    public int[] getOffsets()
     {
         return offsets;
     }
 
     @Override
-    protected int getOffsetBase()
+    public int getOffsetBase()
     {
         return startOffset;
     }
 
     @Override
-    protected boolean[] getMapIsNull()
+    public boolean[] getMapIsNull()
     {
         return mapIsNull;
     }
@@ -186,13 +186,12 @@ public class MapBlock
         if (mapIsNull.length != offsets.length - 1) {
             throw new IllegalArgumentException(format("mapIsNull.length-1 does not match offsets.length. %s %s", mapIsNull.length - 1, offsets.length));
         }
-        int mapCount = mapIsNull.length;
-        if (offsets[mapCount] != elementCount) {
-            throw new IllegalArgumentException(format("Last element of offsets does not match keyBlock position count. %s %s", offsets[mapCount], keyBlock.getPositionCount()));
+        if (offsets[elementCount] != elementCount) {
+            throw new IllegalArgumentException(format("Last element of offsets does not match keyBlock position count. %s %s", offsets[elementCount], keyBlock.getPositionCount()));
         }
         int[] hashTables = new int[elementCount * HASH_MULTIPLIER];
         Arrays.fill(hashTables, -1);
-        for (int i = 0; i < mapCount; i++) {
+        for (int i = 0; i < elementCount; i++) {
             int keyOffset = offsets[i];
             int keyCount = offsets[i + 1] - keyOffset;
             if (keyCount < 0) {
@@ -203,7 +202,7 @@ public class MapBlock
 
         return new MapBlock(
                 0,
-                mapCount,
+                elementCount,
                 mapIsNull,
                 offsets,
                 keyBlock,

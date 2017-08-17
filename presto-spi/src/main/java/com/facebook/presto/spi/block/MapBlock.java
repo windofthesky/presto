@@ -186,12 +186,12 @@ public class MapBlock
         if (mapIsNull.length != offsets.length - 1) {
             throw new IllegalArgumentException(format("mapIsNull.length-1 does not match offsets.length. %s %s", mapIsNull.length - 1, offsets.length));
         }
-        if (offsets[elementCount] != elementCount) {
-            throw new IllegalArgumentException(format("Last element of offsets does not match keyBlock position count. %s %s", offsets[elementCount], keyBlock.getPositionCount()));
-        }
+//        if (offsets[elementCount] != elementCount) {
+//            throw new IllegalArgumentException(format("Last element of offsets does not match keyBlock position count. %s %s", offsets[elementCount], keyBlock.getPositionCount()));
+//        }
         int[] hashTables = new int[elementCount * HASH_MULTIPLIER];
         Arrays.fill(hashTables, -1);
-        for (int i = 0; i < elementCount; i++) {
+        for (int i = 0; i < mapIsNull.length; i++) {
             int keyOffset = offsets[i];
             int keyCount = offsets[i + 1] - keyOffset;
             if (keyCount < 0) {

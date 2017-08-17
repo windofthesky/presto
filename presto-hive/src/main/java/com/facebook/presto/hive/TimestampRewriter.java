@@ -15,18 +15,29 @@ package com.facebook.presto.hive;
 
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.block.AbstractArrayBlock;
+import com.facebook.presto.spi.block.AbstractMapBlock;
+import com.facebook.presto.spi.block.AbstractSingleMapBlock;
 import com.facebook.presto.spi.block.ArrayBlock;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockBuilder;
 import com.facebook.presto.spi.block.BlockBuilderStatus;
 import com.facebook.presto.spi.block.LazyBlock;
+import com.facebook.presto.spi.block.MapBlock;
+import com.facebook.presto.spi.block.SingleMapBlock;
+import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.ArrayType;
+import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.TypeManager;
+import com.google.common.collect.ImmutableList;
 import org.joda.time.DateTimeZone;
 
+import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.function.LongUnaryOperator;
 
+import static com.facebook.presto.spi.block.MethodHandleUtil.compose;
+import static com.facebook.presto.spi.block.MethodHandleUtil.nativeValueGetter;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static org.weakref.jmx.internal.guava.base.Preconditions.checkArgument;
 
@@ -34,11 +45,13 @@ public class TimestampRewriter
 {
     private final List<Type> columnTypes;
     private final DateTimeZone storageTimeZone;
+    private final TypeManager typeManager;
 
-    public TimestampRewriter(List<Type> columnTypes, DateTimeZone storageTimeZone)
+    public TimestampRewriter(List<Type> columnTypes, DateTimeZone storageTimeZone, TypeManager typeManager)
     {
         this.columnTypes = columnTypes;
         this.storageTimeZone = storageTimeZone;
+        this.typeManager = typeManager;
     }
 
     public Page rewritePageHiveToPresto(Page page)
@@ -67,7 +80,7 @@ public class TimestampRewriter
         return new Page(blocks);
     }
 
-    private static Block wrapBlockInLazyTimestampRewritingBlock(Block block, Type type, LongUnaryOperator modification)
+    private Block wrapBlockInLazyTimestampRewritingBlock(Block block, Type type, LongUnaryOperator modification)
     {
         if (!hasTimestampParameter(type)) {
             return block;
@@ -75,7 +88,7 @@ public class TimestampRewriter
         return new LazyBlock(block.getPositionCount(), lazyBlock -> lazyBlock.setBlock(modifyTimestampsInBlock(block, type, modification)));
     }
 
-    private static Block modifyTimestampsInBlock(Block block, Type type, LongUnaryOperator modification)
+    private Block modifyTimestampsInBlock(Block block, Type type, LongUnaryOperator modification)
     {
         if (type.equals(TIMESTAMP)) {
             return modifyTimestampsInTimestampBlock(block, modification);
@@ -83,12 +96,15 @@ public class TimestampRewriter
         if (type instanceof ArrayType) {
             return modifyTimestampsInArrayBlock(type, block, modification);
         }
+        if (type instanceof MapType) {
+            return modifyTimestampsInMapBlock(type, block, modification);
+        }
 
-        // TODO THROW UNSUPPORTED EXCEPTION
-        return block;
+        return block; // REMOVE AND UNCOMNET
+        //throw new UnsupportedOperationException("Complex type " + type.toString() + " support is missing.");
     }
 
-    private static boolean hasTimestampParameter(Type type)
+    private boolean hasTimestampParameter(Type type)
     {
         if (type.equals(TIMESTAMP)) {
             return true;
@@ -99,7 +115,7 @@ public class TimestampRewriter
         return false;
     }
 
-    private static Block modifyTimestampsInArrayBlock(Type type, Block block, LongUnaryOperator modification)
+    private Block modifyTimestampsInArrayBlock(Type type, Block block, LongUnaryOperator modification)
     {
         if (block == null) {
             return null;
@@ -122,7 +138,64 @@ public class TimestampRewriter
         }
     }
 
-    private static Block modifyTimestampsInTimestampBlock(Block block, LongUnaryOperator modification)
+    private Block modifyTimestampsInMapBlock(Type type, Block block, LongUnaryOperator modification)
+    {
+        if (block == null) {
+            return null;
+        }
+
+        Type keyType = type.getTypeParameters().get(0);
+        Type valueType = type.getTypeParameters().get(1);
+        MethodHandle keyNativeEquals = typeManager.resolveOperator(OperatorType.EQUAL, ImmutableList.of(keyType, keyType));
+        MethodHandle keyBlockNativeEquals = compose(keyNativeEquals, nativeValueGetter(keyType));
+        MethodHandle keyNativeHashCode = typeManager.resolveOperator(OperatorType.HASH_CODE, ImmutableList.of(keyType));
+        MethodHandle keyBlockHashCode = compose(keyNativeHashCode, nativeValueGetter(keyType));
+
+        if (block instanceof AbstractMapBlock) {
+            AbstractMapBlock mapBlock = (AbstractMapBlock) block;
+            Block innerKeyBlock = wrapBlockInLazyTimestampRewritingBlock(mapBlock.getKeys(), keyType, modification);
+            Block innerValueBlock = wrapBlockInLazyTimestampRewritingBlock(mapBlock.getValues(), valueType, modification);
+
+            return MapBlock.fromKeyValueBlock(mapBlock.getMapIsNull(),
+                    mapBlock.getOffsets(),
+                    innerKeyBlock,
+                    innerValueBlock,
+                    (MapType) type,
+                    keyBlockNativeEquals,
+                    keyNativeHashCode,
+                    keyBlockHashCode);
+        }
+        else {
+            BlockBuilder builder = type.createBlockBuilder(new BlockBuilderStatus(), block.getPositionCount());
+            for (int i = 0; i < block.getPositionCount(); ++i) {
+                type.writeObject(builder, modifyTimestampsInSingleMapBlock(type, block.getObject(i, Block.class), modification));
+            }
+            return builder.build();
+        }
+    }
+
+    private Block modifyTimestampsInSingleMapBlock(Type type, Block block, LongUnaryOperator modification)
+    {
+        checkArgument(block instanceof AbstractSingleMapBlock, "Maps represented by other type than AbstractSingleMapBlock are not supported.");
+        if (block == null) {
+            return null;
+        }
+
+        AbstractSingleMapBlock mapBlock = (AbstractSingleMapBlock) block;
+        Type keyType = type.getTypeParameters().get(0);
+        Type valueType = type.getTypeParameters().get(1);
+        MethodHandle keyNativeEquals = typeManager.resolveOperator(OperatorType.EQUAL, ImmutableList.of(keyType, keyType));
+        MethodHandle keyBlockNativeEquals = compose(keyNativeEquals, nativeValueGetter(keyType));
+        MethodHandle keyNativeHashCode = typeManager.resolveOperator(OperatorType.HASH_CODE, ImmutableList.of(keyType));
+
+        Block innerKeyBlock = wrapBlockInLazyTimestampRewritingBlock(mapBlock.getKeyBlock(), keyType, modification);
+        Block innerValueBlock = wrapBlockInLazyTimestampRewritingBlock(mapBlock.getValueBlock(), valueType, modification);
+
+        // We use null as hash in SingleMapBlock, as they are recalculated on MapBlock.closeEntry();
+        return new SingleMapBlock(0, mapBlock.getPositionCount(), innerKeyBlock, innerValueBlock, null, keyType, keyNativeHashCode, keyBlockNativeEquals);
+    }
+
+    private Block modifyTimestampsInTimestampBlock(Block block, LongUnaryOperator modification)
     {
         if (block == null) {
             return null;
@@ -137,3 +210,4 @@ public class TimestampRewriter
         return blockBuilder.build();
     }
 }
+

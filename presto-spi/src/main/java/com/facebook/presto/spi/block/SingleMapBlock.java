@@ -32,23 +32,17 @@ public class SingleMapBlock
 {
     private static final int INSTANCE_SIZE = ClassLayout.parseClass(SingleMapBlock.class).instanceSize();
 
-    private final int offset;
     private final int positionCount;
-    private final Block keyBlock;
-    private final Block valueBlock;
     private final int[] hashTable;
     private final Type keyType;
     private final MethodHandle keyNativeHashCode;
     private final MethodHandle keyBlockNativeEquals;
 
-    SingleMapBlock(int offset, int positionCount, Block keyBlock, Block valueBlock, int[] hashTable, Type keyType, MethodHandle keyNativeHashCode, MethodHandle keyBlockNativeEquals)
+    public SingleMapBlock(int offset, int positionCount, Block keyBlock, Block valueBlock, int[] hashTable, Type keyType, MethodHandle keyNativeHashCode, MethodHandle keyBlockNativeEquals)
     {
         super(offset, keyBlock, valueBlock);
 
-        this.offset = offset;
         this.positionCount = positionCount;
-        this.keyBlock = keyBlock;
-        this.valueBlock = valueBlock;
         this.hashTable = hashTable;
         this.keyType = keyType;
         this.keyNativeHashCode = keyNativeHashCode;
@@ -64,22 +58,22 @@ public class SingleMapBlock
     @Override
     public long getSizeInBytes()
     {
-        return keyBlock.getRegionSizeInBytes(offset / 2, positionCount / 2) +
-                valueBlock.getRegionSizeInBytes(offset / 2, positionCount / 2) +
+        return getKeyBlock().getRegionSizeInBytes(getOffset() / 2, positionCount / 2) +
+                getValueBlock().getRegionSizeInBytes(getOffset() / 2, positionCount / 2) +
                 sizeOfIntArray(positionCount / 2 * HASH_MULTIPLIER);
     }
 
     @Override
     public long getRetainedSizeInBytes()
     {
-        return INSTANCE_SIZE + keyBlock.getRetainedSizeInBytes() + valueBlock.getRetainedSizeInBytes() + sizeOf(hashTable);
+        return INSTANCE_SIZE + getKeyBlock().getRetainedSizeInBytes() + getValueBlock().getRetainedSizeInBytes() + sizeOf(hashTable);
     }
 
     @Override
     public void retainedBytesForEachPart(BiConsumer<Object, Long> consumer)
     {
-        consumer.accept(keyBlock, keyBlock.getRetainedSizeInBytes());
-        consumer.accept(valueBlock, valueBlock.getRetainedSizeInBytes());
+        consumer.accept(getKeyBlock(), getKeyBlock().getRetainedSizeInBytes());
+        consumer.accept(getValueBlock(), getValueBlock().getRetainedSizeInBytes());
         consumer.accept(hashTable, sizeOf(hashTable));
         consumer.accept(this, (long) INSTANCE_SIZE);
     }
@@ -87,22 +81,7 @@ public class SingleMapBlock
     @Override
     public BlockEncoding getEncoding()
     {
-        return new SingleMapBlockEncoding(keyType, keyNativeHashCode, keyBlockNativeEquals, keyBlock.getEncoding(), valueBlock.getEncoding());
-    }
-
-    public int getOffset()
-    {
-        return offset;
-    }
-
-    Block getKeyBlock()
-    {
-        return keyBlock;
-    }
-
-    Block getValueBlock()
-    {
-        return valueBlock;
+        return new SingleMapBlockEncoding(keyType, keyNativeHashCode, keyBlockNativeEquals, getKeyBlock().getEncoding(), getValueBlock().getEncoding());
     }
 
     int[] getHashTable()
@@ -124,7 +103,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -134,7 +113,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invoke(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invoke(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);
@@ -166,7 +145,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -176,7 +155,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invokeExact(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invokeExact(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);
@@ -205,7 +184,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -215,7 +194,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invokeExact(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invokeExact(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);
@@ -244,7 +223,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -254,7 +233,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invokeExact(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invokeExact(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);
@@ -283,7 +262,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -293,7 +272,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invokeExact(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invokeExact(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);
@@ -322,7 +301,7 @@ public class SingleMapBlock
             throw handleThrowable(throwable);
         }
 
-        int hashTableOffset = offset / 2 * HASH_MULTIPLIER;
+        int hashTableOffset = getOffset() / 2 * HASH_MULTIPLIER;
         int hashTableSize = positionCount / 2 * HASH_MULTIPLIER;
         int hash = (int) Math.floorMod(hashCode, hashTableSize);
         while (true) {
@@ -332,7 +311,7 @@ public class SingleMapBlock
             }
             boolean match;
             try {
-                match = (boolean) keyBlockNativeEquals.invokeExact(keyBlock, offset / 2 + keyPosition, nativeValue);
+                match = (boolean) keyBlockNativeEquals.invokeExact(getKeyBlock(), getOffset() / 2 + keyPosition, nativeValue);
             }
             catch (Throwable throwable) {
                 throw handleThrowable(throwable);

@@ -32,6 +32,21 @@ public abstract class AbstractSingleMapBlock
         this.valueBlock = valueBlock;
     }
 
+    public Block getKeyBlock()
+    {
+        return keyBlock;
+    }
+
+    public Block getValueBlock()
+    {
+        return valueBlock;
+    }
+
+    public int getOffset()
+    {
+        return offset;
+    }
+
     private int getAbsolutePosition(int position)
     {
         if (position < 0 || position >= getPositionCount()) {

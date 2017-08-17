@@ -89,6 +89,19 @@ public class StatsCalculatorAssertion
         return this;
     }
 
+    public StatsCalculatorAssertion withSourceStats(Function<PlanNode, PlanNode> rootToSourceResolver, Consumer<PlanNodeStatsEstimate.Builder> sourceStatsBuilderConsumer)
+    {
+        PlanNodeStatsEstimate.Builder sourceStatsBuilder = PlanNodeStatsEstimate.builder();
+        sourceStatsBuilderConsumer.accept(sourceStatsBuilder);
+        return withSourceStats(rootToSourceResolver, sourceStatsBuilder.build());
+    }
+
+    public StatsCalculatorAssertion withSourceStats(Function<PlanNode, PlanNode> rootToSourceResolver, PlanNodeStatsEstimate sourceStats)
+    {
+        sourcesStats.put(rootToSourceResolver.apply(planNode), sourceStats);
+        return this;
+    }
+
     public StatsCalculatorAssertion check(Consumer<PlanNodeStatsAssertion> statisticsAssertionConsumer)
     {
         PlanNodeStatsEstimate statsEstimate = statsCalculator.calculateStats(planNode, mockLookup(), session, types);

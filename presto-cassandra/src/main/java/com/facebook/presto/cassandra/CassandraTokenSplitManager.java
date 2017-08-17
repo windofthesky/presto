@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,16 +42,16 @@ import static java.util.stream.Collectors.toList;
 
 public class CassandraTokenSplitManager
 {
-    private final CassandraSession session;
+    private final Provider<CassandraSession> session;
     private final int splitSize;
 
     @Inject
-    public CassandraTokenSplitManager(CassandraSession session, CassandraClientConfig config)
+    public CassandraTokenSplitManager(Provider<CassandraSession> session, CassandraClientConfig config)
     {
         this(session, config.getSplitSize());
     }
 
-    public CassandraTokenSplitManager(CassandraSession session, int splitSize)
+    public CassandraTokenSplitManager(Provider<CassandraSession> session, int splitSize)
     {
         this.session = requireNonNull(session, "session is null");
         this.splitSize = splitSize;
@@ -58,7 +59,7 @@ public class CassandraTokenSplitManager
 
     public List<TokenSplit> getSplits(String keyspace, String table)
     {
-        Set<TokenRange> tokenRanges = session.getTokenRanges();
+        Set<TokenRange> tokenRanges = session.get().getTokenRanges();
 
         if (tokenRanges.isEmpty()) {
             throw new PrestoException(CASSANDRA_METADATA_ERROR, "The cluster metadata is not available. " +
@@ -70,7 +71,7 @@ public class CassandraTokenSplitManager
             tokenRanges = unwrap(tokenRanges);
         }
 
-        Optional<TokenRing> tokenRing = createForPartitioner(session.getPartitioner());
+        Optional<TokenRing> tokenRing = createForPartitioner(session.get().getPartitioner());
         long totalPartitionsCount = getTotalPartitionsCount(keyspace, table);
 
         List<TokenSplit> splits = new ArrayList<>();
@@ -118,7 +119,7 @@ public class CassandraTokenSplitManager
 
     private long getTotalPartitionsCount(String keyspace, String table)
     {
-        List<SizeEstimate> estimates = session.getSizeEstimates(keyspace, table);
+        List<SizeEstimate> estimates = session.get().getSizeEstimates(keyspace, table);
         return estimates.stream()
                 .mapToLong(SizeEstimate::getPartitionsCount)
                 .sum();
@@ -126,7 +127,7 @@ public class CassandraTokenSplitManager
 
     private List<String> getEndpoints(String keyspace, TokenRange tokenRange)
     {
-        Set<Host> endpoints = session.getReplicas(keyspace, tokenRange);
+        Set<Host> endpoints = session.get().getReplicas(keyspace, tokenRange);
         return unmodifiableList(endpoints.stream()
                 .map(Host::toString)
                 .collect(toList()));

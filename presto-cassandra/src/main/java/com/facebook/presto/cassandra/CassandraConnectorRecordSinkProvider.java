@@ -21,6 +21,7 @@ import com.facebook.presto.spi.connector.ConnectorRecordSinkProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -28,10 +29,10 @@ import static java.util.Objects.requireNonNull;
 public class CassandraConnectorRecordSinkProvider
         implements ConnectorRecordSinkProvider
 {
-    private final CassandraSession cassandraSession;
+    private final Provider<CassandraSession> cassandraSession;
 
     @Inject
-    public CassandraConnectorRecordSinkProvider(CassandraSession cassandraSession)
+    public CassandraConnectorRecordSinkProvider(Provider<CassandraSession> cassandraSession)
     {
         this.cassandraSession = requireNonNull(cassandraSession, "cassandraSession is null");
     }
@@ -44,7 +45,7 @@ public class CassandraConnectorRecordSinkProvider
         CassandraOutputTableHandle handle = (CassandraOutputTableHandle) tableHandle;
 
         return new CassandraRecordSink(
-                cassandraSession,
+                cassandraSession.get(),
                 handle.getSchemaName(),
                 handle.getTableName(),
                 handle.getColumnNames(),
@@ -60,7 +61,7 @@ public class CassandraConnectorRecordSinkProvider
         CassandraInsertTableHandle handle = (CassandraInsertTableHandle) tableHandle;
 
         return new CassandraRecordSink(
-                cassandraSession,
+                cassandraSession.get(),
                 handle.getSchemaName(),
                 handle.getTableName(),
                 handle.getColumnNames(),

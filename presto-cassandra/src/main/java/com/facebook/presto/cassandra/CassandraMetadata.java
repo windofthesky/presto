@@ -42,6 +42,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import java.util.Collection;
 import java.util.List;
@@ -66,7 +67,7 @@ public class CassandraMetadata
         implements ConnectorMetadata
 {
     private final String connectorId;
-    private final CassandraSession cassandraSession;
+    private final Provider<CassandraSession> cassandraSession;
     private final CassandraPartitionManager partitionManager;
     private final boolean allowDropTable;
 
@@ -75,7 +76,7 @@ public class CassandraMetadata
     @Inject
     public CassandraMetadata(
             CassandraConnectorId connectorId,
-            CassandraSession cassandraSession,
+            Provider<CassandraSession> cassandraSession,
             CassandraPartitionManager partitionManager,
             JsonCodec<List<ExtraColumnMetadata>> extraColumnMetadataCodec,
             CassandraClientConfig config)
@@ -90,7 +91,7 @@ public class CassandraMetadata
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        return cassandraSession.getCaseSensitiveSchemaNames().stream()
+        return cassandraSession.get().getCaseSensitiveSchemaNames().stream()
                 .map(name -> name.toLowerCase(ENGLISH))
                 .collect(toImmutableList());
     }
@@ -100,7 +101,7 @@ public class CassandraMetadata
     {
         requireNonNull(tableName, "tableName is null");
         try {
-            return cassandraSession.getTable(tableName).getTableHandle();
+            return cassandraSession.get().getTable(tableName).getTableHandle();
         }
         catch (TableNotFoundException | SchemaNotFoundException e) {
             // table was not found
@@ -122,7 +123,7 @@ public class CassandraMetadata
 
     private ConnectorTableMetadata getTableMetadata(SchemaTableName tableName)
     {
-        CassandraTable table = cassandraSession.getTable(tableName);
+        CassandraTable table = cassandraSession.get().getTable(tableName);
         List<ColumnMetadata> columns = table.getColumns().stream()
                 .map(CassandraColumnHandle::getColumnMetadata)
                 .collect(toList());
@@ -135,7 +136,7 @@ public class CassandraMetadata
         ImmutableList.Builder<SchemaTableName> tableNames = ImmutableList.builder();
         for (String schemaName : listSchemas(session, schemaNameOrNull)) {
             try {
-                for (String tableName : cassandraSession.getCaseSensitiveTableNames(schemaName)) {
+                for (String tableName : cassandraSession.get().getCaseSensitiveTableNames(schemaName)) {
                     tableNames.add(new SchemaTableName(schemaName, tableName.toLowerCase(ENGLISH)));
                 }
             }
@@ -159,7 +160,7 @@ public class CassandraMetadata
     {
         requireNonNull(session, "session is null");
         requireNonNull(tableHandle, "tableHandle is null");
-        CassandraTable table = cassandraSession.getTable(getTableName(tableHandle));
+        CassandraTable table = cassandraSession.get().getTable(getTableName(tableHandle));
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
         for (CassandraColumnHandle columnHandle : table.getColumns()) {
             columnHandles.put(CassandraCqlUtils.cqlNameToSqlName(columnHandle.getName()).toLowerCase(ENGLISH), columnHandle);
@@ -210,9 +211,9 @@ public class CassandraMetadata
         }
         else {
             CassandraClusteringPredicatesExtractor clusteringPredicatesExtractor = new CassandraClusteringPredicatesExtractor(
-                    cassandraSession.getTable(getTableName(handle)).getClusteringKeyColumns(),
+                    cassandraSession.get().getTable(getTableName(handle)).getClusteringKeyColumns(),
                     partitionResult.getUnenforcedConstraint(),
-                    cassandraSession.getCassandraVersion());
+                    cassandraSession.get().getCassandraVersion());
             clusteringKeyPredicates = clusteringPredicatesExtractor.getClusteringKeyPredicates();
             unenforcedConstraint = clusteringPredicatesExtractor.getUnenforcedConstraints();
         }
@@ -257,7 +258,7 @@ public class CassandraMetadata
         String schemaName = cassandraTableHandle.getSchemaName();
         String tableName = cassandraTableHandle.getTableName();
 
-        cassandraSession.execute(String.format("DROP TABLE \"%s\".\"%s\"", schemaName, tableName));
+        cassandraSession.get().execute(String.format("DROP TABLE \"%s\".\"%s\"", schemaName, tableName));
     }
 
     @Override
@@ -281,7 +282,7 @@ public class CassandraMetadata
 
         // get the root directory for the database
         SchemaTableName table = tableMetadata.getTable();
-        String schemaName = cassandraSession.getCaseSensitiveSchemaName(table.getSchemaName());
+        String schemaName = cassandraSession.get().getCaseSensitiveSchemaName(table.getSchemaName());
         String tableName = table.getTableName();
         List<String> columns = columnNames.build();
         List<Type> types = columnTypes.build();
@@ -301,7 +302,7 @@ public class CassandraMetadata
         queryBuilder.append("WITH comment='").append(CassandraSession.PRESTO_COMMENT_METADATA).append(" ").append(columnMetadata).append("'");
 
         // We need to create the Cassandra table before commit because the record needs to be written to the table.
-        cassandraSession.execute(queryBuilder.toString());
+        cassandraSession.get().execute(queryBuilder.toString());
         return new CassandraOutputTableHandle(
                 connectorId,
                 schemaName,
@@ -321,7 +322,7 @@ public class CassandraMetadata
     {
         CassandraTableHandle table = (CassandraTableHandle) tableHandle;
         SchemaTableName schemaTableName = new SchemaTableName(table.getSchemaName(), table.getTableName());
-        List<CassandraColumnHandle> columns = cassandraSession.getTable(schemaTableName).getColumns();
+        List<CassandraColumnHandle> columns = cassandraSession.get().getTable(schemaTableName).getColumns();
         List<String> columnNames = columns.stream().map(CassandraColumnHandle::getName).map(CassandraCqlUtils::validColumnName).collect(Collectors.toList());
         List<Type> columnTypes = columns.stream().map(CassandraColumnHandle::getType).collect(Collectors.toList());
 

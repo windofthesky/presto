@@ -23,6 +23,7 @@ import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import io.airlift.log.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import java.util.List;
 
@@ -36,10 +37,10 @@ public class CassandraRecordSetProvider
     private static final Logger log = Logger.get(CassandraRecordSetProvider.class);
 
     private final String connectorId;
-    private final CassandraSession cassandraSession;
+    private final Provider<CassandraSession> cassandraSession;
 
     @Inject
-    public CassandraRecordSetProvider(CassandraConnectorId connectorId, CassandraSession cassandraSession)
+    public CassandraRecordSetProvider(CassandraConnectorId connectorId, Provider<CassandraSession> cassandraSession)
     {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
         this.cassandraSession = requireNonNull(cassandraSession, "cassandraSession is null");
@@ -63,7 +64,7 @@ public class CassandraRecordSetProvider
         String cql = sb.toString();
         log.debug("Creating record set: %s", cql);
 
-        return new CassandraRecordSet(cassandraSession, cql, cassandraColumns);
+        return new CassandraRecordSet(cassandraSession.get(), cql, cassandraColumns);
     }
 
     @Override

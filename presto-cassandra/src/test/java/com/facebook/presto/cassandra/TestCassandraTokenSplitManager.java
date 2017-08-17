@@ -39,7 +39,7 @@ public class TestCassandraTokenSplitManager
         EmbeddedCassandra.start();
         session = EmbeddedCassandra.getSession();
         createKeyspace(session, KEYSPACE);
-        splitManager = new CassandraTokenSplitManager(session, SPLIT_SIZE);
+        splitManager = new CassandraTokenSplitManager(() -> session, SPLIT_SIZE);
     }
 
     @Test

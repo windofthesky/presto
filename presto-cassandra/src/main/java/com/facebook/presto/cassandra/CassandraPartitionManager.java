@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import io.airlift.log.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +43,10 @@ public class CassandraPartitionManager
 {
     private static final Logger log = Logger.get(CassandraPartitionManager.class);
 
-    private final CassandraSession cassandraSession;
+    private final Provider<CassandraSession> cassandraSession;
 
     @Inject
-    public CassandraPartitionManager(CassandraSession cassandraSession)
+    public CassandraPartitionManager(Provider<CassandraSession> cassandraSession)
     {
         this.cassandraSession = requireNonNull(cassandraSession, "cassandraSession is null");
     }
@@ -54,7 +55,7 @@ public class CassandraPartitionManager
     {
         CassandraTableHandle cassandraTableHandle = (CassandraTableHandle) tableHandle;
 
-        CassandraTable table = cassandraSession.getTable(cassandraTableHandle.getSchemaTableName());
+        CassandraTable table = cassandraSession.get().getTable(cassandraTableHandle.getSchemaTableName());
         List<CassandraColumnHandle> partitionKeys = table.getPartitionKeyColumns();
 
         // fetch the partitions
@@ -118,12 +119,12 @@ public class CassandraPartitionManager
 
         // empty filter means, all partitions
         if (partitionKeysSet.isEmpty()) {
-            return cassandraSession.getPartitions(table, ImmutableList.of());
+            return cassandraSession.get().getPartitions(table, ImmutableList.of());
         }
 
         ImmutableList.Builder<CassandraPartition> partitions = ImmutableList.builder();
         for (List<Object> partitionKeys : partitionKeysSet) {
-            partitions.addAll(cassandraSession.getPartitions(table, partitionKeys));
+            partitions.addAll(cassandraSession.get().getPartitions(table, partitionKeys));
         }
 
         return partitions.build();

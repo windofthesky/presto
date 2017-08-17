@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +42,7 @@ public class CassandraSplitManager
         implements ConnectorSplitManager
 {
     private final String connectorId;
-    private final CassandraSession cassandraSession;
+    private final Provider<CassandraSession> cassandraSession;
     private final int partitionSizeForBatchSelect;
     private final CassandraTokenSplitManager tokenSplitMgr;
 
@@ -49,7 +50,7 @@ public class CassandraSplitManager
     public CassandraSplitManager(
             CassandraConnectorId connectorId,
             CassandraClientConfig cassandraClientConfig,
-            CassandraSession cassandraSession,
+            Provider<CassandraSession> cassandraSession,
             CassandraTokenSplitManager tokenSplitMgr)
     {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
@@ -73,7 +74,7 @@ public class CassandraSplitManager
         if (partitions.size() == 1) {
             CassandraPartition cassandraPartition = partitions.get(0);
             if (cassandraPartition.isUnpartitioned() || cassandraPartition.isIndexedColumnPredicatePushdown()) {
-                CassandraTable table = cassandraSession.getTable(cassandraTableHandle.getSchemaTableName());
+                CassandraTable table = cassandraSession.get().getTable(cassandraTableHandle.getSchemaTableName());
                 List<ConnectorSplit> splits = getSplitsByTokenRange(table, cassandraPartition.getPartitionId());
                 return new FixedSplitSource(splits);
             }
@@ -128,7 +129,7 @@ public class CassandraSplitManager
         Map<Set<String>, List<HostAddress>> hostMap = new HashMap<>();
 
         for (CassandraPartition cassandraPartition : partitions) {
-            Set<Host> hosts = cassandraSession.getReplicas(schema, cassandraPartition.getKeyAsByteBuffer());
+            Set<Host> hosts = cassandraSession.get().getReplicas(schema, cassandraPartition.getKeyAsByteBuffer());
             List<HostAddress> addresses = hostAddressFactory.toHostAddressList(hosts);
             if (singlePartitionKeyColumn) {
                 // host ip addresses
